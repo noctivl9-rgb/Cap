@@ -281,6 +281,26 @@ details.session[open] summary .chev{transform:rotate(90deg)}
 .scan-img{width:100%;max-height:300px;object-fit:cover;border-radius:var(--r-l);display:block}
 .field textarea{resize:vertical;min-height:64px}
 label.btn{cursor:pointer}
+
+/* Écran d'accueil */
+.wl{justify-content:center;gap:22px;padding-top:8px}
+.wl-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
+.wl-list{animation:wlRise .5s var(--ease) .85s both}
+.wl-logo{animation:wlPop .6s var(--spring) both}
+.wl-arc{stroke-dasharray:190;stroke-dashoffset:190;animation:wlDraw .9s var(--ease) .15s forwards}
+.wl-dot{transform-origin:60px 60px;transform:scale(0);animation:wlDot .45s var(--spring) .85s forwards}
+.wl-title{font-size:44px;font-weight:800;letter-spacing:-.04em;margin:0;animation:wlRise .5s var(--ease) .55s both}
+.wl-sub{font-size:var(--t-call);color:var(--muted);max-width:30ch;line-height:1.4;margin:0;animation:wlRise .5s var(--ease) .7s both}
+.wl-feat{display:flex;align-items:center;gap:12px;padding:14px 16px;position:relative;animation:wlRise .5s var(--ease) both}
+.wl-feat+.wl-feat::before{content:"";position:absolute;left:58px;right:0;top:0;height:.5px;background:var(--line)}
+.wl-feat .lbl{flex:1;min-width:0;font-weight:600;font-size:var(--t-call)}
+.wl-feat .lbl small{display:block;font-weight:400;color:var(--muted);font-size:var(--t-foot);margin-top:2px}
+.wl-cta{animation:wlRise .5s var(--ease) 1.3s both}
+@keyframes wlDraw{to{stroke-dashoffset:0}}
+@keyframes wlDot{to{transform:scale(1)}}
+@keyframes wlPop{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
+@keyframes wlRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.wl-arc{stroke-dashoffset:0}.wl-dot{transform:none}}
 @media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
 @media (max-width:360px){:root{--t-large:30px;--t-1:25px}.ruler-value .big{font-size:44px}.stats{grid-template-columns:1fr 1fr}}
 </style>

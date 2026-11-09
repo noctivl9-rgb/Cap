@@ -487,10 +487,27 @@
     opts = opts || {};
     const draft = !opts.fresh && store.get('cap-draft');
     OB = { A: Object.assign({}, A || {}, draft && !A ? draft.A : {}), idx: draft && !A ? draft.idx || 0 : 0, dir: 1, returnTo: null, only: opts.only || null, intro: opts.intro || null };
+    OB.welcome = !A && !opts.only && OB.idx === 0;
     STEPS.forEach(s => s.init && s.init(OB.A));
     renderStep();
   }
+  // Écran d'accueil avant les questions : logo animé, promesse, trois fonctions réelles
+  function renderWelcome() {
+    const logo = h('div', { class: 'wl-logo', html: '<svg viewBox="0 0 120 120" width="88" height="88" aria-hidden="true"><path class="wl-arc" d="M88 34 A38 38 0 1 0 88 86" fill="none" stroke="var(--ink)" stroke-width="13" stroke-linecap="round"/><circle class="wl-dot" cx="60" cy="60" r="9" fill="var(--body)"/></svg>' });
+    const feat = (ic, col, t, sub, i) => h('div', { class: 'wl-feat', style: 'animation-delay:' + (1000 + i * 140) + 'ms' }, h('span', { class: 'ico', style: 'background:' + col }, icon(ic)), h('span', { class: 'lbl' }, t, h('small', null, sub)));
+    const btn = h('button', { class: 'btn', type: 'button', onclick: () => { OB.welcome = false; OB.dir = 1; renderStep(); } }, 'Commencer');
+    $app.textContent = '';
+    $app.append(h('div', { class: 'ob wl' },
+      h('div', { class: 'wl-hero' }, logo, h('h1', { class: 'wl-title' }, 'Cap'), h('p', { class: 'wl-sub' }, 'Ton corps et ton argent, avec un plan clair et des chiffres vrais.')),
+      h('div', { class: 'panel flush wl-list' },
+        feat('camera', 'var(--body)', 'Note tes repas en un geste', 'Recherche, recettes ou photo analysée par l’IA', 0),
+        feat('chart', 'var(--accent)', 'Suis ta progression réelle', 'Pesées, calories, séances : jamais de résultat inventé', 1),
+        feat('wallet', 'var(--money)', 'Planifie ton grand projet', 'Budget, épargne, coût réel et étapes', 2))),
+      h('div', { class: 'ob-bar' }, h('div', { class: 'in glass wl-cta' }, btn, h('p', { class: 'foot muted', style: 'text-align:center;margin:4px 0 2px' }, 'Environ 3 minutes. Tes réponses restent privées.'))));
+    window.scrollTo(0, 0);
+  }
   function renderStep() {
+    if (OB.welcome) { renderWelcome(); return; }
     const vs = visibleSteps(OB.A, OB.only);
     OB.idx = Math.max(0, Math.min(OB.idx, vs.length - 1));
     const s = vs[OB.idx];
