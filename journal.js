@@ -43,8 +43,16 @@
   }
 
   // ================================================================ Petits composants
-  function ring(ratio, size, stroke, color, label) {
+  function ring(ratio, size, stroke, color, label, key) {
     const r = (size - stroke) / 2, C = 2 * Math.PI * r, v = Math.max(0, Math.min(1, ratio || 0));
+    if (key) {
+      const prev = U.derniers['ring-' + key]; U.derniers['ring-' + key] = v;
+      if (prev !== undefined && prev !== v && !U.reduced() && v > 0) {
+        const el = ring(prev || 0.0001, size, stroke, color, label);
+        requestAnimationFrame(() => requestAnimationFrame(() => { const c = el.querySelectorAll('circle')[1]; if (c) c.setAttribute('stroke-dasharray', (C * v).toFixed(1) + ' ' + C.toFixed(1)); }));
+        return el;
+      }
+    }
     return h('span', { class: 'ringw', style: 'width:' + size + 'px;height:' + size + 'px', html: '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size + '" role="img" aria-label="' + (label || Math.round(v * 100) + ' %') + '"><circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="var(--fill-2)" stroke-width="' + stroke + '"/>' + (v > 0 ? '<circle cx="' + size / 2 + '" cy="' + size / 2 + '" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="' + stroke + '" stroke-linecap="round" stroke-dasharray="' + (C * v).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 ' + size / 2 + ' ' + size / 2 + ')" style="transition:stroke-dasharray .45s var(--ease)"/>' : '') + '</svg>' });
   }
   function seg(options, value, onPick, label) {
@@ -114,7 +122,7 @@
       'Noté aujourd’hui : ' + fr(b.mange) + ' kcal. Reste = ' + fr(b.total) + ' − ' + fr(b.mange) + ' = ' + fr(reste) + ' kcal.'
     ].concat(b.perso ? [] : d.phys.calcul);
     return h('section', { class: 'panel' },
-      h('div', { class: 'hero' }, h('div', null, h('b', { class: 'num' }, fr(Math.abs(reste))), h('div', { class: 'muted sub' }, reste >= 0 ? 'kcal restantes' : 'kcal au-dessus de l’objectif')), h('span', { style: 'position:relative;display:grid;place-items:center' }, ring(b.mange / b.total, 96, 10, reste < 0 ? 'var(--bad)' : 'var(--ink)', Math.round(b.mange / b.total * 100) + ' % de l’objectif'), h('span', { style: 'position:absolute;color:var(--body)' }, icon('flame')))),
+      h('div', { class: 'hero' }, h('div', null, h('b', null, U.nombre('kcal-reste-' + jour, Math.abs(reste), v => fr(v))), h('div', { class: 'muted sub' }, reste >= 0 ? 'kcal restantes' : 'kcal au-dessus de l’objectif')), h('span', { style: 'position:relative;display:grid;place-items:center' }, ring(b.mange / b.total, 96, 10, reste < 0 ? 'var(--bad)' : 'var(--ink)', Math.round(b.mange / b.total * 100) + ' % de l’objectif', 'kcal-' + jour), h('span', { style: 'position:absolute;color:var(--body)' }, icon('flame')))),
       h('div', { style: 'display:flex;flex-wrap:wrap;gap:6px' }, h('span', { class: 'chip neutral' }, 'Objectif ' + fr(b.base)), b.bonus ? h('span', { class: 'chip info' }, '+' + b.bonus + ' activité') : null, b.report ? h('span', { class: 'chip info' }, '+' + b.report + ' report') : null, h('span', { class: 'chip neutral' }, 'Noté ' + fr(b.mange))),
       U.howBtn('Calories du jour', lines));
   }
@@ -122,7 +130,7 @@
     const t = b.totaux, m = b.macros, simple = !!(S().profil || {}).modeSimple;
     const card = (lbl, have, goal, col) => {
       const rest = Math.round(goal - have);
-      return h('div', { class: 'stat', style: 'gap:8px' }, h('span', { style: 'position:relative;display:grid;place-items:center;align-self:flex-start' }, ring(have / goal, 44, 5, col, Math.round(have) + ' g sur ' + goal + ' g')), h('b', { class: 'num' }, Math.abs(rest) + ' g'), h('span', null, lbl + (rest >= 0 ? ' restants' : ' en trop')));
+      return h('div', { class: 'stat', style: 'gap:8px' }, h('span', { style: 'position:relative;display:grid;place-items:center;align-self:flex-start' }, ring(have / goal, 44, 5, col, Math.round(have) + ' g sur ' + goal + ' g', lbl + jour)), h('b', null, U.nombre('mac-' + lbl + jour, Math.abs(rest), v => Math.round(v) + ' g')), h('span', null, lbl + (rest >= 0 ? ' restants' : ' en trop')));
     };
     if (simple) return h('div', { class: 'grid2' }, card('Protéines', t.p, m.prot, 'var(--body)'), h('div', { class: 'stat' }, h('b', null, 'Mode simple'), h('span', null, 'Glucides et lipides masqués. Réglages › Nutrition pour les afficher.')));
     return h('div', { class: 'stats' }, card('Protéines', t.p, m.prot, 'var(--body)'), card('Glucides', t.c, m.glu, '#FF9F0A'), card('Lipides', t.f, m.lip, 'var(--accent)'));
@@ -132,7 +140,7 @@
     const setE = async v => { const jj = journal(jour); jj.eauMl = Math.max(0, v); try { await saveJournal(jour, jj); } catch (e) { U.toast('Échec, réessaie'); } };
     return h('div', { class: 'stat', style: 'gap:8px' },
       h('div', { style: 'display:flex;align-items:center;gap:6px;color:var(--accent)' }, icon('drop'), h('span', { class: 'foot', style: 'color:var(--muted)' }, 'Eau')),
-      h('b', { class: 'num' }, fr(j.eauMl) + ' ml'), h('span', null, 'sur ' + fr(goal) + ' ml'),
+      h('b', null, U.nombre('eau-' + jour, j.eauMl, v => fr(v) + ' ml')), h('span', null, 'sur ' + fr(goal) + ' ml'),
       h('div', { class: 'bar' }, h('i', { style: 'width:' + Math.min(100, j.eauMl / goal * 100) + '%;background:var(--accent)' })),
       h('div', { style: 'display:flex;gap:8px' }, h('button', { class: 'round press', type: 'button', style: 'width:36px;height:36px;background:var(--fill)', 'aria-label': 'Retirer 250 ml', disabled: !j.eauMl, onclick: () => setE(j.eauMl - 250) }, icon('minus')), h('button', { class: 'round press', type: 'button', style: 'width:36px;height:36px;background:var(--accent-soft);color:var(--accent);flex:1;border-radius:999px', 'aria-label': 'Ajouter 250 ml', onclick: () => setE(j.eauMl + 250) }, icon('plus'), h('span', { class: 'foot', style: 'font-weight:600;margin-left:2px' }, '250 ml'))));
   }
@@ -140,7 +148,7 @@
     const kc = j.activites.reduce((s, a) => s + (a.kcal || 0), 0), min = j.activites.reduce((s, a) => s + (a.min || 0), 0);
     return h('div', { class: 'stat', style: 'gap:8px' },
       h('div', { style: 'display:flex;align-items:center;gap:6px;color:var(--body)' }, icon('run'), h('span', { class: 'foot', style: 'color:var(--muted)' }, 'Activité')),
-      h('b', { class: 'num' }, fr(kc) + ' kcal'), h('span', null, min ? min + ' min, estimation' : 'Rien de noté'),
+      h('b', null, U.nombre('act-' + jour, kc, v => fr(v) + ' kcal')), h('span', null, min ? min + ' min, estimation' : 'Rien de noté'),
       h('div', { style: 'flex:1' }),
       h('div', { style: 'display:flex;flex-wrap:wrap;gap:8px' }, j.activites.length ? h('button', { class: 'btn small secondary', type: 'button', style: 'flex:1 1 60px;min-width:0;min-height:36px;padding:0 10px', onclick: () => listeActivites(d) }, 'Voir') : null, h('button', { class: 'btn small tinted', type: 'button', style: 'flex:1 1 80px;min-width:0;min-height:36px;padding:0 10px', onclick: () => ajouterActivite(d) }, icon('plus'), 'Ajouter')));
   }
@@ -176,7 +184,8 @@
     let close;
     const go = fn => () => { close(); setTimeout(fn, 60); };
     const photo = AI.photoDispo();
-    const tile = (ic, t, s, fn, dis) => h('button', { class: 'tile press', type: 'button', disabled: !!dis, onclick: fn }, h('span', { class: 'tile-i' }, icon(ic)), h('b', null, t), s ? h('small', null, s) : null);
+    let ti = 0;
+    const tile = (ic, t, s, fn, dis) => h('button', { class: 'tile press', type: 'button', disabled: !!dis, onclick: fn, style: 'animation-delay:' + (ti++ * 35) + 'ms' }, h('span', { class: 'tile-i' }, icon(ic)), h('b', null, t), s ? h('small', null, s) : null);
     close = U.sheet('Ajouter', [h('div', { class: 'tiles' },
       tile('camera', 'Scanner un repas', photo ? 'Photo analysée par l’IA' : 'Indisponible ici', go(() => scanner())),
       tile('search', 'Rechercher', 'Base d’aliments, favoris', go(() => ajouterAliment())),
@@ -365,7 +374,7 @@
       return h('label', { class: 'btn ' + (cls || ''), for: inp.id, role: 'button', tabindex: '0', onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } } }, icon('camera'), label, inp);
     };
     const etapeChoix = () => { body.textContent = ''; U.add(body, h('p', { class: 'muted sub' }, 'Photographie ton assiette de haut, en entier, avec une bonne lumière. L’IA estime les aliments et les quantités ; tu corriges avant d’enregistrer.'), fileBtn('Prendre une photo', true), fileBtn('Choisir dans la galerie', false, 'secondary')); };
-    const etapeApercu = () => { body.textContent = ''; U.add(body, h('img', { src: st.apercu, alt: 'Photo du repas', class: 'scan-img' }), h('button', { class: 'btn', type: 'button', onclick: analyser }, 'Analyser ce repas'), h('button', { class: 'btn secondary', type: 'button', onclick: etapeChoix }, 'Changer de photo'), h('p', { class: 'foot muted' }, 'La photo est envoyée à Claude, sur ton compte, uniquement pour cette analyse.')); };
+    const etapeApercu = () => { body.textContent = ''; U.add(body, h('img', { src: st.apercu, alt: 'Photo du repas', class: 'scan-img' }), U.sparkle('Découvrir mon analyse', analyser).el, h('button', { class: 'btn secondary', type: 'button', onclick: etapeChoix }, 'Changer de photo'), h('p', { class: 'foot muted' }, 'La photo est envoyée à Claude, sur ton compte, uniquement pour cette analyse.')); };
     async function analyser() {
       st.ctl = new AbortController();
       const t0 = Date.now(); const tick = h('span', null, '0 s');

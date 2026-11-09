@@ -227,6 +227,52 @@
     return { el, isTouched: () => touched, value: () => snap(pos) };
   }
 
+  // ================================================================ Sparkle (d'après « Sparkle Button » de JkHuger, Uiverse.io)
+  // Classes préfixées sk- (isolées). Actif au survol (souris), au focus clavier, au toucher et pendant un chargement.
+  const SK_ICON = '<svg class="sk-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.187 8.096L15 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L21.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09L15 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L8.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09z"/><path d="M6 14.25l-.259 1.035a3.375 3.375 0 0 1-2.456 2.456L2.25 18l1.035.259a3.375 3.375 0 0 1 2.456 2.456L6 21.75l.259-1.035a3.375 3.375 0 0 1 2.455-2.456L9.75 18l-1.036-.259a3.375 3.375 0 0 1-2.455-2.456z"/><path d="M6.5 4l-.197.592a1.125 1.125 0 0 1-.712.711L5 5.5l.591.197a1.125 1.125 0 0 1 .712.712L6.5 7l.197-.591a1.125 1.125 0 0 1 .712-.712L8 5.5l-.591-.197a1.125 1.125 0 0 1-.712-.711z"/></svg>';
+  function sparkle(label, onClick, opts) {
+    opts = opts || {};
+    const btn = h('button', { class: 'sk-btn', type: 'button', disabled: !!opts.disabled },
+      h('span', { class: 'sk-spark', 'aria-hidden': 'true' }), h('span', { class: 'sk-backdrop', 'aria-hidden': 'true' }),
+      h('span', { class: 'sk-iconw', html: SK_ICON }), h('span', { class: 'sk-text' }, label));
+    const pen = h('span', { class: 'sk-pen', 'aria-hidden': 'true' });
+    for (let i = 0; i < 18; i++) {
+      const r = (a, b) => a + Math.random() * (b - a);
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      p.setAttribute('viewBox', '0 0 15 15'); p.setAttribute('class', 'sk-p');
+      p.style.cssText = '--x:' + r(10, 90).toFixed(1) + ';--y:' + r(25, 75).toFixed(1) + ';--duration:' + r(6, 18).toFixed(1) + ';--delay:' + r(1, 10).toFixed(1) + ';--alpha:' + r(.4, .9).toFixed(2) + ';--origin-x:' + (Math.random() > .5 ? r(300, 800) : r(-800, -300)).toFixed(0) + '%;--origin-y:' + (Math.random() > .5 ? r(300, 800) : r(-800, -300)).toFixed(0) + '%;--size:' + r(.4, .9).toFixed(2);
+      p.innerHTML = '<path d="M7.5 0L9.08 5.92L15 7.5L9.08 9.08L7.5 15L5.92 9.08L0 7.5L5.92 5.92L7.5 0Z"/>';
+      pen.appendChild(p);
+    }
+    const el = h('div', { class: 'sk' }, btn, pen);
+    let t = 0;
+    btn.addEventListener('pointerdown', () => { clearTimeout(t); el.classList.add('on'); vib(); });
+    const off = () => { clearTimeout(t); t = setTimeout(() => el.classList.remove('on'), 650); };
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => btn.addEventListener(ev, off));
+    btn.addEventListener('click', e => { if (!btn.disabled && !el.classList.contains('loading')) onClick(e); });
+    return {
+      el, btn,
+      loading(on, txt) { el.classList.toggle('loading', !!on); btn.setAttribute('aria-busy', String(!!on)); if (txt) btn.querySelector('.sk-text').textContent = txt; },
+      label(txt) { btn.querySelector('.sk-text').textContent = txt; }
+    };
+  }
+  // Nombres et anneaux animés depuis leur dernière valeur réelle (jamais depuis une valeur inventée)
+  const derniers = {};
+  function nombre(cle, valeur, format) {
+    const el = h('span', { class: 'num', 'data-nk': cle, 'data-nv': String(valeur) }, format(valeur));
+    el._fmt = format; return el;
+  }
+  function animerNombres(root) {
+    (root || document).querySelectorAll('[data-nk]').forEach(el => {
+      const k = el.getAttribute('data-nk'), to = parseFloat(el.getAttribute('data-nv'));
+      const from = derniers[k]; derniers[k] = to;
+      if (from === undefined || from === to || reduced() || !isFinite(from)) return;
+      const t0 = performance.now(), D = 480;
+      const step = now => { const x = Math.min(1, (now - t0) / D), e = 1 - Math.pow(1 - x, 3); el.textContent = el._fmt(from + (to - from) * e); if (x < 1) requestAnimationFrame(step); else el.textContent = el._fmt(to); };
+      el.textContent = el._fmt(from); requestAnimationFrame(step);
+    });
+  }
+
   // ================================================================ Composants de saisie
   function choices(ctx, field, opts, cfg) {
     cfg = cfg || {};
@@ -495,7 +541,7 @@
   function renderWelcome() {
     const logo = h('div', { class: 'wl-logo', html: '<svg viewBox="0 0 120 120" width="88" height="88" aria-hidden="true"><path class="wl-arc" d="M88 34 A38 38 0 1 0 88 86" fill="none" stroke="var(--ink)" stroke-width="13" stroke-linecap="round"/><circle class="wl-dot" cx="60" cy="60" r="9" fill="var(--body)"/></svg>' });
     const feat = (ic, col, t, sub, i) => h('div', { class: 'wl-feat', style: 'animation-delay:' + (1000 + i * 140) + 'ms' }, h('span', { class: 'ico', style: 'background:' + col }, icon(ic)), h('span', { class: 'lbl' }, t, h('small', null, sub)));
-    const btn = h('button', { class: 'btn', type: 'button', onclick: () => { OB.welcome = false; OB.dir = 1; renderStep(); } }, 'Commencer');
+    const btn = sparkle('Commencer mon parcours', () => { OB.welcome = false; OB.dir = 1; renderStep(); }).el;
     $app.textContent = '';
     $app.append(h('div', { class: 'ob wl' },
       h('div', { class: 'wl-hero' }, logo, h('h1', { class: 'wl-title' }, 'Cap'), h('p', { class: 'wl-sub' }, 'Ton corps et ton argent, avec un plan clair et des chiffres vrais.')),
@@ -514,7 +560,8 @@
     if (s.init) s.init(OB.A);
     store.set('cap-draft', { A: OB.A, idx: OB.idx });
     const ctx = makeCtx(s);
-    const nextBtn = h('button', { class: 'btn', type: 'button', onclick: () => ctx.next() }, OB.returnTo ? 'Revenir au bilan' : (s.cta || 'Continuer'));
+    const sk = s.id === 'plan' && !OB.returnTo ? sparkle(s.cta, () => ctx.next()) : null;
+    const nextBtn = sk ? sk.btn : h('button', { class: 'btn', type: 'button', onclick: () => ctx.next() }, OB.returnTo ? 'Revenir au bilan' : (s.cta || 'Continuer'));
     const skipBtn = s.optional ? h('button', { class: 'btn text', type: 'button', onclick: () => { s.f.forEach(f => { OB.A[f] = null; }); ctx.next(true); } }, 'Passer') : null;
     const err = h('div', { class: 'err', role: 'alert', style: 'text-align:center' });
     ctx.refreshCta = () => {
@@ -532,7 +579,7 @@
     const stage = h('div', { class: 'stage ' + (OB.dir > 0 ? 'in-r' : 'in-l') },
       OB.intro && OB.idx === 0 ? h('div', { class: 'note tint' }, OB.intro) : null,
       s.q && !s.auto ? h('h1', null, s.q) : null, s.lead ? h('p', { class: 'lead' }, s.lead) : null, content);
-    const bar = h('div', { class: 'ob-bar' }, h('div', { class: 'in glass' }, err, nextBtn, skipBtn));
+    const bar = h('div', { class: 'ob-bar' }, h('div', { class: 'in glass' }, err, sk ? sk.el : nextBtn, skipBtn));
     bar.hidden = !!s.auto;
     $app.textContent = '';
     $app.append(h('div', { class: 'ob' }, top, stage), bar);
@@ -569,7 +616,8 @@
   // ================================================================ Panneaux
   function sheet(title, body, opts) {
     opts = opts || {};
-    const close = () => { scrim.remove(); document.removeEventListener('keydown', esc); if (opts.onClose) opts.onClose(); };
+    let closed = false;
+    const close = () => { if (closed) return; closed = true; document.removeEventListener('keydown', esc); if (opts.onClose) opts.onClose(); if (reduced()) { scrim.remove(); return; } scrim.classList.add('closing'); setTimeout(() => scrim.remove(), 220); };
     const esc = e => { if (e.key === 'Escape') close(); };
     const closeBtn = h('button', { class: 'round glass press', type: 'button', 'aria-label': 'Fermer', onclick: close, style: 'width:34px;height:34px' }, icon('close'));
     const sh = h('div', { class: 'sheet glass', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
@@ -608,7 +656,7 @@
   }
 
   // ================================================================ Tableau de bord
-  let tab = 'today';
+  let tab = 'today', lastTab = null, lastPill = null;
   function refresh() {
     if (OB) return;
     if (!S.profil) { startOnboarding(null); return; }
@@ -632,15 +680,24 @@
     if (!tabs.some(t => t[0] === tab)) tab = 'today';
     const views = { today: J.viewAccueil, corps: J.viewProgres, prog: viewProg, argent: viewArgent, reglages: viewReglages };
     const scrollY = window.scrollY;
+    const changed = lastTab !== tab; lastTab = tab;
     $app.textContent = '';
-    $app.append(h('main', { class: 'screen' }, views[tab](d)));
+    $app.append(h('main', { class: 'screen' + (changed && !reduced() ? ' enter' : '') }, views[tab](d)));
     if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted', style: 'text-align:center' }, 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et le coach ne sont disponibles que dans l’appli Claude.'));
     const pill = h('span', { class: 'pill' });
     const btns = tabs.map(t => h('button', { type: 'button', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) { tab = t[0]; renderMain(); window.scrollTo(0, 0); } } }, icon(t[2]), h('span', null, t[1])));
     const bar = h('nav', { class: 'tabbar', 'aria-label': 'Navigation principale' }, h('div', { class: 'in glass' }, pill, btns));
     $app.append(bar);
     if (d.corps && (tab === 'today' || tab === 'corps')) $app.append(h('button', { class: 'fab glass press', type: 'button', 'aria-label': 'Ajouter', onclick: () => J.menuAjout(d) }, icon('plus')));
-    requestAnimationFrame(() => { const i = tabs.findIndex(t => t[0] === tab); const b = btns[i]; if (b) { pill.style.width = b.offsetWidth + 'px'; pill.style.transform = 'translateX(' + (b.offsetLeft - 5) + 'px)'; } });
+    if (lastPill) { pill.style.transition = 'none'; pill.style.width = lastPill.w + 'px'; pill.style.transform = 'translateX(' + lastPill.x + 'px)'; }
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const i = tabs.findIndex(t => t[0] === tab); const b = btns[i]; if (!b) return;
+      const x = b.offsetLeft - 5, w = b.offsetWidth;
+      pill.style.transition = '';
+      if (lastPill && (lastPill.x !== x) && !reduced()) { pill.classList.add('moving'); setTimeout(() => pill.classList.remove('moving'), 380); }
+      pill.style.width = w + 'px'; pill.style.transform = 'translateX(' + x + 'px)'; lastPill = { x, w };
+    }));
+    animerNombres($app);
     if (window._keepScroll) { window.scrollTo(0, scrollY); window._keepScroll = false; }
   }
   const largeTitle = (t, s, right) => h('header', { class: 'lt', style: right ? 'flex-direction:row;align-items:flex-end;justify-content:space-between' : '' }, h('div', null, h('h1', null, t), s ? h('p', null, s) : null), right || null);
@@ -715,8 +772,8 @@
       h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Réussir une action te rapproche du rêve. Elle ne le garantit pas.')));
     // Chiffres
     out.push(h('div', { class: 'stats' },
-      h('div', { class: 'stat' }, h('b', { style: 'color:' + (f.capacite < 0 ? 'var(--bad)' : 'var(--ink)') }, eur(f.capacite)), h('span', null, 'Capacité / mois')),
-      h('div', { class: 'stat' }, h('b', null, eur(f.actuelle)), h('span', null, 'Épargne actuelle')),
+      h('div', { class: 'stat' }, h('b', { style: 'color:' + (f.capacite < 0 ? 'var(--bad)' : 'var(--ink)') }, nombre('fin-cap', f.capacite, eur)), h('span', null, 'Capacité / mois')),
+      h('div', { class: 'stat' }, h('b', null, nombre('fin-act', f.actuelle, eur)), h('span', null, 'Épargne actuelle')),
       h('div', { class: 'stat' }, h('b', null, f.moisAuRythme ? fr(f.moisAuRythme / 12, 1) + ' ans' : '—'), h('span', null, f.moisAuRythme ? 'Au rythme actuel' : 'Pas de date calculable'))));
     const fz = { atteint: ['Objectif atteint', 'good'], atteignable: ['Atteignable pour ' + d.p.reveAnnee + ' avec ta capacité actuelle', 'good'], ecart: ['Il manque ' + eur(f.ecartMensuel) + ' par mois pour ' + d.p.reveAnnee, 'warn'], impossible_en_l_etat: ['Aucune date calculable en l’état', 'bad'] }[f.faisabilite];
     out.push(h('div', null, h('span', { class: 'chip ' + fz[1] }, fz[0])));
@@ -849,7 +906,7 @@
   // ================================================================ Démarrage
   let booted = false;
   const boot = () => { if (booted) return; booted = true; refresh(); };
-  window.CapUI = { h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, setTab: t => { tab = t; renderMain(); window.scrollTo(0, 0); }, refresh: () => { window._keepScroll = true; refresh(); } };
+  window.CapUI = { sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, setTab: t => { tab = t; renderMain(); window.scrollTo(0, 0); }, refresh: () => { window._keepScroll = true; refresh(); } };
   const start = () => (async () => {
     const use = window.claude && window.claude.use;
     if (!use) { loadLocal(); syncMem(); boot(); return; }
