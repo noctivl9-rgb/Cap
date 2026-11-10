@@ -122,7 +122,14 @@
       h('div', { class: 'jr-jauge' + (reste < 0 ? ' over' : ''), role: 'img', 'aria-label': Math.round(pct * 100) + ' % de l’objectif du jour' }, h('i', { style: 'width:' + pct * 100 + '%' })),
       h('p', { class: 'jr-detail' }, 'Objectif ' + fr(b.base) + (b.bonus ? ' · +' + b.bonus + ' activité' : '') + (b.report ? ' · +' + b.report + ' report' : '') + ' · noté ' + fr(b.mange)),
       h('div', { class: 'jr-macs' }, mac('Protéines', t.p, m.prot), simple ? h('p', { class: 'foot muted jr-simple' }, 'Mode simple : glucides et lipides masqués (Profil › Nutrition).') : [mac('Glucides', t.c, m.glu), mac('Lipides', t.f, m.lip)]),
-      U.howBtn('Calories du jour', lines));
+      extras(), U.howBtn('Calories du jour', lines));
+  }
+  // Fibres, sucres, sel : seulement pour les aliments dont la source les fournit (jamais estimés)
+  function extras() {
+    const its = (journal(jour).items || []), avec = its.filter(x => ['fib', 'sug', 'sel'].some(k => typeof x[k] === 'number'));
+    if (!avec.length) return null;
+    const som = k => Math.round(avec.reduce((s2, x) => s2 + (x[k] || 0), 0) * 10) / 10;
+    return h('p', { class: 'jr-extra' }, 'Fibres ' + fr(som('fib'), 1) + ' g · Sucres ' + fr(som('sug'), 1) + ' g · Sel ' + fr(som('sel'), 1) + ' g', h('small', null, ' · sur ' + avec.length + ' aliment' + (avec.length > 1 ? 's' : '') + ' renseigné' + (avec.length > 1 ? 's' : '') + ' (' + its.length + ' notés)'));
   }
   function ligneEau(j) {
     const goal = E.objectifEau(poidsActuel());
@@ -228,16 +235,69 @@
       U.add(list, grp('Favoris', fav), grp('Mes recettes', all.filter(a => a.src === 'recette')), grp('Mes aliments', all.filter(a => a.src === 'perso')), grp('Tous les aliments', F.chercher('', F.BASE, rg)));
     }
     q.addEventListener('input', draw);
-    const btns = pick ? null : h('div', { class: 'row-btns' }, h('button', { class: 'btn small secondary', type: 'button', onclick: () => { close(); ajoutRapide(slot); } }, 'Ajout rapide'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => { close(); creerAliment(); } }, 'Créer un aliment'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => { close(); creerRecette(); } }, 'Recette'));
+    const btns = pick ? null : h('div', { class: 'row-btns' }, h('button', { class: 'btn small secondary', type: 'button', onclick: () => { close(); ajoutRapide(slot); } }, 'Ajout rapide'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => { close(); creerAliment(); } }, 'Créer un aliment'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => { close(); codeBarres(slot); } }, 'Code-barres'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => { close(); creerRecette(); } }, 'Recette'));
     close = U.sheet(pick ? 'Choisir un aliment' : 'Ajouter' + (slot ? ' · ' + E.CRENEAUX[slot] : ''), [h('div', { class: 'searchbox' }, icon('search'), q), btns, list, h('p', { class: 'foot muted' }, 'Valeurs moyennes des tables publiques (Ciqual, USDA), à ±10-15 %. « est. » = plat estimé.')], { focus: false });
     draw();
   }
+  // ---------- Code-barres : Open Food Facts (base collaborative, licence ODbL) ----------
+  // Seul le numéro est envoyé. Les valeurs sont celles des contributeurs : à vérifier sur l'étiquette.
+  function lireOFF(code, data) {
+    if (!data || data.status !== 1 || !data.product) return { erreur: 'introuvable' };
+    const pr = data.product, n = pr.nutriments || {};
+    const v = k => { const x = typeof n[k] === 'string' && n[k] !== '' ? +n[k] : n[k]; return typeof x === 'number' && isFinite(x) && x >= 0 ? x : null; };
+    const k = v('energy-kcal_100g') !== null ? v('energy-kcal_100g') : (v('energy_100g') !== null ? Math.round(v('energy_100g') / 4.184) : null);
+    if (k === null || k > 900 || v('proteins_100g') === null || v('carbohydrates_100g') === null || v('fat_100g') === null) return { erreur: 'incomplet', nom: pr.product_name || null };
+    const sq = typeof pr.serving_quantity === 'number' && pr.serving_quantity > 0 && pr.serving_quantity <= 1000 ? Math.round(pr.serving_quantity) : null;
+    const al = { id: 'off:' + code, code, n: (pr.product_name || 'Produit ' + code).slice(0, 60) + (pr.brands ? ' (' + String(pr.brands).split(',')[0].trim().slice(0, 30) + ')' : ''), cat: 'Code-barres', k: Math.round(k), p: Math.round(v('proteins_100g') * 10) / 10, c: Math.round(v('carbohydrates_100g') * 10) / 10, f: Math.round(v('fat_100g') * 10) / 10, portion: sq || 100, portionLabel: sq ? '1 portion' : '100 g', tags: [], src: 'off' };
+    [['fiber_100g', 'fib'], ['sugars_100g', 'sug'], ['salt_100g', 'sel']].forEach(([a, b]) => { if (v(a) !== null) al[b] = Math.round(v(a) * 10) / 10; });
+    return { al };
+  }
+  function codeBarres(slot) {
+    const inp = h('input', { id: 'cb-code', inputmode: 'numeric', autocomplete: 'off', maxlength: '14', placeholder: '13 chiffres sous le code-barres' });
+    const out = h('div', { class: 'cb-out', 'aria-live': 'polite' });
+    const go = h('button', { class: 'btn', type: 'button' }, 'Rechercher');
+    let close;
+    const chercher = async code => {
+      code = String(code || '').replace(/\D/g, '');
+      if (!/^\d{8}$|^\d{12,14}$/.test(code)) { out.textContent = 'Un code-barres compte 8, 12, 13 ou 14 chiffres.'; return; }
+      if (navigator.onLine === false) { out.textContent = 'Pas de connexion : la recherche par code-barres a besoin d’internet. Cherche l’aliment par son nom ou crée-le.'; return; }
+      go.disabled = true; out.textContent = 'Recherche dans Open Food Facts…';
+      const ctl = new AbortController(), minuteur = setTimeout(() => ctl.abort(), 12000);
+      try {
+        const r = await fetch('https://world.openfoodfacts.org/api/v2/product/' + code + '?fields=product_name,brands,nutriments,serving_quantity', { signal: ctl.signal, headers: { Accept: 'application/json' } });
+        if (r.status === 429) { out.textContent = 'Trop de recherches d’un coup. Réessaie dans une minute.'; return; }
+        if (r.status !== 404 && !r.ok) throw new Error('http ' + r.status);
+        const x = r.status === 404 ? { erreur: 'introuvable' } : lireOFF(code, await r.json());
+        if (x.erreur === 'introuvable') { out.textContent = 'Produit introuvable dans Open Food Facts. Crée-le avec les valeurs de l’étiquette.'; return; }
+        if (x.erreur === 'incomplet') { out.textContent = (x.nom ? '« ' + x.nom + ' » : ' : '') + 'valeurs nutritionnelles incomplètes dans Open Food Facts. Crée l’aliment avec les valeurs de l’étiquette.'; return; }
+        close(); detailAliment(x.al, { slot });
+      } catch (e) {
+        out.textContent = e.name === 'AbortError' ? 'Open Food Facts ne répond pas (délai dépassé). Réessaie, ou cherche l’aliment par son nom.' : (window.claude ? 'La recherche par code-barres n’est pas disponible dans l’appli Claude (accès réseau limité). Elle fonctionne dans la version web de Cap.' : 'Open Food Facts est injoignable pour le moment. Réessaie plus tard ou cherche l’aliment par son nom.');
+      } finally { clearTimeout(minuteur); go.disabled = false; }
+    };
+    go.addEventListener('click', () => chercher(inp.value));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') chercher(inp.value); });
+    // Lecture depuis une photo seulement si le navigateur le permet (BarcodeDetector) ; jamais simulée
+    let photo = null;
+    if ('BarcodeDetector' in window) {
+      const f = h('input', { type: 'file', accept: 'image/*', capture: 'environment', class: 'sr', id: 'cb-photo' });
+      f.addEventListener('change', async () => { const file = f.files && f.files[0]; if (!file) return; try { const bmp = await createImageBitmap(file); const r = await new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }).detect(bmp); if (r[0]) { inp.value = r[0].rawValue; chercher(r[0].rawValue); } else out.textContent = 'Aucun code-barres lisible sur la photo. Tape les chiffres.'; } catch (e) { out.textContent = 'Lecture impossible. Tape les chiffres.'; } });
+      photo = h('label', { class: 'btn secondary', for: 'cb-photo', role: 'button', tabindex: '0' }, 'Photographier le code-barres', f);
+    }
+    close = U.sheet('Code-barres', [h('label', { class: 'field', for: 'cb-code' }, 'Numéro du code-barres', inp), go, photo, out,
+      h('p', { class: 'foot muted' }, 'Seul le numéro est envoyé à Open Food Facts, base collaborative libre (licence ODbL). Les valeurs viennent de contributeurs : vérifie-les sur l’étiquette.' + (photo ? '' : ' Ce navigateur ne sait pas lire un code-barres en photo : tape les chiffres.'))], { focus: false });
+    setTimeout(() => inp.focus(), 50);
+  }
+  J.lireOFF = lireOFF;
   const CUISABLE = ['Viandes', 'Poissons', 'Œufs', 'Légumes', 'Féculents', 'Végétal', 'Légumineuses', 'Mes aliments'];
   function detailAliment(al, o) {
     o = o || {};
     const rec = al.src === 'recette';
     const st = { q: rec ? 1 : al.portion, cuisson: 'aucune', slot: o.slot || E.creneauParHeure(new Date()) };
-    const calc = () => rec ? { n: al.n, q: st.q, unit: 'portion', k: Math.round(al.k * st.q), p: Math.round(al.p * st.q * 10) / 10, c: Math.round(al.c * st.q * 10) / 10, f: Math.round(al.f * st.q * 10) / 10 } : E.entreeDepuisAliment(al, st.q, st.cuisson);
+    const calc = () => { const e = rec ? { n: al.n, q: st.q, unit: 'portion', k: Math.round(al.k * st.q), p: Math.round(al.p * st.q * 10) / 10, c: Math.round(al.c * st.q * 10) / 10, f: Math.round(al.f * st.q * 10) / 10 } : E.entreeDepuisAliment(al, st.q, st.cuisson);
+      if (!rec) ['fib', 'sug', 'sel'].forEach(k => { if (typeof al[k] === 'number') e[k] = Math.round(al[k] * st.q / 100 * 100) / 100; });
+      if (al.src === 'off') e.code = al.code;
+      return e; };
     const res = h('div', { class: 'panel' });
     const err = h('div', { class: 'err', role: 'alert' });
     let addBtn;
@@ -281,7 +341,7 @@
     const base = Object.assign({}, it);
     const hasQ = !!it.q;
     const res = h('p', { class: 'sub' });
-    const scaled = () => { const f = hasQ ? st.q / it.q : st.q; return { k: Math.round(base.k * f), p: Math.round(base.p * f * 10) / 10, c: Math.round(base.c * f * 10) / 10, f: Math.round(base.f * f * 10) / 10 }; };
+    const scaled = () => { const f = hasQ ? st.q / it.q : st.q; const o = { k: Math.round(base.k * f), p: Math.round(base.p * f * 10) / 10, c: Math.round(base.c * f * 10) / 10, f: Math.round(base.f * f * 10) / 10 }; ['fib', 'sug', 'sel'].forEach(k => { if (typeof base[k] === 'number') o[k] = Math.round(base[k] * f * 100) / 100; }); return o; };
     const err = h('div', { class: 'err', role: 'alert' });
     let save;
     const draw = () => { const ok = st.q > 0 && st.q <= (hasQ ? 3000 : 20); err.textContent = ok ? '' : 'Quantité invalide.'; if (save) save.disabled = !ok; if (!ok) return; const v = scaled(); res.textContent = fr(v.k) + ' kcal · P ' + fr(v.p, 1) + ' g · G ' + fr(v.c, 1) + ' g · L ' + fr(v.f, 1) + ' g'; };

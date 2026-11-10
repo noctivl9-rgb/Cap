@@ -578,6 +578,12 @@
       k: num(it.k) || 0, p: num(it.p) || 0, c: num(v2 ? it.g : it.c) || 0, f: num(v2 ? it.l : it.f) || 0,
       src: it.src || (v2 ? 'v2' : 'manuel'), conf: it.conf || null, cuisson: it.cuisson || null, ts: it.ts || null
     };
+    // Champs facultatifs conservés (sinon perdus à la sauvegarde suivante) : nutriments fournis par la source, code-barres, correction
+    ['fib', 'sug', 'sel'].forEach(k => { const x = num(it[k]); if (x !== null && x >= 0) o[k] = x; });
+    if (typeof it.code === 'string' && /^\d{8,14}$/.test(it.code)) o.code = it.code;
+    if (typeof it.corrige === 'boolean') o.corrige = it.corrige;
+    if (typeof it.ref === 'string') o.ref = it.ref.slice(0, 80);
+    if (it.unit === 'portion') o.unit = 'portion';
     return o;
   }
   function totaux(items) {
