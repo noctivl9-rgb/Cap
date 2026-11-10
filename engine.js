@@ -77,15 +77,76 @@
     if (imc < 40) return 'obésité sévère';
     return 'obésité massive';
   }
+  // Paramètre physiologique de la formule : 'H' ou 'F' si l'utilisateur le renseigne. Jamais déduit de l'identité de genre.
+  // Sans réponse ('nr' ou vide) : moyenne des deux équations, et incertitude élargie de l'écart entre elles.
+  const SCHOFIELD = { // OMS/FAO/UNU 1985, kcal/j à partir du poids seul
+    H: [[10, 18, 17.686, 658.2], [18, 30, 15.057, 692.2], [30, 60, 11.472, 873.1], [60, 200, 11.711, 587.7]],
+    F: [[10, 18, 13.384, 692.6], [18, 30, 14.818, 486.6], [30, 60, 8.126, 845.6], [60, 200, 9.082, 658.5]]
+  };
+  function bmrUnSexe(p, sx) {
+    const mineur = p.age < 18;
+    if (mineur || !has(p.taille)) {
+      const t = SCHOFIELD[sx].find(r => p.age >= r[0] && p.age < r[1]) || SCHOFIELD[sx][3];
+      return { v: t[2] * p.poids + t[3], f: 'Schofield (OMS) ' + t[0] + '-' + (t[1] === 200 ? '+' : t[1] - 1 + ' ans') + ' : ' + String(t[2]).replace('.', ',') + ' × poids + ' + String(t[3]).replace('.', ','), nom: 'Schofield' };
+    }
+    return { v: 10 * p.poids + 6.25 * p.taille - 5 * p.age + (sx === 'F' ? -161 : 5), f: 'Mifflin-St Jeor : 10 × poids + 6,25 × taille − 5 × âge ' + (sx === 'F' ? '− 161' : '+ 5'), nom: 'Mifflin-St Jeor' };
+  }
+  const sexeConnu = p => p.sexe === 'H' || p.sexe === 'F';
   function metabolismeBase(p) {
     const mineur = p.age < 18;
-    if (mineur) {
-      // Schofield (OMS/FAO 1985), 10-17 ans
-      const v = p.sexe === 'F' ? 13.384 * p.poids + 692.6 : 17.686 * p.poids + 658.2;
-      return { valeur: v, methode: 'Schofield (OMS) 10-17 ans : ' + (p.sexe === 'F' ? '13,384 × poids + 692,6' : '17,686 × poids + 658,2') };
+    if (sexeConnu(p)) {
+      const r = bmrUnSexe(p, p.sexe);
+      return { valeur: r.v, methode: r.f, equation: r.nom, ecartSexe: 0, raison: mineur ? 'Moins de 18 ans : Mifflin-St Jeor n’est pas validée, Cap utilise Schofield.' : (!has(p.taille) ? 'Taille inconnue : Mifflin-St Jeor impossible, repli sur Schofield (poids seul).' : 'Adulte avec taille connue : Mifflin-St Jeor, la plus précise en moyenne chez l’adulte.') };
     }
-    const v = 10 * p.poids + 6.25 * p.taille - 5 * p.age + (p.sexe === 'F' ? -161 : 5);
-    return { valeur: v, methode: 'Mifflin-St Jeor : 10 × poids + 6,25 × taille − 5 × âge ' + (p.sexe === 'F' ? '− 161' : '+ 5') };
+    const h = bmrUnSexe(p, 'H'), f = bmrUnSexe(p, 'F');
+    return { valeur: (h.v + f.v) / 2, methode: 'Moyenne des formules homme et femme (' + h.nom + ') : (' + Math.round(h.v) + ' + ' + Math.round(f.v) + ') ÷ 2', equation: h.nom + ' (moyenne)', ecartSexe: Math.abs(h.v - f.v) / 2, raison: 'Paramètre physiologique non renseigné : Cap ne le devine pas et prend la moyenne, avec une marge d’erreur plus large.' };
+  }
+  // Dépense énergétique détaillée. Le sport est compté une seule fois : le coefficient d'activité (PAL) décrit la journée
+  // HORS sport, la dépense du sport est ajoutée à part en MET nets (MET − 1, le repos étant déjà dans le métabolisme).
+  function energie(p) {
+    const manquants = ['age', 'poids', 'activite'].filter(k => !has(p[k]));
+    if (manquants.length) return { ok: false, manquants, message: 'Il manque ' + manquants.join(', ') + ' pour estimer ta dépense. Cap n’invente pas ces valeurs.' };
+    const bmr = metabolismeBase(p);
+    const pal = SEUILS.palBase[p.activite] || SEUILS.palBase.mixte;
+    const hMuscu = (num(p.jours) || 0) * (num(p.minutes) || 0) / 60;
+    const hAutre = (num(p.autreSport) || 0) * SEUILS.dureeAutreSportH;
+    const sportKcal = (SEUILS.metNet.muscu * p.poids * hMuscu + SEUILS.metNet.autre * p.poids * hAutre) / 7;
+    const quotidien = bmr.valeur * pal;
+    const tdee = quotidien + sportKcal;
+    // Incertitude : ±10 % sur l'équation (écart-type typique de Mifflin chez l'adulte), ±15 % pour Schofield,
+    // plus l'écart entre formules si le paramètre physiologique n'est pas renseigné, plus ±25 % sur le sport.
+    const relEq = bmr.equation.indexOf('Mifflin') === 0 ? 0.10 : 0.15;
+    const imc = has(p.taille) ? p.poids / Math.pow(p.taille / 100, 2) : null;
+    const relImc = imc !== null && imc >= 40 ? 0.05 : 0;
+    const marge = tdee * (relEq + relImc) + bmr.ecartSexe * pal + sportKcal * 0.25;
+    const hypotheses = [
+      bmr.raison,
+      'Coefficient d’activité ' + String(pal).replace('.', ',') + ' (journée « ' + p.activite + ' », sport exclu) : inclut la digestion et les mouvements du quotidien.',
+      'Sport : ' + round(hMuscu, 1) + ' h de musculation (MET net 4) + ' + round(hAutre, 1) + ' h d’autre sport (MET net 6, ' + String(SEUILS.dureeAutreSportH).replace('.', ',') + ' h par séance supposée) par semaine, répartis sur 7 jours.',
+      'Estimation statistique, pas une mesure clinique : seule l’évolution réelle de ton poids sur 2 à 3 semaines la confirme.'
+    ];
+    if (relImc) hypotheses.push('IMC ≥ 40 : les équations sont moins précises, marge élargie.');
+    const facteurs = [
+      { champ: 'poids', effet: 'Chaque kg change le métabolisme d’environ ' + (bmr.equation.indexOf('Mifflin') === 0 ? '10' : '9 à 18') + ' kcal/j et la dépense du sport.' },
+      { champ: 'activite', effet: 'Passer de « assise » à « mixte » ajoute ≈ ' + Math.round(bmr.valeur * (SEUILS.palBase.mixte - SEUILS.palBase.assis)) + ' kcal/j.' },
+      { champ: 'jours', effet: 'Une séance de musculation de plus par semaine ≈ +' + Math.round(SEUILS.metNet.muscu * p.poids * ((num(p.minutes) || 45) / 60) / 7) + ' kcal/j en moyenne.' },
+      { champ: 'age', effet: p.age < 18 ? 'Formule de l’adolescent (Schofield).' : '−5 kcal/j par année (Mifflin).' },
+      { champ: 'sexe', effet: sexeConnu(p) ? 'Écart homme/femme de la formule : 166 kcal/j (Mifflin).' : 'Non renseigné : moyenne, marge +' + Math.round(bmr.ecartSexe * pal) + ' kcal/j.' }
+    ];
+    return {
+      ok: true, bmr: Math.round(bmr.valeur), bmrMethode: bmr.methode, equation: bmr.equation, pal, quotidien: Math.round(quotidien),
+      sportKcal: Math.round(sportKcal), tdee: Math.round(tdee), plage: [Math.round(tdee - marge), Math.round(tdee + marge)], marge: Math.round(marge),
+      heuresSport: round(hMuscu + hAutre, 2), hypotheses, facteurs
+    };
+  }
+  // Repères journaliers (ANSES / EFSA) : fibres et sel
+  function reperesJour(p) {
+    const age = num(p.age) || 18;
+    return {
+      fibres: { g: age < 18 ? 25 : 30, source: 'ANSES : 30 g/j pour l’adulte ; repère de 25 g/j retenu par Cap pour les 13-17 ans' },
+      sel: { g: age < 18 ? 5 : 5, source: 'OMS : moins de 5 g de sel par jour' },
+      sucres: { note: 'OMS : sucres libres sous 10 % des calories, idéalement 5 %.', partMax: 0.10 }
+    };
   }
   function limitesRythme(p, sens) {
     const mineur = p.age < 18;
@@ -110,7 +171,8 @@
       ? 'Avant 18 ans, l’IMC se lit sur des courbes par âge et par sexe (carnet de santé). Les seuils adultes ne s’appliquent pas.'
       : 'Catégorie OMS : ' + imcCategorie(imc) + '. L’IMC ne distingue pas muscle et graisse : le tour de taille complète l’information.';
     const bmr = metabolismeBase(p);
-    const pal = SEUILS.palBase[p.activite] || SEUILS.palBase.mixte;
+    const en = energie(p);
+    const pal = en.pal;
     const hMuscu = (num(p.jours) || 0) * (num(p.minutes) || 0) / 60;
     const hAutre = (num(p.autreSport) || 0) * SEUILS.dureeAutreSportH;
     const sportKcal = (SEUILS.metNet.muscu * p.poids * hMuscu + SEUILS.metNet.autre * p.poids * hAutre) / 7;
@@ -154,7 +216,8 @@
     }
     let ecartKcal = sens * rythme * SEUILS.kcalParKg / 7;
     if (mineur && ecartKcal < -SEUILS.deficitMaxMineur) ecartKcal = -SEUILS.deficitMaxMineur;
-    const plancher = Math.max(bmr.valeur, mineur ? (p.sexe === 'F' ? SEUILS.plancher.mineurF : SEUILS.plancher.mineurH) : (p.sexe === 'F' ? SEUILS.plancher.adulteF : SEUILS.plancher.adulteH));
+    const pl = mineur ? [SEUILS.plancher.mineurH, SEUILS.plancher.mineurF] : [SEUILS.plancher.adulteH, SEUILS.plancher.adulteF];
+    const plancher = Math.max(bmr.valeur, p.sexe === 'F' ? pl[1] : p.sexe === 'H' ? pl[0] : (pl[0] + pl[1]) / 2);
     let kcal = tdee + ecartKcal;
     let plancherAtteint = false;
     if (kcal < plancher) { kcal = plancher; plancherAtteint = true; }
@@ -186,7 +249,7 @@
       'Métabolisme de base : ' + bmr.methode + ' = ' + Math.round(bmr.valeur) + ' kcal.',
       'Activité quotidienne (' + p.activite + ') : × ' + pal.toFixed(2).replace('.', ',') + ' = ' + Math.round(bmr.valeur * pal) + ' kcal.',
       'Sport : ' + round(hMuscu, 1) + ' h de muscu + ' + round(hAutre, 1) + ' h d’autre sport par semaine ≈ +' + Math.round(sportKcal) + ' kcal/jour (MET nets 4 et 6).',
-      'Dépense estimée : ' + Math.round(tdee) + ' kcal/jour (précision ±10 % : seule ta courbe de poids la confirme).',
+      'Dépense estimée : ' + Math.round(tdee) + ' kcal/jour, plage probable ' + en.plage[0] + ' à ' + en.plage[1] + ' kcal (seule ta courbe de poids la confirme).',
       rythme ? ('Rythme ' + (sens < 0 ? 'de perte' : 'de prise') + ' : ' + round(rythme, 2) + ' kg/sem × 7 700 kcal ÷ 7 = ' + Math.round(Math.abs(sens * rythme * SEUILS.kcalParKg / 7)) + ' kcal/jour.') : 'Pas d’écart calorique : objectif de maintien.',
       (mineur ? 'Moins de 18 ans : écart plafonné à ' + SEUILS.deficitMaxMineur + ' kcal/jour pour protéger la croissance. ' : '') + 'Minimum appliqué : ' + Math.round(plancher) + ' kcal/jour.' + (plancherAtteint ? ' Il est atteint : le rythme réel sera plus lent.' : ''),
       'Protéines : ' + (objectif === 'maintenir' ? '1,6' : '1,8') + ' g × ' + round(poidsRef, 1) + ' kg' + (imc > 30 ? ' (poids de référence à IMC 25)' : '') + '. Lipides ≥ 25 % des calories. Glucides : le reste.'
@@ -194,7 +257,7 @@
 
     return {
       ok: true, mineur, imc: round(imc, 1), imcNote, imcCible: round(imcCible, 1),
-      bmr: Math.round(bmr.valeur), bmrMethode: bmr.methode, pal, sportKcal: Math.round(sportKcal), tdee: Math.round(tdee),
+      bmr: Math.round(bmr.valeur), bmrMethode: bmr.methode, pal, energie: en, reperes: reperesJour(p), sportKcal: Math.round(sportKcal), tdee: Math.round(tdee),
       kcal, macros: { prot: protG, lip: lipG, glu: gluG }, plancher: Math.round(plancher), plancherAtteint,
       objectif, cible, ecart: round(ecart, 1), ecartPct: round(ecartPct, 3), statut, alertes, planPossible,
       requis: requis === null ? null : round(requis, 2), rec: round(lim.rec, 2), max: round(lim.max, 2),
@@ -453,7 +516,7 @@
     // Temps disponible
     if (has(p.tempsLibre)) {
       const sportH = corps ? ((num(p.jours) || 0) * (num(p.minutes) || 0) / 60 + (num(p.autreSport) || 0) * SEUILS.dureeAutreSportH) : 0;
-      const projetH = argent ? (num(p.heuresProjet) || 0) : 0;
+      const projetH = (argent || (p.domaines || []).indexOf('entreprise') >= 0) ? (num(p.heuresProjet) || 0) : 0;
       if (sportH + projetH > p.tempsLibre + 1e-9) add('temps', 'global', 'attention', 'Plus d’heures prévues que de temps libre',
         'Sport ' + round(sportH, 1).toString().replace('.', ',') + ' h + projet ' + projetH + ' h = ' + round(sportH + projetH, 1).toString().replace('.', ',') + ' h par semaine, pour ' + p.tempsLibre + ' h de temps libre déclarées.',
         ['jours', 'minutes', 'heuresProjet', 'tempsLibre'], [{ label: 'Moins de séances', champ: 'jours' }, { label: 'Moins d’heures projet', champ: 'heuresProjet' }, { label: 'Corriger mon temps libre', champ: 'tempsLibre' }]);
@@ -631,7 +694,7 @@
     return { aliments: out, remarque: rep && typeof rep.remarque === 'string' ? rep.remarque.slice(0, 300) : '', notes };
   }
 
-  return { REF, SEUILS, BORNES, valider, physique, programme, adaptation, finances, coutReve, coherence, tendance, imcCategorie, NOMS_JOURS,
+  return { REF, SEUILS, BORNES, valider, physique, energie, metabolismeBase, reperesJour, programme, adaptation, finances, coutReve, coherence, tendance, imcCategorie, NOMS_JOURS,
     CRENEAUX, ORDRE_CRENEAUX, creneauParHeure, CUISSON, entreeDepuisAliment, normEntree, totaux, ACTIVITES, kcalActivite, objectifEau,
     validerObjectifsPerso, cibleJour, budgetJour, serie, bilanSemaine, jalons, validerScan };
 });

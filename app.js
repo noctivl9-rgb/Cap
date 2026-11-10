@@ -48,8 +48,8 @@
 
   // ================================================================ Données (db ou mémoire)
   let db = null;
-  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [] };
-  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {} };
+  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [], taches: {}, ventes: [] };
+  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {}, taches: {}, ventes: {} };
   async function put(coll, id, data) {
     if (db) return db.collection(coll).doc(id).set(data);
     mem[coll][id] = data; store.set('cap-local', mem); syncMem(); return Promise.resolve();
@@ -68,6 +68,8 @@
     S.perso = Object.keys(mem.aliments).map(id => Object.assign({ id }, mem.aliments[id]));
     S.recettes = Object.keys(mem.recettes).map(id => Object.assign({ id }, mem.recettes[id]));
     S.photos = Object.keys(mem.photos).map(id => Object.assign({ id }, mem.photos[id]));
+    S.taches = Object.assign({}, mem.taches);
+    S.ventes = Object.keys(mem.ventes).map(id => Object.assign({ id }, mem.ventes[id]));
     refresh();
   }
   // Adaptation sans perte : chaque version remplacée du profil est gardée dans « historique »
@@ -95,13 +97,20 @@
   function derive(p) {
     p = p || S.profil || {};
     const doms = p.domaines || [];
-    const corps = doms.indexOf('corps') >= 0, argent = doms.indexOf('argent') >= 0;
+    const corps = doms.indexOf('corps') >= 0, argent = doms.indexOf('argent') >= 0, entreprise = doms.indexOf('entreprise') >= 0;
     const phys = corps ? E.physique(p) : null;
-    const prog = corps ? E.programme(p) : null;
+    const energie = corps ? E.energie(p) : null;
+    const prog = corps ? (window.CapTraining ? window.CapTraining.generer(p) : E.programme(p)) : null;
+    const B = window.CapBusiness;
+    const business = entreprise && B ? B.recommander(p) : null;
+    const choisi = entreprise && B && p.businessChoisi && B.PAR_ID[p.businessChoisi] ? p.businessChoisi : null;
+    const bplan = choisi ? B.plan(choisi, p, S.ventes) : null;
+    const faites = {}; Object.keys(S.taches || {}).forEach(k => { if (S.taches[k] && S.taches[k].fait) faites[k] = S.taches[k]; });
+    const baction = choisi ? B.planAction(choisi, p, faites, p.debutProjet || null) : null;
     const fin = argent ? E.finances(p, S.epargne, dayId()) : null;
     const issues = E.coherence(p, phys, prog, fin);
     const adapt = prog ? E.adaptation(prog, S.seances, dayId(), p.creeLe ? p.creeLe.slice(0, 10) : null) : null;
-    return { p, corps, argent, phys, prog, fin, issues, adapt };
+    return { p, corps, argent, entreprise, phys, energie, prog, fin, issues, adapt, business, choisi, bplan, baction };
   }
 
   // ================================================================ Règle (valeur en direct, inertie, aimantation)
@@ -354,6 +363,8 @@
   const has = v => v !== undefined && v !== null && v !== '';
   const C = A => (A.domaines || []).indexOf('corps') >= 0;
   const M = A => (A.domaines || []).indexOf('argent') >= 0;
+  const E_ = A => (A.domaines || []).indexOf('entreprise') >= 0;
+  const ME = A => M(A) || E_(A);
   const DELAIS = [[4, '1 mois'], [9, '2 mois'], [13, '3 mois'], [26, '6 mois'], [52, '1 an'], [0, 'Pas de date précise']];
   const REVES = [
     { v: 'appart', t: 'Appartement à Dubaï', s: '1 chambre, Dubai Marina', i: 'building' },
@@ -363,16 +374,16 @@
     { v: 'autre', t: 'Autre projet', s: 'Tu fixes le montant', i: 'target' }
   ];
   const STEPS = [
-    { id: 'domaines', sec: 'Départ', f: ['domaines'], q: 'Sur quoi veux-tu avancer ?', lead: 'Cap ne te posera que les questions utiles à ce choix.', ok: A => (A.domaines || []).length > 0,
-      body: ctx => choices(ctx, '_dom', [{ v: 'corps', t: 'Mon corps', s: 'Poids, nutrition, entraînement', i: 'body' }, { v: 'argent', t: 'Mon argent', s: 'Budget, épargne, grands projets', i: 'wallet' }, { v: 'both', t: 'Les deux', s: 'Deux modules séparés, jamais mélangés dans un score', i: 'target' }],
-        { onPick: v => { ctx.A.domaines = v === 'both' ? ['corps', 'argent'] : [v]; } }), init: A => { A._dom = (A.domaines || []).length === 2 ? 'both' : (A.domaines || [])[0]; } },
+    { id: 'domaines', sec: 'Départ', f: ['domaines'], q: 'Sur quoi veux-tu avancer ?', lead: 'Choisis un ou plusieurs modules. Cap ne te posera que les questions utiles à ces choix.', ok: A => (A.domaines || []).length > 0,
+      body: ctx => choices(ctx, 'domaines', [{ v: 'corps', t: 'Mon corps', s: 'Santé, nutrition, sport', i: 'body' }, { v: 'argent', t: 'Mon argent', s: 'Budget, épargne, projet de vie', i: 'wallet' }, { v: 'entreprise', t: 'Créer une entreprise', s: 'Trois activités adaptées à toi, plan chiffré, plan 30/60/90 jours', i: 'building' }], { multi: true }) },
     { id: 'age', sec: 'Départ', f: ['age'], q: 'Quel âge as-tu ?', lead: 'Avant 18 ans, les règles de calcul changent pour protéger ta croissance et respecter le droit du travail.', ok: A => has(A.age), touch: true,
       check: A => A.age < 13 ? 'Cap est prévu à partir de 13 ans. Pour un objectif de santé, parles-en avec ton médecin.' : null,
       body: ctx => ruler(ctx, 'age', { min: 10, max: 100, step: 1, unit: 'ans', label: 'Âge', start: 18, px: 16 }) },
     { id: 'tempsLibre', sec: 'Départ', f: ['tempsLibre'], q: 'Combien d’heures libres as-tu par semaine ?', lead: 'Hors cours ou travail, trajets, repas et sommeil. Sert à vérifier que ton programme tient dans ta semaine.', ok: A => has(A.tempsLibre), touch: true,
       body: ctx => ruler(ctx, 'tempsLibre', { min: 0, max: 100, step: 1, unit: 'h', label: 'Par semaine', start: 15, px: 14 }) },
     // Corps
-    { id: 'sexe', sec: 'Corps', when: C, f: ['sexe'], q: 'Quel est ton sexe ?', lead: 'Utilisé uniquement dans la formule de dépense énergétique.', ok: A => has(A.sexe), body: ctx => choices(ctx, 'sexe', [{ v: 'H', t: 'Homme' }, { v: 'F', t: 'Femme' }], { grid: true }) },
+    { id: 'sexe', sec: 'Corps', when: C, f: ['sexe'], q: 'Quelle formule de métabolisme utiliser ?', lead: 'Les équations scientifiques diffèrent selon le sexe biologique. Ce choix sert uniquement à ce calcul, jamais ailleurs. Sans réponse, Cap prend la moyenne des deux formules et élargit la marge d’erreur.', ok: A => has(A.sexe),
+      body: ctx => choices(ctx, 'sexe', [{ v: 'H', t: 'Formule masculine' }, { v: 'F', t: 'Formule féminine' }, { v: 'nr', t: 'Je préfère ne pas répondre', s: 'Moyenne des deux, estimation moins précise' }]) },
     { id: 'taille', sec: 'Corps', when: C, f: ['taille'], q: 'Quelle est ta taille ?', lead: 'Pour l’IMC et la dépense de base.', ok: A => has(A.taille), touch: true, body: ctx => ruler(ctx, 'taille', { min: 120, max: 230, step: 1, unit: 'cm', label: 'Taille', start: 170, px: 14 }) },
     { id: 'poids', sec: 'Corps', when: C, f: ['poids'], q: 'Quel est ton poids ?', lead: 'Le matin, à jeun, si possible. Touche le chiffre pour le saisir au clavier.', ok: A => has(A.poids), touch: true, body: ctx => [uniteSeg(ctx), weightRuler(ctx, 'poids', 'Poids actuel', 70)] },
     { id: 'tour', sec: 'Corps', when: C, f: ['tour'], optional: true, q: 'Ton tour de taille ?', lead: 'Facultatif. Mesuré au niveau du nombril, il montre la perte de gras mieux que la balance.', ok: A => has(A.tour), touch: true, body: ctx => ruler(ctx, 'tour', { min: 40, max: 200, step: 0.5, decimals: 1, unit: 'cm', label: 'Tour de taille', start: 80, px: 12, labelDecimals: 0 }) },
@@ -406,8 +417,14 @@
       body: ctx => choices(ctx, 'jours', [0, 1, 2, 3, 4, 5, 6].map(n => ({ v: n, t: n === 0 ? 'Aucune' : String(n) }))), },
     { id: 'minutes', sec: 'Programme', when: A => C(A) && A.jours > 0, f: ['minutes'], q: 'Combien de temps par séance ?', ok: A => has(A.minutes), body: ctx => choices(ctx, 'minutes', [20, 30, 45, 60, 90].map(n => ({ v: n, t: n + ' min' })), { grid: true }) },
     { id: 'lieu', sec: 'Programme', when: A => C(A) && A.jours > 0, f: ['lieu'], q: 'Où t’entraînes-tu ?', ok: A => has(A.lieu), body: ctx => choices(ctx, 'lieu', [{ v: 'salle', t: 'En salle', i: 'dumbbell' }, { v: 'maison', t: 'À la maison', s: 'Sans matériel ou presque', i: 'home' }]) },
+    { id: 'materielSport', sec: 'Programme', when: A => C(A) && A.jours > 0 && A.lieu === 'maison', f: ['materielSport'], q: 'Quel matériel as-tu chez toi ?', lead: 'Décide quels exercices sont possibles. Rien n’est acheté pour toi.', ok: A => (A.materielSport || []).length > 0,
+      body: ctx => choices(ctx, 'materielSport', [{ v: 'elastique', t: 'Élastiques' }, { v: 'halteres', t: 'Haltères' }, { v: 'traction', t: 'Barre de traction' }, { v: 'banc', t: 'Banc ou chaise solide' }, { v: 'aucun', t: 'Rien', s: 'Poids du corps uniquement', exclusive: true }], { multi: true }) },
+    { id: 'prioriteSport', sec: 'Programme', when: A => C(A) && A.jours > 0, f: ['prioriteSport'], q: 'Ta priorité à l’entraînement ?', lead: 'Change les séries, les répétitions et les temps de repos.', ok: A => has(A.prioriteSport),
+      body: ctx => choices(ctx, 'prioriteSport', [{ v: 'forme', t: 'Forme générale', s: 'Plus de répétitions, repos courts' }, { v: 'muscle', t: 'Prendre du muscle', s: '6 à 15 répétitions' }, { v: 'force', t: 'Gagner en force', s: 'Charges lourdes. Réservé aux adultes non débutants' }, { v: 'auto', t: 'Laisser Cap choisir', s: 'Déduit de ton objectif de poids' }]) },
     { id: 'contraintes', sec: 'Programme', when: C, f: ['contraintes'], q: 'Quelque chose à prendre en compte ?', lead: 'Cap ne remplace pas un avis médical, mais adapte ses conseils.', ok: A => (A.contraintes || []).length > 0,
       body: ctx => choices(ctx, 'contraintes', [{ v: 'douleur', t: 'Douleur ou blessure', i: 'alert' }, { v: 'sante', t: 'Problème de santé suivi par un médecin', i: 'heart' }, { v: 'aucune', t: 'Rien de particulier', exclusive: true, i: 'check' }], { multi: true }) },
+    { id: 'zonesDouleur', sec: 'Programme', when: A => C(A) && (A.contraintes || []).indexOf('douleur') >= 0, f: ['zonesDouleur'], q: 'Où as-tu mal ?', lead: 'Cap retire les exercices qui sollicitent fortement cette zone. Ce n’est pas un avis médical.', ok: A => (A.zonesDouleur || []).length > 0,
+      body: ctx => choices(ctx, 'zonesDouleur', [{ v: 'genou', t: 'Genou' }, { v: 'dos', t: 'Bas du dos' }, { v: 'epaule', t: 'Épaule' }, { v: 'poignet', t: 'Poignet' }, { v: 'autre', t: 'Ailleurs', s: 'Cap retire seulement les sauts' }], { multi: true }) },
     { id: 'regime', sec: 'Nutrition', when: C, f: ['regime'], q: 'Ton alimentation', lead: 'Filtre la base d’aliments et les suggestions. Halal : Cap retire le porc, mais ne peut pas vérifier l’abattage.', ok: A => has(A.regime),
       body: ctx => choices(ctx, 'regime', Object.keys(window.CapFoods.REGIMES).map(k => ({ v: k, t: window.CapFoods.REGIMES[k][0] }))) },
     { id: 'suivi', sec: 'Nutrition', when: C, f: ['modeSimple'], q: 'As-tu déjà compté tes calories ?', lead: 'Pour choisir ce que l’accueil affiche au début.', ok: A => A.modeSimple === true || A.modeSimple === false,
@@ -438,15 +455,30 @@
         const y = new Date().getFullYear();
         return [choices(ctx, 'reveAnnee', [2, 5, 10, 15].map(n => ({ v: y + n, t: String(y + n), s: n + ' ans' })), { grid: true }), box];
       } },
-    { id: 'competences', sec: 'Argent', when: M, f: ['competences'], q: 'Qu’est-ce que tu sais déjà faire ?', lead: 'Pour proposer des étapes réalistes. Rien n’est compté comme revenu.', ok: A => (A.competences || []).length > 0,
-      body: ctx => choices(ctx, 'competences', [{ v: 'code', t: 'Code (sites, applis)', i: 'code' }, { v: 'design', t: 'Design, graphisme' }, { v: 'video', t: 'Vidéo, montage' }, { v: 'vente', t: 'Vente, relation client', i: 'people' }, { v: 'aucune', t: 'Rien encore', exclusive: true }], { multi: true }) },
-    { id: 'heuresProjet', sec: 'Argent', when: M, f: ['heuresProjet'], q: 'Combien d’heures par semaine pour ton projet ?', lead: 'Apprendre, créer, chercher des clients.', ok: A => has(A.heuresProjet), touch: true,
+    { id: 'competences', sec: 'Projet', when: ME, f: ['competences'], q: 'Qu’est-ce que tu sais déjà faire ?', lead: 'Décide quelles activités tu peux livrer tout de suite et lesquelles demandent d’apprendre d’abord.', ok: A => (A.competences || []).length > 0,
+      body: ctx => choices(ctx, 'competences', [{ v: 'code', t: 'Code (sites, applis)', i: 'code' }, { v: 'design', t: 'Design, graphisme' }, { v: 'video', t: 'Vidéo, montage' }, { v: 'photo', t: 'Photo' }, { v: 'reseaux', t: 'Réseaux sociaux' }, { v: 'ecriture', t: 'Écriture' }, { v: 'langues', t: 'Langues étrangères' }, { v: 'cours', t: 'Bon dans une matière scolaire', s: 'Pour donner des cours' }, { v: 'bricolage', t: 'Bricolage' }, { v: 'sport', t: 'Sport' }, { v: 'vente', t: 'Vente, relation client', i: 'people' }, { v: 'aucune', t: 'Rien encore', exclusive: true }], { multi: true }) },
+    { id: 'heuresProjet', sec: 'Projet', when: ME, f: ['heuresProjet'], q: 'Combien d’heures par semaine pour ton projet ?', lead: 'Apprendre, créer, chercher des clients.', ok: A => has(A.heuresProjet), touch: true,
       body: ctx => ruler(ctx, 'heuresProjet', { min: 0, max: 100, step: 1, unit: 'h', label: 'Par semaine', start: 7, px: 14 }) },
-    { id: 'revenuVise', sec: 'Argent', when: M, f: ['revenuVise'], optional: true, q: 'Un revenu mensuel que tu vises ?', lead: 'Facultatif. Il restera une hypothèse affichée à part, jamais comptée comme acquise.', ok: A => has(A.revenuVise), body: ctx => money(ctx, 'revenuVise', { per: 'par mois (hypothèse)' }) },
+    { id: 'revenuVise', sec: 'Projet', when: ME, f: ['revenuVise'], optional: true, q: 'Un revenu mensuel que tu vises ?', lead: 'Facultatif. Il restera une hypothèse affichée à part, jamais comptée comme acquise.', ok: A => has(A.revenuVise), body: ctx => money(ctx, 'revenuVise', { per: 'par mois (hypothèse)' }) },
+    // Entreprise
+    { id: 'pays', sec: 'Entreprise', when: E_, f: ['pays'], q: 'Dans quel pays veux-tu lancer ton activité ?', lead: 'Les statuts, les taxes et les âges légaux en dépendent. Cap connaît les règles françaises.', ok: A => has(A.pays),
+      body: ctx => choices(ctx, 'pays', [{ v: 'france', t: 'France' }, { v: 'emirats', t: 'Émirats arabes unis', s: 'Règles non couvertes par Cap pour l’instant' }, { v: 'autre', t: 'Autre pays', s: 'Règles non couvertes par Cap pour l’instant' }]) },
+    { id: 'capital', sec: 'Entreprise', when: E_, f: ['capital'], q: 'Combien peux-tu investir pour démarrer ?', lead: 'Argent que tu acceptes de dépenser pour lancer l’activité, à part de ton épargne. Décide quelles activités sont finançables.', ok: A => has(A.capital), body: ctx => money(ctx, 'capital') },
+    { id: 'materielPro', sec: 'Entreprise', when: E_, f: ['materielPro'], q: 'Quel matériel as-tu déjà ?', lead: 'Ce que tu possèdes n’est pas compté dans le budget de départ.', ok: A => (A.materielPro || []).length > 0,
+      body: ctx => choices(ctx, 'materielPro', [{ v: 'ordinateur', t: 'Ordinateur' }, { v: 'smartphone', t: 'Smartphone récent' }, { v: 'appareil_photo', t: 'Appareil photo' }, { v: 'outils', t: 'Outils de bricolage' }, { v: 'micro', t: 'Micro et éclairage' }, { v: 'aucun', t: 'Rien de tout ça', exclusive: true }], { multi: true }) },
+    { id: 'experience', sec: 'Entreprise', when: E_, f: ['experience'], q: 'As-tu déjà travaillé pour quelqu’un ?', lead: 'Les activités difficiles sont pénalisées si tu débutes.', ok: A => has(A.experience),
+      body: ctx => choices(ctx, 'experience', [{ v: 'aucune', t: 'Jamais' }, { v: 'projets', t: 'Des projets perso', s: 'Pour moi ou des proches' }, { v: 'clients', t: 'Oui, des clients payants' }]) },
+    { id: 'aisanceVente', sec: 'Entreprise', when: E_, f: ['aisanceVente'], q: 'Contacter des inconnus pour leur proposer ton offre ?', lead: 'Certaines activités demandent beaucoup de démarchage. Cap en tient compte.', ok: A => has(A.aisanceVente),
+      body: ctx => choices(ctx, 'aisanceVente', [{ v: 1, t: 'Ça me bloque' }, { v: 2, t: 'Ça va' }, { v: 3, t: 'J’aime ça' }]) },
+    { id: 'risque', sec: 'Entreprise', when: E_, f: ['risque'], q: 'Quel risque acceptes-tu ?', lead: 'Risque faible : revenu modeste mais rapide. Risque élevé : plus long, plus incertain.', ok: A => has(A.risque),
+      body: ctx => choices(ctx, 'risque', [{ v: 'faible', t: 'Faible' }, { v: 'moyen', t: 'Moyen' }, { v: 'eleve', t: 'Élevé' }]) },
+    { id: 'formatPref', sec: 'Entreprise', when: E_, f: ['formatPref'], q: 'Plutôt en ligne ou près de chez toi ?', ok: A => has(A.formatPref),
+      body: ctx => choices(ctx, 'formatPref', [{ v: 'en_ligne', t: 'En ligne' }, { v: 'local', t: 'Près de chez moi' }, { v: 'les_deux', t: 'Les deux me vont' }]) },
     // Bilan
     { id: 'bilan', sec: 'Bilan', f: [], q: 'Vérification de tes réponses', ok: () => true, cta: 'Créer mon plan', body: ctx => bilan(ctx) },
     { id: 'plan', sec: 'Bilan', f: ['objectifsPerso'], q: 'Ton plan', lead: 'Calculé à partir de tes réponses. Tu peux tout modifier, maintenant ou plus tard.', ok: () => true, cta: 'Commencer le suivi', body: ctx => planApercu(ctx) }
   ];
+  const LIB_CHAMPS = { tempsLibre: 'temps libre', jours: 'séances voulues', minutes: 'durée', heuresProjet: 'heures projet', autreSport: 'autre sport', niveau: 'niveau', age: 'âge', materielSport: 'matériel', zonesDouleur: 'zones douloureuses', objectif: 'objectif', prioriteSport: 'priorité', obstacle: 'frein principal', lieu: 'lieu' };
   const STEP_BY_FIELD = {}; STEPS.forEach(s => s.f.forEach(f => { STEP_BY_FIELD[f] = s.id; })); STEP_BY_FIELD.cible = 'cible'; STEP_BY_FIELD.rythme = 'faisabilite';
 
   function faisabilite(ctx) {
@@ -715,9 +747,10 @@
     const tabs = [['today', 'Accueil', 'home']];
     if (d.corps) { tabs.push(['corps', 'Progrès', 'chart']); tabs.push(['prog', 'Programme', 'dumbbell']); }
     if (d.argent) tabs.push(['argent', 'Argent', 'wallet']);
+    if (d.entreprise && window.CapProjet) tabs.push(['projet', 'Projet', 'building']);
     tabs.push(['reglages', 'Réglages', 'gear']);
     if (!tabs.some(t => t[0] === tab)) tab = 'today';
-    const views = { today: J.viewAccueil, corps: J.viewProgres, prog: viewProg, argent: viewArgent, reglages: viewReglages };
+    const views = { today: J.viewAccueil, corps: J.viewProgres, prog: viewProg, argent: viewArgent, reglages: viewReglages, projet: d2 => window.CapProjet.view(d2) };
     const scrollY = window.scrollY;
     const changed = lastTab !== tab; lastTab = tab;
     $app.textContent = '';
@@ -776,7 +809,11 @@
     out.push(h('div', { class: 'stats' },
       h('div', { class: 'stat' }, h('b', null, a.faites + ' / ' + a.prevues), h('span', null, 'Séances faites (14 j)')),
       h('div', { class: 'stat' }, h('b', null, a.taux === null ? '—' : fr(a.taux * 100) + ' %'), h('span', null, 'Régularité mesurée')),
-      h('div', { class: 'stat' }, h('b', null, (d.p.minutes || 0) + ' min'), h('span', null, 'Par séance'))));
+      h('div', { class: 'stat' }, h('b', null, ((pr.parametres && pr.parametres.minutesRetenues) || d.p.minutes || 0) + ' min'), h('span', null, 'Par séance'))));
+    // Origine honnête : calculé par les règles, pas généré par une IA
+    const ia = window.CapContrats ? window.CapContrats.statutIA(() => false) : null;
+    out.push(h('div', { class: 'note' }, h('b', null, 'Programme calculé par les règles de Cap'), ' à partir de tes réponses (niveau, temps, matériel, douleurs, objectif). ', ia ? ia.texte : ''));
+    if (pr.decisions && pr.decisions.length) out.push(section('Pourquoi ce programme', null, h('div', { class: 'panel flush' }, pr.decisions.map(x => h('div', { class: 'cell', style: 'align-items:flex-start' }, h('span', { class: 'lbl' }, x.raison, x.champs.length ? h('small', null, 'Réponses utilisées : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null))))));
     if (a.conseil) out.push(h('div', { class: 'alert info' }, icon('info'), h('div', null, h('h3', null, 'Ajustement suggéré'), h('p', null, a.conseil))));
     const today = new Date().getDay();
     out.push(section('Ta semaine', null, pr.planning.map(pl => {
@@ -784,7 +821,7 @@
       const det = h('details', { class: 'session', open: pl.jour === today ? true : null },
         h('summary', null, h('div', { style: 'flex:1;min-width:0' }, h('div', { class: 'day' }, pl.jourNom + (pl.jour === today ? ' · aujourd’hui' : '')), h('div', { style: 'font-weight:600;font-size:17px' }, se.nom), h('div', { class: 'foot muted' }, se.objectif + ' · ' + se.duree + ' min')), icon('chev', 'chev')),
         h('div', { class: 'ex', style: 'grid-template-columns:1fr' }, h('small', { style: 'grid-column:auto' }, 'Échauffement : ' + se.echauffement)),
-        se.exercices.map(e => h('div', { class: 'ex' }, h('b', null, e.nom), h('span', { class: 'r' }, e.type === 'cardio' ? e.reps : e.series + ' × ' + e.reps), h('small', null, (e.repos ? 'Repos ' + e.repos + ' s · ' : '') + 'Alternative : ' + e.alternative))),
+        se.exercices.map(e => h('div', { class: 'ex' }, h('b', null, e.nom), h('span', { class: 'r' }, e.type === 'cardio' ? e.reps : e.series + ' × ' + e.reps), h('small', null, (e.repos ? 'Repos ' + e.repos + ' s · ' : '') + (e.alternative ? 'Alternative : ' + e.alternative : 'Pas d’alternative avec ton matériel') + (e.consigne ? ' · ' + e.consigne : '')))),
         h('div', { style: 'padding:12px 16px 16px' }, h('button', { class: 'btn small tinted', type: 'button', style: 'width:100%', onclick: () => logSeance(se) }, icon('check'), 'J’ai fait cette séance')));
       return det;
     })));
@@ -908,7 +945,11 @@
         row('Séances par semaine', v(p.jours), 'jours', 'dumbbell', '#FF9F0A'),
         p.jours > 0 ? row('Durée', v(p.minutes, 'min'), 'minutes', 'clock', '#FF9F0A') : null,
         p.jours > 0 ? row('Lieu', lbl([['salle', 'Salle'], ['maison', 'Maison']], p.lieu), 'lieu', 'home', '#FF9F0A') : null,
-        row('Contraintes', (p.contraintes || []).map(c => ({ douleur: 'Douleur', sante: 'Santé', aucune: 'Aucune' })[c]).join(', ') || '—', 'contraintes', 'heart', '#FF9F0A'))));
+        p.jours > 0 && p.lieu === 'maison' ? row('Matériel', (p.materielSport || []).map(x => ({ elastique: 'Élastiques', halteres: 'Haltères', traction: 'Barre de traction', banc: 'Banc', aucun: 'Aucun' })[x]).join(', ') || 'Non précisé', 'materielSport', 'dumbbell', '#FF9F0A') : null,
+        p.jours > 0 ? row('Priorité', lbl([['forme', 'Forme'], ['muscle', 'Muscle'], ['force', 'Force'], ['auto', 'Choisie par Cap']], p.prioriteSport), 'prioriteSport', 'target', '#FF9F0A') : null,
+        row('Contraintes', (p.contraintes || []).map(c => ({ douleur: 'Douleur', sante: 'Santé', aucune: 'Aucune' })[c]).join(', ') || '—', 'contraintes', 'heart', '#FF9F0A'),
+        (p.contraintes || []).indexOf('douleur') >= 0 ? row('Zones douloureuses', (p.zonesDouleur || []).join(', ') || 'Non précisées', 'zonesDouleur', 'heart', '#FF9F0A') : null,
+        row('Frein principal', lbl([['regularite', 'Régularité'], ['alim', 'Alimentation'], ['temps', 'Temps'], ['motivation', 'Motivation']], p.obstacle), 'obstacle', 'info', '#FF9F0A'))));
     }
     if (d.corps && window.CapJournal) out.push(window.CapJournal.reglagesNutrition(d));
     if (d.argent) {
@@ -923,6 +964,19 @@
         row('Échéance', v(p.reveAnnee), 'reveAnnee', 'cal', 'var(--money)'),
         row('Heures pour le projet', v(p.heuresProjet, 'h / sem'), 'heuresProjet', 'clock', 'var(--money)'),
         row('Revenu visé (hypothèse)', has(p.revenuVise) ? eur(p.revenuVise) : 'Aucun', 'revenuVise', 'chart', 'var(--money)'))));
+    }
+    if (d.entreprise) {
+      const Bz = window.CapBusiness;
+      out.push(section(null, null, h('div', { class: 'cap' }, 'Entreprise'), h('div', { class: 'panel flush' },
+        row('Pays', lbl([['france', 'France'], ['emirats', 'Émirats'], ['autre', 'Autre']], p.pays), 'pays', 'building', 'var(--ink)'),
+        row('Capital de départ', has(p.capital) ? eur(p.capital) : '—', 'capital', 'wallet', 'var(--ink)'),
+        row('Compétences', (p.competences || []).map(c => (Bz && Bz.COMPETENCES[c]) || (c === 'aucune' ? 'Aucune' : c)).join(', ') || '—', 'competences', 'code', 'var(--ink)'),
+        row('Matériel', (p.materielPro || []).map(m => Bz && Bz.MATERIEL[m] ? Bz.MATERIEL[m][0] : 'Aucun').join(', ') || '—', 'materielPro', 'building', 'var(--ink)'),
+        row('Heures par semaine', v(p.heuresProjet, 'h'), 'heuresProjet', 'clock', 'var(--ink)'),
+        row('Expérience', lbl([['aucune', 'Aucune'], ['projets', 'Projets perso'], ['clients', 'Clients payants']], p.experience), 'experience', 'people', 'var(--ink)'),
+        row('Démarchage', lbl([[1, 'Ça me bloque'], [2, 'Ça va'], [3, 'J’aime ça']], p.aisanceVente), 'aisanceVente', 'people', 'var(--ink)'),
+        row('Risque accepté', lbl([['faible', 'Faible'], ['moyen', 'Moyen'], ['eleve', 'Élevé']], p.risque), 'risque', 'chart', 'var(--ink)'),
+        row('Format', lbl([['en_ligne', 'En ligne'], ['local', 'Local'], ['les_deux', 'Les deux']], p.formatPref), 'formatPref', 'home', 'var(--ink)'))));
     }
     const sonOn = !!(window.CapSon && window.CapSon.actif());
     out.push(section(null, null, h('div', { class: 'cap' }, 'Préférences'), h('div', { class: 'panel flush' },
@@ -942,13 +996,14 @@
     return out;
   }
   function resetAll() {
-    const close = sheet('Tout effacer ?', [h('p', { class: 'muted sub' }, 'Profil, pesées, journal alimentaire, aliments, recettes, photos, séances et mouvements d’épargne seront supprimés. Une copie de secours est d’abord gardée sur cet appareil (Réglages → Importer une sauvegarde).'),
+    const close = sheet('Tout effacer ?', [h('p', { class: 'muted sub' }, 'Profil, pesées, journal alimentaire, aliments, recettes, photos, séances, mouvements d’épargne, tâches et ventes seront supprimés. Une copie de secours est d’abord gardée sur cet appareil (Réglages → Importer une sauvegarde).'),
       h('button', { class: 'btn', style: 'background:var(--bad)', type: 'button', onclick: async () => {
         try {
           if (window.CapDonnees) await window.CapDonnees.sauvegardeAuto();
           const jobs = [];
           S.pesees.forEach(r => jobs.push(remove('pesees', r.id))); S.epargne.forEach(r => jobs.push(remove('epargne', r.id))); S.seances.forEach(r => jobs.push(remove('seances', r.id)));
           Object.keys(S.journaux).forEach(k => jobs.push(remove('repas', k))); jobs.push(remove('actions', weekKey())); jobs.push(remove('prefs', 'main'));
+          Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id)));
           S.perso.forEach(r => jobs.push(remove('aliments', r.id))); S.recettes.forEach(r => jobs.push(remove('recettes', r.id)));
           if (window.CapDonnees) jobs.push(window.CapUI.snapshotData().then(d => Promise.all(Object.keys(d.historique || {}).map(id => remove('historique', id)))));
           S.photos.forEach(r => { jobs.push(remove('photos', r.id)); if (window.CapJournal) jobs.push(window.CapJournal.supprimerAsset(r.assetId)); });
@@ -1003,6 +1058,8 @@
     live('aliments', v => { S.perso = v; });
     live('recettes', v => { S.recettes = v; });
     live('photos', v => { S.photos = v.filter(x => x.assetId); });
+    live('taches', v => { const m = {}; v.forEach(t => { m[t.id] = t; }); S.taches = m; });
+    live('ventes', v => { S.ventes = v.filter(x => x.date && typeof x.montant === 'number'); });
     db.doc('prefs/main').onSnapshot(s => { S.prefs = Object.assign({ favoris: [] }, s.exists ? s.data() : {}); if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
     db.collection('actions').doc(weekKey()).onSnapshot(s => { S.actions = s.exists ? s.data() : { done: {} }; if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
   }
