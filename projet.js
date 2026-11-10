@@ -28,7 +28,7 @@
       r.hypotheses
     ])));
     if (r.ecartes.length) out.push(section('Activités écartées', 'Avec la raison exacte. Si tes réponses changent, le classement est recalculé.', h('div', { class: 'panel flush' }, r.ecartes.map(x => h('div', { class: 'cell', style: 'align-items:flex-start' }, h('span', { class: 'lbl' }, x.nom, h('small', null, STATUT[x.statut] + ' · ' + x.raisons.join(' ')))))),
-      h('div', { class: 'row-btns' }, h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('capital') }, 'Modifier mon capital'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('heuresProjet') }, 'Modifier mes heures'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('competences') }, 'Modifier mes compétences'))));
+      h('div', { class: 'ia-actions' }, h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('capital') }, 'Modifier mon capital'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('heuresProjet') }, 'Modifier mes heures'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('competences') }, 'Modifier mes compétences'))));
     if (d.choisi && d.bplan) out.push(...planView(d));
     return out;
   }

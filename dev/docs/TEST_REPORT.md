@@ -62,3 +62,10 @@ Tous exécutés dans le conteneur (Node 22, Chromium Playwright, iPhone 14 simul
 Défauts trouvés et corrigés par ces tests : « compétences » et « frein » sans effet ; douleur sans zone sans effet visible sur l’empreinte du programme ; projection business comptant un revenu dès le mois 1 alors que le plan d’action place la première vente au mois 2 ; activité à apprendre classée devant une activité maîtrisée ; vérification du temps non expliquée quand le programme tient ; libellés tronqués avec 6 onglets.
 
 Non testé : génération réelle par IA (programme, marché, questions) — non connectée ; prix et demande du catalogue business sur un marché réel ; affichage sur iPhone réel.
+
+## Mise à jour du 10/11/2026 (10 h 30) — IA réelle
+
+- **Appels réels au modèle** (banc « Cap essais IA », compte Claude de l’utilisateur, profils fictifs) : 1 sur 7 exécuté. A1 (programme Karim, genou douloureux) : réponse 1 refusée par Cap (1 erreur), réponse 2 validée ; revalidée indépendamment par `reel-verif.js` (7 / 7). Les 6 autres ont été bloqués par la limite d’usage (« sampling too often ») et ne comptent ni comme réussis ni comme échoués. Le banc lance désormais un essai à la fois.
+- `ia-ui.js` (11 / 11, stable sur 5 passages) : parcours IA dans l’interface en rejouant la vraie réponse A1 ; persistance, « Pourquoi ? », changement de temps libre détecté, panne annoncée, historique conservé.
+- Faux positif corrigé : une perte de programme intermittente venait du script de test (réinitialisation du profil à chaque rechargement), pas de l’appli.
+- Défaut corrigé : boutons IA écrasés sur iPhone → grille de 2 colonnes.

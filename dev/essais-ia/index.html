@@ -20,8 +20,7 @@ ul{margin:0;padding-left:18px;font-size:13px}
 <main>
   <h1>Cap : essais IA réels</h1>
   <p>Cette page appelle vraiment un modèle Claude avec ton compte, sur des <b>profils fictifs</b>. Tes données Cap ne sont ni lues ni modifiées. Chaque réponse passe par les vérifications de Cap, puis le résultat brut est enregistré pour être contrôlé.</p>
-  <p class="mu">7 essais à la suite, de 20 secondes à 2 minutes chacun. Claude te demandera d’autoriser la page au premier appel.</p>
-  <div><button id="go" type="button">Lancer les essais</button></div>
+  <p class="mu">Lance les essais <b>un par un</b>, dans l’ordre (chaque appel prend 20 secondes à 2 minutes). Claude te demandera d’autoriser la page au premier appel. Si « limite atteinte » s’affiche, attends quelques minutes avant le suivant : cela vient de la limite d’usage de ton compte Claude.</p>
   <p id="etat" class="mu" role="status" aria-live="polite"></p>
   <div id="liste" style="display:flex;flex-direction:column;gap:10px"></div>
 </main>
@@ -36,17 +35,19 @@ ul{margin:0;padding-left:18px;font-size:13px}
 <script>
 (function () {
   const E = window.CapEngine, T = window.CapTraining, B = window.CapBusiness, K = window.CapContrats, Mx = window.CapMatrice, IA = window.CapIA;
-  const $ = s => document.querySelector(s), etat = $('#etat'), liste = $('#liste'), go = $('#go');
+  const $ = s => document.querySelector(s), etat = $('#etat'), liste = $('#liste');
   let sample = null, db = null;
   (async () => {
+    await null; // laisse le script définir les essais et les cartes avant de les utiliser
     if (window.claude && window.claude.use) {
       try { sample = await window.claude.use('sample'); } catch (e) { sample = null; }
       try { db = await window.claude.use('db'); } catch (e) { db = null; }
     }
-    if (!sample) { etat.textContent = 'Capacité IA indisponible ici : ouvre cette page dans Claude.'; go.disabled = true; }
+    if (!sample) { etat.textContent = 'Capacité IA indisponible ici : ouvre cette page dans Claude.'; document.querySelectorAll('.carte button').forEach(b => { b.disabled = true; }); }
+    if (db) for (const x of ESSAIS) { try { const d = await db.collection('essais').doc(x.id).get(); if (d.exists) afficher(x, d.data()); } catch (e) { /* lecture impossible */ } }
   })();
   IA.configurer(async (tache, demande, o) => {
-    const r = await sample(o.prompt, { modelTier: tache === 'business' ? 'complex' : 'default', cache: false });
+    const r = await sample(o.prompt, { modelTier: 'default', cache: false });
     if (r.truncated) { const e = new Error('truncated'); e.code = 'truncated'; throw e; }
     return { data: IA.extraireJSON(r.text), modele: r.modelApplied || r.modelTierApplied || 'Claude', texte: r.text };
   }, 'claude', () => !!sample);
@@ -61,15 +62,20 @@ ul{margin:0;padding-left:18px;font-size:13px}
     { id: 'A1_karim', nom: 'Programme : débutant, genou douloureux, haltères et élastiques, 8 h libres', run: () => IA.programme(KARIM, ctxProg(KARIM)) },
     { id: 'A2_lea', nom: 'Programme : intermédiaire en salle, priorité force', run: () => IA.programme(LEA, ctxProg(LEA)) },
     { id: 'C_karim_temps', nom: 'Adaptation : même profil, temps libre réduit à 3 h (test C)', run: async () => {
-      const prev = window.__prevKarim; const p2 = Object.assign({}, KARIM, { tempsLibre: 3, poids: 93 });
+      let prev = window.__prevKarim;
+      if (!prev && db) { try { const d = await db.collection('essais').doc('A1_karim').get(); if (d.exists && d.data().ok) prev = d.data().brut; } catch (e) { /* absent */ } }
+      if (!prev) { const e = new Error('Lance d’abord l’essai 1 (programme de référence).'); e.code = 'prerequis'; throw e; }
+      const p2 = Object.assign({}, KARIM, { tempsLibre: 3, poids: 93 });
       const c = ctxProg(p2); c.precedent = prev || null; c.changements = K.changements(K.entrees(KARIM, K.CHAMPS_PROGRAMME), K.entrees(p2, K.CHAMPS_PROGRAMME));
       return IA.programme(p2, c);
     } },
     { id: 'D1_sami', nom: 'Activités : 22 ans, code + sport, 400 €, 8 h/semaine, Lyon (sans web)', run: () => IA.business(SAMI, { reco: B.recommander(SAMI), registre: Mx.REGISTRE }) },
     { id: 'D2_sami_0', nom: 'Activités : même profil avec 0 € de capital (test D/E)', run: () => { const p = Object.assign({}, SAMI, { capital: 0 }); return IA.business(p, { reco: B.recommander(p), registre: Mx.REGISTRE }); } },
     { id: 'H_questions', nom: 'Questions : profil entreprise sans compétences ni capital (test H)', run: () => { const p = { domaines: ['entreprise'], age: 25, pays: 'france', heuresProjet: 5 }; return IA.questions(p, { registre: Mx.REGISTRE, manquantes: Mx.questionsManquantes(p) }); } },
-    { id: 'I_pourquoi', nom: '« Pourquoi m’as-tu proposé ce programme ? » (test I)', run: () => {
-      const prog = window.__progKarim || T.generer(KARIM);
+    { id: 'I_pourquoi', nom: '« Pourquoi m’as-tu proposé ce programme ? » (test I)', run: async () => {
+      let prog = window.__progKarim || null;
+      if (!prog && db) { try { const d = await db.collection('essais').doc('A1_karim').get(); if (d.exists && d.data().ok) { const v = K.validerProgrammeIA(d.data().brut, KARIM, T.generer(KARIM)); if (v.ok) prog = v.programme; } } catch (e) { /* absent */ } }
+      prog = prog || T.generer(KARIM);
       return IA.pourquoi('Pourquoi m’as-tu proposé ce programme ?', { reponses: K.entrees(KARIM, K.CHAMPS_PROGRAMME), programme: { origine: prog.origine, seances: prog.seances.map(s => ({ nom: s.nom, justification: s.justification || null, exercices: s.exercices.map(e => e.nom) })) }, decisionsCap: T.generer(KARIM).decisions.map(x => ({ decision: x.raison, reponses: x.champs })) });
     } }
   ];
@@ -84,29 +90,37 @@ ul{margin:0;padding-left:18px;font-size:13px}
     if (!db) return false;
     try { await db.collection('essais').doc(id).set(JSON.parse(JSON.stringify(doc))); return true; } catch (e) { return false; }
   }
-  go.addEventListener('click', async () => {
-    go.disabled = true; liste.textContent = '';
-    const debut = new Date().toISOString();
-    for (let i = 0; i < ESSAIS.length; i++) {
-      const x = ESSAIS[i];
-      const carte = document.createElement('div'); carte.className = 'carte';
-      carte.innerHTML = '<h2><span></span><span class="st att">en cours</span></h2><p class="mu"></p><pre></pre>';
-      carte.querySelector('h2 span').textContent = (i + 1) + '. ' + x.nom; liste.appendChild(carte);
-      etat.textContent = 'Essai ' + (i + 1) + ' sur ' + ESSAIS.length + ' : appel au modèle en cours…';
-      const t0 = Date.now(); let r;
-      try { r = await x.run(); } catch (e) { r = { ok: false, erreur: { code: e.code || 'exception', message: String(e.message || e) } }; }
-      const ms = Date.now() - t0;
-      if (x.id === 'A1_karim' && r.ok) { window.__prevKarim = r.brut; window.__progKarim = r.programme; }
-      const st = carte.querySelector('.st');
-      st.textContent = r.ok ? 'validé' : r.refuse ? 'refusé par Cap' : 'erreur'; st.className = 'st ' + (r.ok ? 'ok' : r.refuse ? 'av' : 'ko');
-      const ess = (r.essais || []).map(e => 'essai ' + e.essai + (e.modele ? ' (' + e.modele + ')' : '') + ', ' + Math.round(e.ms / 1000) + ' s' + (e.erreurs && e.erreurs.length ? ', ' + e.erreurs.length + ' erreur(s)' : '') + (e.corrections && e.corrections.length ? ', ' + e.corrections.length + ' correction(s)' : '')).join(' · ');
-      carte.querySelector('p').textContent = (ess || '') + (r.erreur ? ' · ' + (r.erreur.code || '') : '');
-      carte.querySelector('pre').textContent = r.ok ? resume(r) : ((r.validation && r.validation.erreurs) || []).join('\n');
-      const ok = await sauver(x.id, { id: x.id, nom: x.nom, date: new Date().toISOString(), lancement: debut, ms, ok: !!r.ok, refuse: !!r.refuse, erreur: r.erreur || null, essais: r.essais || [], modele: r.modele || null, brut: r.brut || null, corrections: r.corrections || [], erreursValidation: r.validation ? r.validation.erreurs : (r.erreurs || []), questions: r.questions || [], resume: r.ok ? resume(r) : null });
-      if (!ok) carte.querySelector('p').textContent += ' · résultat non enregistré';
-    }
-    etat.textContent = 'Terminé. Les résultats sont enregistrés : tu peux revenir à la conversation.';
-    go.disabled = false; go.textContent = 'Relancer les essais';
-  });
+  const cartes = {};
+  function carteDe(x, i) {
+    const c = document.createElement('div'); c.className = 'carte';
+    c.innerHTML = '<h2><span></span><span class="st att">pas lancé</span></h2><p class="mu"></p><pre></pre><div><button type="button">Lancer cet essai</button></div>';
+    c.querySelector('h2 span').textContent = (i + 1) + '. ' + x.nom;
+    c.querySelector('button').addEventListener('click', () => lancer(x, c));
+    liste.appendChild(c); cartes[x.id] = c; return c;
+  }
+  function afficher(x, d) {
+    const c = cartes[x.id]; if (!c) return;
+    const st = c.querySelector('.st');
+    const lim = d.erreur && d.erreur.code === 'rate_limited';
+    st.textContent = d.ok ? 'validé' : d.refuse ? 'refusé par Cap' : lim ? 'limite atteinte' : 'erreur'; st.className = 'st ' + (d.ok ? 'ok' : d.refuse || lim ? 'av' : 'ko');
+    const ess = (d.essais || []).map(e => 'essai ' + e.essai + (e.modele ? ' (' + e.modele + ')' : '') + ', ' + Math.round((e.ms || 0) / 1000) + ' s' + (e.erreurs && e.erreurs.length ? ', ' + e.erreurs.length + ' erreur(s)' : '') + (e.corrections && e.corrections.length ? ', ' + e.corrections.length + ' correction(s)' : '')).join(' · ');
+    c.querySelector('p').textContent = (d.date ? new Date(d.date).toLocaleTimeString('fr-FR') + ' · ' : '') + ess + (d.erreur ? ' · ' + (d.erreur.message || d.erreur.code) : '');
+    c.querySelector('pre').textContent = d.ok ? (d.resume || '') : (d.erreursValidation || []).join('\n');
+  }
+  ESSAIS.forEach(carteDe);
+  async function lancer(x, c) {
+    const b = c.querySelector('button'); b.disabled = true;
+    c.querySelector('.st').textContent = 'en cours'; c.querySelector('.st').className = 'st att';
+    etat.textContent = 'Appel au modèle en cours…';
+    const t0 = Date.now(); let r;
+    try { r = await x.run(); } catch (e) { r = { ok: false, erreur: { code: e.code || 'exception', message: String(e.message || e) } }; }
+    const ms = Date.now() - t0;
+    if (x.id === 'A1_karim' && r.ok) { window.__prevKarim = r.brut; window.__progKarim = r.programme; }
+    const doc = { id: x.id, nom: x.nom, date: new Date().toISOString(), ms, ok: !!r.ok, refuse: !!r.refuse, erreur: r.erreur ? { code: r.erreur.code || null, message: r.erreur.message || null } : null, essais: r.essais || [], modele: r.modele || null, brut: r.brut || null, corrections: r.corrections || [], erreursValidation: r.validation ? r.validation.erreurs : (r.erreurs || []), questions: r.questions || [], resume: r.ok ? resume(r) : null };
+    afficher(x, doc);
+    const ok = await sauver(x.id, doc);
+    etat.textContent = ok ? 'Résultat enregistré.' : 'Résultat affiché mais non enregistré.';
+    b.disabled = false; b.textContent = 'Relancer cet essai';
+  }
 })();
 </script>

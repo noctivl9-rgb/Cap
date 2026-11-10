@@ -68,7 +68,7 @@
     } else if (pi && !pi.valide) {
       out.push(h('div', { class: 'alert warn' }, U().icon('alert'), h('div', null, h('h3', null, 'Programme IA suspendu'), h('p', null, 'Le programme généré le ' + fmtDate(pi.doc.date) + ' ne respecte plus tes contraintes actuelles : ' + pi.erreurs.slice(0, 2).join(' ') + ' Le programme calculé par les règles est affiché à la place.'))));
     }
-    const rang = h('div', { class: 'row-btns', style: 'flex-wrap:wrap' },
+    const rang = h('div', { class: 'ia-actions' },
       btn(pi ? 'Adapter avec l’IA' : 'Générer mon programme avec l’IA', () => genererProgramme(d), pi && pi.valide && !pi.changements.length ? 'secondary' : ''),
       h('button', { class: 'btn small secondary', type: 'button', onclick: () => pourquoi(d) }, 'Pourquoi ce programme ?'),
       pi && pi.valide ? h('button', { class: 'btn small secondary', type: 'button', onclick: () => revenir(pi) }, 'Revenir au programme calculé') : null,

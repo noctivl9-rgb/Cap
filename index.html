@@ -108,7 +108,8 @@ button.cell:active{background:var(--fill)}
 .btn.tinted{background:var(--accent-soft);color:var(--accent)}
 .btn.small{min-height:40px;font-size:var(--t-sub);width:auto}
 .btn.text{background:none;color:var(--accent);min-height:40px}
-.row-btns{display:flex;gap:var(--s2)} .row-btns>*{flex:1}
+.row-btns{display:flex;gap:var(--s2)}
+.ia-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:var(--s2)}.ia-actions .btn{width:100%;height:auto;min-height:44px;padding:10px 14px;line-height:1.25;white-space:normal;text-wrap:balance} .row-btns>*{flex:1}
 
 /* ---------- Questionnaire ---------- */
 .ob{min-height:100%;display:flex;flex-direction:column;padding-block:8px calc(130px + env(safe-area-inset-bottom,0px))}

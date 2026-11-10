@@ -20,7 +20,7 @@
       if (!window.CapIA) return;
       window.CapIA.configurer(async (tache, demande, o) => {
         if (sample) {
-          const r = await sample(o.prompt, { modelTier: tache === 'business' ? 'complex' : 'default', cache: false, signal: o.signal });
+          const r = await sample(o.prompt, { modelTier: 'default', cache: false, signal: o.signal });
           if (r.truncated) { const e = new Error('truncated'); e.code = 'truncated'; throw e; }
           return { data: window.CapIA.extraireJSON(r.text), modele: r.modelApplied || r.modelTierApplied || 'Claude' };
         }
