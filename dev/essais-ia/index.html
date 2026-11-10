@@ -126,7 +126,7 @@ ul{margin:0;padding-left:18px;font-size:13px}
   // Un seul appel à la fois : le service refuse plusieurs appels simultanés depuis la même page
   let occupe = false;
   const verrouiller = on => { occupe = on; document.querySelectorAll('.carte button, #tout').forEach(x => { x.disabled = on || !sample; }); };
-  const DELAI_MAX = location.hash === '#rapide' ? 3000 : 240000; // #rapide : tests automatiques de la page uniquement
+  const DELAI_MAX = location.hash === '#rapide' ? 3000 : 360000; // #rapide : tests automatiques de la page uniquement
   async function lancer(x, c, auto) {
     if (occupe && !auto) return null;
     verrouiller(true);
@@ -137,9 +137,9 @@ ul{margin:0;padding-left:18px;font-size:13px}
     let r;
     try { r = await x.run({ signal: ac.signal }); } catch (e) { r = { ok: false, erreur: { code: e.code || 'exception', message: String(e.message || e) } }; }
     clearInterval(minuteur);
-    if (ac.signal.aborted && !r.ok) r = { ok: false, erreur: { code: 'delai', message: 'Pas de réponse du modèle après 4 minutes : essai arrêté.' } };
+    if (ac.signal.aborted && !r.ok) r = { ok: false, erreur: { code: 'delai', message: 'Pas de réponse du modèle après 6 minutes : essai arrêté.' } };
     const ms = Date.now() - t0;
-    const doc = { id: x.id, profil: x.profil, consignes: window.CapPrompts ? window.CapPrompts.VERSION : null, attente: !!r.attente, analyseProfil: r.analyseProfil || null, nom: x.nom, date: new Date().toISOString(), ms, ok: !!r.ok, refuse: !!r.refuse, erreur: r.erreur ? { code: r.erreur.code || null, message: r.erreur.message || null } : null, essais: r.essais || [], modele: r.modele || null, brut: r.brut || null, corrections: r.corrections || [], erreursValidation: r.validation ? r.validation.erreurs : (r.erreurs || []), questions: r.questions || [], resume: r.ok ? resume(r) : null };
+    const doc = { id: x.id, profil: x.profil, consignes: window.CapPrompts ? window.CapPrompts.VERSION : null, attente: !!r.attente, analyseProfil: r.analyseProfil || null, nom: x.nom, date: new Date().toISOString(), ms, ok: !!r.ok, refuse: !!r.refuse, erreur: r.erreur ? { code: r.erreur.code || null, message: r.erreur.message || null } : null, essais: r.essais || [], modele: r.modele || null, brut: r.brut || null, bruteRefusee: r.bruteRefusee || null, corrections: r.corrections || [], erreursValidation: r.validation ? r.validation.erreurs : (r.erreurs || []), questions: r.questions || [], resume: r.ok ? resume(r) : null };
     if (r.ok) window['__' + x.id] = doc;
     afficher(x, doc);
     const ok = await sauver(x.id, doc);

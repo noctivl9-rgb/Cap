@@ -15,6 +15,8 @@ const lire = id => {
   const j = JSON.parse(fs.readFileSync(f, 'utf8')); const d = j.data || j;
   if (d.consignes !== P.VERSION) { non(id, 'obtenu avec d’anciennes consignes (' + (d.consignes || 'v1') + '), à relancer'); return null; }
   if (d.erreur && d.erreur.code === 'rate_limited') { non(id, 'non exécuté (limite d’usage du compte Claude), à relancer'); return null; }
+  if (d.erreur && d.erreur.code === 'prerequis') { non(id, 'non exécuté : l’essai dont il dépend n’a pas réussi'); return null; }
+  if (d.erreur && d.erreur.code === 'delai') { t(id + ' : réponse du modèle dans le délai', false, d.erreur.message); return null; }
   t(id + ' : appel réel au modèle (' + (d.essais || []).map(e => (e.modele || '?') + ' ' + Math.round((e.ms || 0) / 1000) + ' s').join(', ') + ')', (d.essais || []).length > 0 && d.essais.every(e => e.ms > 1500), d.erreur);
   return d;
 };

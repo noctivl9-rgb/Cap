@@ -23,7 +23,7 @@
   async function appeler(tache, demande, valider, opts) {
     if (!dispo()) return { ok: false, indisponible: true, erreur: { code: 'ia_indisponible' }, essais: [] };
     const base = PROMPTS[tache](demande), essais = [];
-    let erreurs = null, derniere = null;
+    let erreurs = null, derniere = null, derniereBrute = null;
     for (let i = 0; i < 2; i++) {
       const t0 = Date.now();
       let r;
@@ -32,11 +32,11 @@
       let v;
       try { v = valider(r.data, r.sources); } catch (e) { v = { ok: false, erreurs: ['Réponse illisible : ' + (e.message || e)] }; }
       essais.push({ essai: i + 1, ms: Date.now() - t0, modele: r.modele || null, erreurs: v.erreurs || [], corrections: v.corrections || [] });
-      derniere = v;
+      derniere = v; derniereBrute = r.data;
       if (v.ok) return Object.assign({ ok: true, modele: r.modele || null, essais, brut: r.data, sources: r.sources || null, transport: nom() }, v);
       erreurs = (v.erreurs || []).slice(0, 12);
     }
-    return { ok: false, refuse: true, validation: derniere, essais, transport: nom() };
+    return { ok: false, refuse: true, validation: derniere, essais, transport: nom(), bruteRefusee: derniereBrute };
   }
 
   // ctx : { prog (programme calculé par règles, contraintes), energie, physique, tendance, seances, precedent, changements, registre }

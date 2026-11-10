@@ -60,7 +60,7 @@
   function demandeMarche(profil, reco) {
     return {
       tache: 'business',
-      profil: entrees(profil, ['age', 'pays', 'ville', 'capital', 'competences', 'materielPro', 'heuresProjet', 'experience', 'aisanceVente', 'risque', 'formatPref', 'revenuVise']),
+      profil: Object.assign(entrees(profil, ['age', 'pays', 'ville', 'capital', 'competences', 'materielPro', 'heuresProjet', 'experience', 'risque', 'formatPref', 'revenuVise']), num(profil.aisanceVente) ? { aisanceVente: ({ 1: 'démarcher des inconnus le bloque (1 sur 3)', 2: 'démarcher lui va (2 sur 3)', 3: 'il aime démarcher (3 sur 3)' })[profil.aisanceVente] } : {}),
       complements: complementsDe(profil, 'entreprise'),
       questionsDejaPosees: Object.keys(complementsDe(profil, 'entreprise')).length,
       referenceCap: reco && reco.ok ? { top: reco.top.map(x => ({ nom: x.nom, score: x.score, explication: x.explication })), ecartes: reco.ecartes.map(x => ({ nom: x.nom, statut: x.statut, raisons: x.raisons })), notesLegales: reco.notes } : null,
@@ -81,9 +81,11 @@
     const m = /^(\d{1,3})(?:-(\d{1,3}))? min$/.exec(o.reps);
     if (m) return Number(m[2] || m[1]) * 60;
     const sec = /^(\d{2,3})(?:-(\d{2,3}))? s$/.exec(o.reps);
-    const travail = sec ? Number(sec[2] || sec[1]) : 40;
+    const travail = (sec ? Number(sec[2] || sec[1]) : 40) * (o.unilateral ? 2 : 1);
     return o.series * (travail + o.repos) + 60;
   }
+  // « 10-12 par bras », « 8-10 par jambe », « 20-30 s par côté » : exercice unilatéral, chaque côté compte
+  const UNILAT = /\s*(par|chaque|de chaque)\s+(bras|jambe|côté|cote|main|pied)s?$/i;
   function validerProgrammeIA(rep, profil, prog) {
     const erreurs = [], corrections = [];
     if (!rep || !Array.isArray(rep.seances)) return { ok: false, erreurs: ['Réponse sans liste de séances.'], corrections, programme: null };
@@ -114,12 +116,14 @@
         if (ref && ref.niv > niv) { erreurs.push(nom + ' : niveau trop élevé.'); return null; }
         const o = { id: ref ? ref.id : null, nom, pattern, series: num(Number(e.series)), reps: String(e.reps || '').trim(), repos: num(Number(e.repos)), consigne: String(e.consigne || (ref ? ref.consigne : '')).slice(0, 240), alternative: e.alternative ? String(e.alternative).slice(0, 80) : null, raison: String(e.raison || '').slice(0, 200), horsBibliotheque: !ref, type: pattern === 'cardio' ? 'cardio' : pattern === 'core' ? 'core' : 'poly' };
         if (!o.series || o.series < 1 || o.series > 6) { corrections.push(o.nom + ' : séries ramenées dans 1-6.'); o.series = Math.min(6, Math.max(1, o.series || 3)); }
+        let cote = ''; if (UNILAT.test(o.reps)) { o.unilateral = true; cote = o.reps.match(UNILAT)[0].trim(); o.reps = o.reps.replace(UNILAT, '').trim(); }
         if (!REPS_OK.test(o.reps)) { erreurs.push(o.nom + ' : répétitions illisibles « ' + o.reps + ' ».'); o.reps = '8-12'; }
         const bas = parseInt(o.reps, 10), enReps = /^\d{1,2}(-\d{1,2})?$/.test(o.reps);
         if (mineur && enReps && bas < 8) { corrections.push(o.nom + ' : moins de 18 ans, minimum 8 répétitions.'); o.reps = '8-12'; }
         else if (niv === 1 && enReps && bas < 6) { corrections.push(o.nom + ' : débutant, minimum 6 répétitions.'); o.reps = '8-12'; }
         if (o.repos === null || o.repos < 0 || o.repos > 300 || (o.repos < 20 && o.type !== 'cardio')) { corrections.push(o.nom + ' : repos ramené dans 20-300 s.'); o.repos = o.type === 'cardio' ? 0 : 90; }
         duree += dureeExercice(o);
+        if (cote) o.reps = o.reps + ' ' + cote;
         return o;
       }).filter(Boolean);
       if (!ex.length) erreurs.push('Séance ' + (s.nom || i + 1) + ' sans exercice valide.');
@@ -168,6 +172,11 @@
     objectifs.forEach(o => {
       if (o.objectif.length < 5 || !o.echeanceSemaines || o.echeanceSemaines < 1 || o.echeanceSemaines > 104) E2.push('Objectif « ' + o.objectif + ' » : échéance en semaines manquante ou hors 1-104.');
       if (o.type === 'poids' && o.valeur !== null && num(profil.poids)) {
+        if (o.valeur > 0 && o.valeur < 30 && o.valeur < profil.poids * 0.4) {
+          const vise = Math.round((profil.objectif === 'prendre' ? profil.poids + o.valeur : profil.poids - o.valeur) * 10) / 10;
+          v.corrections.push('Objectif « ' + o.objectif + ' » : ' + o.valeur + ' kg lu comme un écart, poids visé ' + vise + ' kg.');
+          o.ecart = o.valeur; o.valeur = vise;
+        }
         if (o.valeur < 30 || o.valeur > 300) { E2.push('Objectif de poids invalide (' + o.valeur + ' kg).'); return; }
         const rythme = Math.abs(o.valeur - profil.poids) / Math.max(1, o.echeanceSemaines || 1);
         if (ph && !ph.planPossible && o.valeur < profil.poids) E2.push('Objectif de poids à la baisse refusé : Cap demande un avis médical pour ce profil.');

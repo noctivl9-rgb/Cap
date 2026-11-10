@@ -64,6 +64,13 @@ const bonneSeance = (j, cle) => ({ cle, nom: 'Haut du corps', jour: j, justifica
   const adapt2 = await IA.programme(p, Object.assign({}, ctx, { precedent: { seances: [] }, changements: [{ champ: 'tempsLibre', avant: 10, apres: 6 }] }));
   t('adaptation expliquée (changement, conséquence, ajustement, progrès conservés) : accepté', adapt2.ok && adapt2.programme.ajustements.length === 1 && adapt2.programme.progresConserves.length === 1);
 
+  // Formes réelles observées le 10/11/2026 : répétitions « par bras / par côté », objectif de poids exprimé en écart
+  const k2 = Object.assign({}, p, { complements: undefined });
+  const formeReelle = K.validerPlanIndividuel({ ...PLEIN, objectifs: [{ objectif: 'Perdre 3 kg', type: 'poids', valeur: 3, unite: 'kg', echeanceSemaines: 10, mesure: 'balance' }], seances: [{ cle: 'S1', nom: 'Haut', jour: 1, justification: 'Genou douloureux : haut du corps uniquement.', exercices: [{ id: 'rowing_halteres', series: 3, reps: '10-12 par bras', repos: 60 }, { id: 'gainage_lat', series: 2, reps: '20-30 s par côté', repos: 30 }] }] }, k2, prog, { physique: E.physique(k2) });
+  t('répétitions « par bras » et « par côté » acceptées, affichées telles quelles, durée doublée', formeReelle.ok && formeReelle.programme.seances[0].exercices[0].reps === '10-12 par bras' && formeReelle.programme.seances[0].exercices[1].reps === '20-30 s par côté', formeReelle.erreurs);
+  t('objectif de poids donné comme un écart : converti en poids visé et signalé', formeReelle.ok && formeReelle.programme.objectifs[0].valeur === 68 && formeReelle.corrections.some(c => /lu comme un écart/.test(c)));
+  t('aisance commerciale envoyée avec son échelle (1 à 3)', /sur 3/.test(K.demandeMarche(Object.assign({}, p, { aisanceVente: 2 }), null).profil.aisanceVente));
+
   // 2. Deux réponses invalides → refus honnête, rien n'est remplacé
   IA.configurer(async () => ({ data: { seances: [{ cle: 'X', jour: 9, exercices: [{ id: 'exercice_imaginaire' }] }] }, modele: 'test' }), 'test');
   const r2 = await IA.programme(p, ctx);
