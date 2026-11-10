@@ -1,0 +1,14 @@
+# Sorties générées (reconstruites par les scripts)
+dev/tests/out/
+dev/brand/out/
+dist-claude/
+*.out
+dev/tests/*.png
+dev/brand/*.png
+node_modules/
+.DS_Store
+# Secrets : ne jamais committer
+.env
+.env.*
+*.pem
+*.key

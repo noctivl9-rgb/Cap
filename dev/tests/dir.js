@@ -1,7 +1,7 @@
 const { chromium, devices } = require('playwright');
 (async () => { const b = await chromium.launch(); const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c ? '' : ' → ' + JSON.stringify(i)));
 const errs = [];
-const open = async (dev, extra) => { const pg = await (await b.newContext(Object.assign({}, dev, extra || {}))).newPage(); pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => { if (m.type() === 'error') errs.push(m.text()); }); await pg.goto('file:///home/claude/cap/test/page.html#mock'); return pg; };
+const open = async (dev, extra) => { const pg = await (await b.newContext(Object.assign({}, dev, extra || {}))).newPage(); pg.on('pageerror', e => errs.push(e.message)); pg.on('console', m => { if (m.type() === 'error') errs.push(m.text()); }); await pg.goto('file://' + __dirname + '/out/page.html#mock'); return pg; };
 let pg = await open(devices['iPhone 14']);
 await pg.waitForTimeout(500); await pg.screenshot({ path: 'id-intro.png' });
 T('intro : affichée au premier lancement', !!(await pg.$('.intro')));

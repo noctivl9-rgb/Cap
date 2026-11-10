@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{margin:0;font:12px -apple-system,system-ui;color:#555}
+.g{display:grid;grid-template-columns:1fr 1fr}.c{padding:24px;display:flex;flex-direction:column;gap:12px;align-items:center;min-height:200px}
+.d{background:#0E0E0F;color:#999}.r{display:flex;gap:16px;align-items:center}
+.cap-word{display:inline-flex;align-items:center;gap:10px;font-size:24px;font-weight:600;letter-spacing:.32em}
+</style><script src="../../logo.js"></script></head><body><div class="g" id="g"></div><script>
+const L = CapLogo, g = document.getElementById('g');
+g.innerHTML =
+`<div class="c">Principal (clair)<div>${L.wordmark({ markSize: 56, color: '#141416' })}</div><div class="r">${L.mark({ size: 128 })}</div></div>
+<div class="c d">Principal (noir)<div>${L.wordmark({ markSize: 56, mode: 'dark', color: '#E9EBEE' })}</div><div class="r">${L.mark({ size: 128, mode: 'dark' })}</div></div>
+<div class="c">Petites tailles (clair) : 48 · 32 · 24<div class="r">${L.mark({ size: 48 })}${L.mark({ size: 32 })}${L.mark({ size: 24 })}</div>Monochrome<div class="r">${L.mark({ size: 48, mode: 'mono', color: '#141416' })}${L.mark({ size: 24, mode: 'mono', color: '#141416' })}</div></div>
+<div class="c d">Petites tailles (noir)<div class="r">${L.mark({ size: 48, mode: 'dark' })}${L.mark({ size: 32, mode: 'dark' })}${L.mark({ size: 24, mode: 'dark' })}</div>Monochrome<div class="r">${L.mark({ size: 48, mode: 'mono', color: '#fff' })}${L.mark({ size: 24, mode: 'mono', color: '#fff' })}</div></div>
+<div class="c" style="grid-column:1/-1;background:#E9E9EC">Icône d'application : 180 · 60 · 32<div class="r">${L.mark({ size: 180, mode: 'icon' })}${L.mark({ size: 60, mode: 'icon' })}${L.mark({ size: 32, mode: 'icon' })}</div></div>`;
+</script></body></html>

@@ -1,11 +1,11 @@
 const { chromium } = require('playwright');
-const out = '/home/claude/cap/test/v3-';
+const out = __dirname + '/out/v3-';
 (async () => {
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
   const pg = await ctx.newPage();
   const errs = []; pg.on('pageerror', e => errs.push('pageerror: ' + e.message)); pg.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
-  await pg.goto('file:///home/claude/cap/test/page.html#mock'); await pg.waitForTimeout(500);
+  await pg.goto('file://' + __dirname + '/out/page.html#mock'); await pg.waitForTimeout(500);
   let n = 0; const shot = async name => pg.screenshot({ path: out + String(++n).padStart(2, '0') + '-' + name + '.png' });
   const res = []; const T = (name, c, info) => res.push((c ? 'ok   ' : 'FAIL ') + name + (info !== undefined && !c ? ' → ' + JSON.stringify(info).slice(0, 300) : ''));
   const cont = async () => { await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn'); await pg.waitForTimeout(260); };
@@ -120,7 +120,7 @@ const out = '/home/claude/cap/test/v3-';
   await shot('accueil');
   // Scan photo (IA simulée)
   await pg.click('.fab'); await pg.waitForTimeout(250); await pg.click('.tile:has-text("Scanner")'); await pg.waitForTimeout(300);
-  await pg.setInputFiles('#scan-lib', '/home/claude/cap/test/repas.jpg'); await pg.waitForTimeout(500);
+  await pg.setInputFiles('#scan-lib', __dirname + '/fixtures/repas.jpg'); await pg.waitForTimeout(500);
   await pg.click(lastSheet + ' .sk-btn'); await pg.waitForTimeout(600);
   st = await sheetTxt();
   T('scan : aliment reconnu dans la base → valeurs de la base', st.includes('Riz blanc (cuit)') && st.includes('Valeurs de la base'));
@@ -177,7 +177,7 @@ const out = '/home/claude/cap/test/v3-';
   T('progrès : série 2 jours', m.includes('2 jours'));
   T('progrès : poids affiché en kg', m.includes('71,0 kg'));
   await pg.click('.btn:has-text("Ajouter une photo") input', { force: true }).catch(() => {});
-  await pg.setInputFiles('#ph-up', '/home/claude/cap/test/repas.jpg'); await pg.waitForTimeout(600);
+  await pg.setInputFiles('#ph-up', __dirname + '/fixtures/repas.jpg'); await pg.waitForTimeout(600);
   T('photo de progression ajoutée', (await pg.$$('.photos img')).length === 1);
   await shot('progres');
   // Coach
@@ -203,7 +203,7 @@ const out = '/home/claude/cap/test/v3-';
   await shot('320');
   console.log(res.join('\n')); console.log('\nerreurs console :', errs);
   // Sans IA : modes manuels
-  const pg2 = await ctx.newPage(); await pg2.goto('file:///home/claude/cap/test/page.html'); await pg2.waitForTimeout(400);
-  console.log('sans IA (aperçu) chargé :', (await pg2.$eval('.stage h1', e => e.textContent)));
+  const pg2 = await ctx.newPage(); await pg2.goto('file://' + __dirname + '/out/page.html'); await pg2.waitForSelector('.wl-title, .stage h1, .tabbar', { timeout: 6000 });
+  console.log('sans IA (aperçu) chargé :', (await pg2.$eval('.wl-title, .stage h1, .tabbar', e => e.textContent)));
   await b.close();
 })();

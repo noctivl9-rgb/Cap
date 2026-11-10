@@ -1,4 +1,9 @@
-cd /home/claude/cap
+#!/usr/bin/env bash
+# Construit la page de test (dev/tests/out/page.html) à partir de la racine du dépôt.
+# page.html#mock : simule window.claude (scan photo, coach, photos) ; page.html sans #mock : mode sans compte (localStorage).
+set -euo pipefail
+cd "$(dirname "$0")"
+OUT="$PWD/out"; rm -rf "$OUT"; bash ../scripts/build-claude.sh "$OUT" >/dev/null
 MOCK='<script>window.__MOCK__&&(function(){const files={};window.claude={use:async n=>{if(n==="sample"){const f=async(turns,o)=>{const t="Selon ton contexte, ton objectif vient de ta dépense estimée moins le déficit du plan.";if(o&&o.onText)o.onText({text:t,delta:t});return{text:t,truncated:false}};f.json=async(p,o)=>({aliments:[{nom:"Riz blanc (cuit)",grammes:180,preparation:"aucune",confiance:"moyenne",kcal_100g:130,proteines_100g:2.7,glucides_100g:28,lipides_100g:0.3},{nom:"poulet grillé mariné",grammes:120,preparation:"poele",confiance:"faible",kcal_100g:165,proteines_100g:28,glucides_100g:1,lipides_100g:5}],remarque:"Sauce possible sous le riz."});f.limits=async()=>({images:{maxCount:4,maxBytes:5e6,mediaTypes:["image/jpeg","image/png"]}});return f}if(n==="assets")return{upload:async b=>({id:"a"+Date.now(),url:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22/%3E",sizeBytes:1,contentType:"image/jpeg"}),delete:async()=>{},list:async()=>({assets:[]})};return null}}})()</script>'
-{ echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style><script>window.__MOCK__=location.hash==="#mock"</script>'"$MOCK"'</head><body>'; cat index.html; echo '</body></html>'; } > test/page.html
-cp engine.js logo.js sound.js foods.js ai.js app.js journal.js test/
+{ echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light}body{margin:0;font:14px system-ui}img{max-width:100%}[hidden]{display:none!important}</style><script>window.__MOCK__=location.hash==="#mock"</script>'"$MOCK"'</head><body>'; cat "$OUT/index.html"; echo '</body></html>'; } > "$OUT/page.html"
+echo "Page de test : dev/tests/out/page.html"
