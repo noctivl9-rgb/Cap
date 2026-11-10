@@ -40,5 +40,11 @@ T('B ne peut pas appeler la fonction de quota', !!(await err(() => as(B, `select
 let oks = 0; for (let i = 0; i < 4; i++) if ((await db.query(`select public.cap_ai_consommer('${A}', 'scan', 3) as ok`)).rows[0].ok) oks++;
 T('quota : 3 scans acceptés, le 4e refusé', oks === 3, oks);
 T('A lit son compteur', (await as(A, `select scans from public.cap_ai_usage`)).rows[0]?.scans === 3);
+await db.exec(readFileSync(new URL('../migrations/20261110120000_cap_generations.sql', import.meta.url), 'utf8'));
+await db.exec(readFileSync(new URL('../migrations/20261110120000_cap_generations.sql', import.meta.url), 'utf8'));
+T('migration 2 (générations) rejouable', true);
+let g = 0; for (let i = 0; i < 3; i++) if ((await db.query(`select public.cap_ai_consommer('${A}', 'generation', 2) as ok`)).rows[0].ok) g++;
+T('quota de générations : 2 acceptées, la 3e refusée', g === 2, g);
+T('quota scans inchangé par la migration 2', (await as(A, `select scans, generations from public.cap_ai_usage`)).rows[0]?.scans === 3);
 T('table publiée pour le temps réel', (await db.query(`select 1 from pg_publication_tables where pubname='supabase_realtime' and tablename='cap_docs'`)).rows.length === 1);
 console.log(res.join('\n')); console.log('\n' + res.filter(x => x.startsWith('ok')).length + ' réussis, ' + res.filter(x => x.startsWith('FAIL')).length + ' échoués');

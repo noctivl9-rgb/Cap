@@ -18,7 +18,8 @@
     }
     r.notes.forEach(n => out.push(h('div', { class: 'alert info' }, U().icon('info'), h('div', null, h('p', null, n)))));
     if (!r.top.length) out.push(h('div', { class: 'note' }, 'Aucune activité du catalogue n’est compatible avec ton capital, ton temps et ton âge. Regarde les raisons ci-dessous : souvent, quelques dizaines d’euros ou une heure de plus par semaine changent le résultat.'));
-    out.push(section('Tes trois meilleures options', null, r.top.map(x => carte(x, d))));
+    if (window.CapIAUI) out.push(...window.CapIAUI.businessPanel(d));
+    out.push(section(window.CapIAUI ? 'Classement calculé par Cap (catalogue)' : 'Tes trois meilleures options', null, r.top.map(x => carte(x, d))));
     out.push(h('div', { style: 'margin:0 4px' }, howBtn('Comment le classement est calculé', [
       'Filtres : âge légal, diplôme obligatoire, budget de départ (matériel manquant et 2 mois de charges compris), heures minimales.',
       'Score sur 100 : ' + Object.keys(r.poids).map(k => k + ' ' + Math.round(r.poids[k] * 100) + ' %').join(', ') + '.',
@@ -34,7 +35,7 @@
 
   function carte(x, d) {
     const { h, eur } = U();
-    const m = B().PAR_ID[x.id], choisi = d.choisi === x.id;
+    const m = B().PAR_ID[x.id], choisi = d.choisi === x.id || (d.choisi && d.choisi.id === x.id);
     return h('div', { class: 'panel', style: 'display:flex;flex-direction:column;gap:8px;margin-bottom:12px' },
       h('div', { style: 'display:flex;justify-content:space-between;gap:12px;align-items:baseline' }, h('h3', { style: 'margin:0;font-size:17px' }, x.rang + '. ' + x.nom), h('span', { class: 'chip neutral' }, x.score + '/100')),
       h('p', { class: 'sub', style: 'margin:0' }, m.client + '. ' + m.probleme),

@@ -48,8 +48,8 @@
 
   // ================================================================ Données (db ou mémoire)
   let db = null;
-  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [], taches: {}, ventes: [] };
-  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {}, taches: {}, ventes: {} };
+  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [], taches: {}, ventes: [], programmes: [], opportunites: [] };
+  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {}, taches: {}, ventes: {}, programmes: {}, opportunites: {} };
   async function put(coll, id, data) {
     if (db) return db.collection(coll).doc(id).set(data);
     mem[coll][id] = data; store.set('cap-local', mem); syncMem(); return Promise.resolve();
@@ -70,6 +70,8 @@
     S.photos = Object.keys(mem.photos).map(id => Object.assign({ id }, mem.photos[id]));
     S.taches = Object.assign({}, mem.taches);
     S.ventes = Object.keys(mem.ventes).map(id => Object.assign({ id }, mem.ventes[id]));
+    S.programmes = Object.keys(mem.programmes).map(id => Object.assign({ id }, mem.programmes[id]));
+    S.opportunites = Object.keys(mem.opportunites).map(id => Object.assign({ id }, mem.opportunites[id]));
     refresh();
   }
   // Adaptation sans perte : chaque version remplacée du profil est gardée dans « historique »
@@ -100,17 +102,31 @@
     const corps = doms.indexOf('corps') >= 0, argent = doms.indexOf('argent') >= 0, entreprise = doms.indexOf('entreprise') >= 0;
     const phys = corps ? E.physique(p) : null;
     const energie = corps ? E.energie(p) : null;
-    const prog = corps ? (window.CapTraining ? window.CapTraining.generer(p) : E.programme(p)) : null;
+    const progRegles = corps ? (window.CapTraining ? window.CapTraining.generer(p) : E.programme(p)) : null;
+    // Programme IA : le plus récent marqué actif, revérifié à chaque affichage contre les contraintes ACTUELLES
+    let progIA = null;
+    const K = window.CapContrats;
+    if (corps && K && progRegles && progRegles.ok && progRegles.parametres) {
+      const doc = (S.programmes || []).filter(x => x.actif).sort((a, b) => b.date.localeCompare(a.date))[0];
+      if (doc) {
+        const v = K.validerProgrammeIA(doc.brut, p, progRegles);
+        const ch = K.changements(doc.entrees, K.entrees(p, K.CHAMPS_PROGRAMME.concat(['complements'])));
+        progIA = { doc, valide: v.ok, erreurs: v.erreurs, changements: ch, programme: v.ok ? Object.assign(v.programme, { modele: doc.modele, date: doc.date, idDoc: doc.id }) : null };
+      }
+    }
+    const prog = progIA && progIA.valide ? progIA.programme : progRegles;
     const B = window.CapBusiness;
     const business = entreprise && B ? B.recommander(p) : null;
-    const choisi = entreprise && B && p.businessChoisi && B.PAR_ID[p.businessChoisi] ? p.businessChoisi : null;
+    // Activité choisie : modèle du catalogue, ou activité proposée par l'IA (gardée dans le profil, réévaluée ici)
+    const choisi = entreprise && B ? (p.businessChoisi === 'ia' && p.businessIA ? p.businessIA : (p.businessChoisi && B.PAR_ID[p.businessChoisi] ? p.businessChoisi : null)) : null;
     const bplan = choisi ? B.plan(choisi, p, S.ventes) : null;
     const faites = {}; Object.keys(S.taches || {}).forEach(k => { if (S.taches[k] && S.taches[k].fait) faites[k] = S.taches[k]; });
     const baction = choisi ? B.planAction(choisi, p, faites, p.debutProjet || null) : null;
     const fin = argent ? E.finances(p, S.epargne, dayId()) : null;
     const issues = E.coherence(p, phys, prog, fin);
     const adapt = prog ? E.adaptation(prog, S.seances, dayId(), p.creeLe ? p.creeLe.slice(0, 10) : null) : null;
-    return { p, corps, argent, entreprise, phys, energie, prog, fin, issues, adapt, business, choisi, bplan, baction };
+    const opIA = entreprise ? (S.opportunites || []).slice().sort((a, b) => b.date.localeCompare(a.date))[0] || null : null;
+    return { p, corps, argent, entreprise, phys, energie, prog, progRegles, progIA, fin, issues, adapt, business, choisi, bplan, baction, opIA };
   }
 
   // ================================================================ Règle (valeur en direct, inertie, aimantation)
@@ -811,21 +827,25 @@
       h('div', { class: 'stat' }, h('b', null, a.taux === null ? '—' : fr(a.taux * 100) + ' %'), h('span', null, 'Régularité mesurée')),
       h('div', { class: 'stat' }, h('b', null, ((pr.parametres && pr.parametres.minutesRetenues) || d.p.minutes || 0) + ' min'), h('span', null, 'Par séance'))));
     // Origine honnête : calculé par les règles, pas généré par une IA
-    const ia = window.CapContrats ? window.CapContrats.statutIA(() => false) : null;
-    out.push(h('div', { class: 'note' }, h('b', null, 'Programme calculé par les règles de Cap'), ' à partir de tes réponses (niveau, temps, matériel, douleurs, objectif). ', ia ? ia.texte : ''));
-    if (pr.decisions && pr.decisions.length) out.push(section('Pourquoi ce programme', null, h('div', { class: 'panel flush' }, pr.decisions.map(x => h('div', { class: 'cell', style: 'align-items:flex-start' }, h('span', { class: 'lbl' }, x.raison, x.champs.length ? h('small', null, 'Réponses utilisées : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null))))));
+    const viaIA = pr.origine === 'ia_validee';
+    const ia = window.CapContrats ? window.CapContrats.statutIA(() => !!(window.CapIA && window.CapIA.dispo())) : null;
+    if (!viaIA) out.push(h('div', { class: 'note' }, h('b', null, 'Programme calculé par les règles de Cap'), ' à partir de tes réponses (niveau, temps, matériel, douleurs, objectif). ', ia && !ia.actif ? ia.texte : 'Tu peux demander à l’IA de le personnaliser davantage.'));
+    if (window.CapIAUI) out.push(...window.CapIAUI.programmePanel(d));
+    const dec = viaIA ? (d.progRegles && d.progRegles.decisions) || [] : pr.decisions || [];
+    if (dec.length) out.push(section(viaIA ? 'Règles de sécurité appliquées par Cap' : 'Pourquoi ce programme', viaIA ? 'Limites que le programme IA doit respecter ; il est revérifié à chaque ouverture.' : null, h('div', { class: 'panel flush' }, dec.map(x => h('div', { class: 'cell', style: 'align-items:flex-start' }, h('span', { class: 'lbl' }, x.raison, x.champs.length ? h('small', null, 'Réponses utilisées : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null))))));
     if (a.conseil) out.push(h('div', { class: 'alert info' }, icon('info'), h('div', null, h('h3', null, 'Ajustement suggéré'), h('p', null, a.conseil))));
     const today = new Date().getDay();
     out.push(section('Ta semaine', null, pr.planning.map(pl => {
       const se = pr.seances.find(s => s.cle === pl.seance);
       const det = h('details', { class: 'session', open: pl.jour === today ? true : null },
         h('summary', null, h('div', { style: 'flex:1;min-width:0' }, h('div', { class: 'day' }, pl.jourNom + (pl.jour === today ? ' · aujourd’hui' : '')), h('div', { style: 'font-weight:600;font-size:17px' }, se.nom), h('div', { class: 'foot muted' }, se.objectif + ' · ' + se.duree + ' min')), icon('chev', 'chev')),
+        se.justification ? h('div', { class: 'ex', style: 'grid-template-columns:1fr' }, h('small', { style: 'grid-column:auto' }, h('b', null, 'Pourquoi cette séance : '), se.justification)) : null,
         h('div', { class: 'ex', style: 'grid-template-columns:1fr' }, h('small', { style: 'grid-column:auto' }, 'Échauffement : ' + se.echauffement)),
-        se.exercices.map(e => h('div', { class: 'ex' }, h('b', null, e.nom), h('span', { class: 'r' }, e.type === 'cardio' ? e.reps : e.series + ' × ' + e.reps), h('small', null, (e.repos ? 'Repos ' + e.repos + ' s · ' : '') + (e.alternative ? 'Alternative : ' + e.alternative : 'Pas d’alternative avec ton matériel') + (e.consigne ? ' · ' + e.consigne : '')))),
+        se.exercices.map(e => h('div', { class: 'ex' }, h('b', null, e.nom), h('span', { class: 'r' }, e.type === 'cardio' ? e.reps : e.series + ' × ' + e.reps), h('small', null, (e.repos ? 'Repos ' + e.repos + ' s · ' : '') + (e.alternative ? 'Alternative : ' + e.alternative : 'Pas d’alternative avec ton matériel') + (e.consigne ? ' · ' + e.consigne : '') + (e.raison ? ' · Pourquoi : ' + e.raison : '') + (e.horsBibliotheque ? ' · Hors bibliothèque, non vérifié par Cap' : '')))),
         h('div', { style: 'padding:12px 16px 16px' }, h('button', { class: 'btn small tinted', type: 'button', style: 'width:100%', onclick: () => logSeance(se) }, icon('check'), 'J’ai fait cette séance')));
       return det;
     })));
-    out.push(section('Progression', null, h('div', { class: 'note' }, pr.progression)));
+    out.push(section('Progression', null, h('div', { class: 'note' }, pr.progression), pr.progressionSemaines && pr.progressionSemaines.length ? h('div', { class: 'panel flush' }, pr.progressionSemaines.map(x => cellKV('Semaine ' + x.semaine, x.consigne))) : null, pr.recuperation ? h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Récupération : ' + pr.recuperation) : null));
     const logs = S.seances.slice().sort((x, y) => y.date.localeCompare(x.date)).slice(0, 10);
     out.push(section('Séances enregistrées', null, logs.length ? h('div', { class: 'panel flush' }, logs.map(l => h('div', { class: 'cell' }, h('span', { class: 'lbl' }, l.nom, h('small', null, fmtD(l.date) + ' · ressenti ' + ({ facile: 'facile', ok: 'correct', dur: 'très dur' }[l.ressenti] || '—'))), h('button', { class: 'round press', type: 'button', style: 'width:32px;height:32px;background:var(--fill)', 'aria-label': 'Supprimer', onclick: () => confirmDel(() => remove('seances', l.id)) }, icon('trash'))))) : h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Aucune séance enregistrée : aucune progression n’est affichée.')));
     return out;
@@ -987,6 +1007,7 @@
     out.push(section(null, null, h('div', { class: 'cap' }, 'Sources et méthode'), h('div', { class: 'panel' },
       h('p', { class: 'sub' }, 'Les calculs sont faits par des formules fixes, testées, jamais par une IA. Ce sont des estimations, pas des garanties. Cap ne remplace ni un médecin ni un conseiller financier.'),
       h('ul', { class: 'calc' }, Object.keys(E.REF.sources).map(k => h('li', { class: 'foot' }, E.REF.sources[k]))))));
+    if (window.CapIAUI) { const cs = window.CapIAUI.complementsSection(); if (cs) out.push(cs); }
     if (window.CapDonnees) out.push(window.CapDonnees.section());
     const OU = { claude: 'Tes données sont dans ton espace Claude privé, synchronisé entre tes appareils connectés à Claude.', cloud: 'Tes données sont dans ton compte Cap (Supabase), protégées par ton identifiant et synchronisées entre tes appareils.', local: 'Tes données sont enregistrées sur cet appareil uniquement. Exporte-les régulièrement pour ne pas les perdre.' };
     out.push(section(null, null, h('div', { class: 'cap' }, 'Données'), h('div', { class: 'panel flush' },
@@ -1003,7 +1024,7 @@
           const jobs = [];
           S.pesees.forEach(r => jobs.push(remove('pesees', r.id))); S.epargne.forEach(r => jobs.push(remove('epargne', r.id))); S.seances.forEach(r => jobs.push(remove('seances', r.id)));
           Object.keys(S.journaux).forEach(k => jobs.push(remove('repas', k))); jobs.push(remove('actions', weekKey())); jobs.push(remove('prefs', 'main'));
-          Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id)));
+          Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.programmes.forEach(x => jobs.push(remove('programmes', x.id))); S.opportunites.forEach(x => jobs.push(remove('opportunites', x.id))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id)));
           S.perso.forEach(r => jobs.push(remove('aliments', r.id))); S.recettes.forEach(r => jobs.push(remove('recettes', r.id)));
           if (window.CapDonnees) jobs.push(window.CapUI.snapshotData().then(d => Promise.all(Object.keys(d.historique || {}).map(id => remove('historique', id)))));
           S.photos.forEach(r => { jobs.push(remove('photos', r.id)); if (window.CapJournal) jobs.push(window.CapJournal.supprimerAsset(r.assetId)); });
@@ -1015,7 +1036,7 @@
   // ================================================================ Démarrage
   let booted = false;
   const boot = () => { if (booted) return; booted = true; refresh(); };
-  window.CapUI = { sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => { tab = t; renderMain(); window.scrollTo(0, 0); }, refresh: () => { window._keepScroll = true; refresh(); } };
+  window.CapUI = { derive: (...a) => derive(...a), viewProgRefresh: () => renderMain(), sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => { tab = t; renderMain(); window.scrollTo(0, 0); }, refresh: () => { window._keepScroll = true; refresh(); } };
   // Lecture de toutes les données, quel que soit le stockage (export, migration)
   async function snapshotData() {
     const colls = window.CapSync ? window.CapSync.COLLS : Object.keys(mem), out = {};
@@ -1060,10 +1081,12 @@
     live('photos', v => { S.photos = v.filter(x => x.assetId); });
     live('taches', v => { const m = {}; v.forEach(t => { m[t.id] = t; }); S.taches = m; });
     live('ventes', v => { S.ventes = v.filter(x => x.date && typeof x.montant === 'number'); });
+    live('programmes', v => { S.programmes = v.filter(x => x.date && x.brut); });
+    live('opportunites', v => { S.opportunites = v.filter(x => x.date); });
     db.doc('prefs/main').onSnapshot(s => { S.prefs = Object.assign({ favoris: [] }, s.exists ? s.data() : {}); if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
     db.collection('actions').doc(weekKey()).onSnapshot(s => { S.actions = s.exists ? s.data() : { done: {} }; if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
   }
   // Démarre après le chargement de tous les modules (journal.js, ai.js)
-  const go = () => { intro(); if (window.CapAI) window.CapAI.init().then(() => { if (booted && !OB) { window._keepScroll = true; refresh(); } }); if (window.CapJournal) window.CapJournal.init(); start(); };
+  const go = () => { intro(); if (window.CapAI && window.CapAI.branchement) window.CapAI.branchement(); if (window.CapAI) window.CapAI.init().then(() => { if (booted && !OB) { window._keepScroll = true; refresh(); } }); if (window.CapJournal) window.CapJournal.init(); start(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else setTimeout(go, 0);
 })();

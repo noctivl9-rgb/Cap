@@ -124,7 +124,7 @@ const ELIAS = { domaines: ['corps', 'argent', 'entreprise'], age: 16, sexe: 'H',
   const faux = { seances: [{ cle: 'FA', exercices: [{ id: 'squat_barre', series: 5, reps: '3-5', repos: 200 }] }, { cle: 'X', exercices: [{ id: 'exercice_invente', series: 3, reps: '10', repos: 60 }] }, { cle: 'Y', exercices: [] }, { cle: 'Z', exercices: [] }] };
   const v = K.validerProgrammeIA(faux, ELIAS, prog);
   t('J', 'programme IA : exercice inventé, matériel absent et séance en trop refusés', !v.ok && v.programme === null && v.erreurs.some(e => /inconnu/.test(e)) && v.erreurs.some(e => /matériel/.test(e)) && v.erreurs.some(e => /Trop de séances/.test(e)));
-  const bon = { seances: [{ cle: 'FA', exercices: [{ id: 'squat_pdc', series: 3, reps: '5-6', repos: 90 }, { id: 'pompes', series: 9, reps: '10-12', repos: 600 }] }] };
+  const bon = { seances: [{ cle: 'FA', jour: 1, justification: 'Débutant avec 20 h libres : corps complet au poids du corps.', exercices: [{ id: 'squat_pdc', series: 3, reps: '5-6', repos: 90 }, { id: 'pompes', series: 9, reps: '10-12', repos: 600 }] }] };
   const v2 = K.validerProgrammeIA(bon, ELIAS, prog);
   t('J', 'programme IA conforme : accepté avec corrections (mineur 8 répétitions min, séries et repos bornés)', v2.ok && v2.programme.origine === 'ia_validee' && v2.corrections.length === 3 && v2.programme.seances[0].exercices[0].reps === '8-12');
   const m = K.validerMarcheIA({ activites: [{ id: 'sites_vitrines', faits: [{ theme: 'prix', texte: 'Un site vitrine coûte 500 à 1500 €.', source: { titre: 'Étude', url: 'https://exemple.fr/etude', date: '2026-10-01' } }, { theme: 'demande', texte: 'Forte demande.' }], hypotheses: ['Tu gagneras 2000 € par mois'] }, { id: 'activite_inventee' }] });

@@ -47,6 +47,8 @@
     M({ id: 'bricolage', nom: 'Petits travaux et montage de meubles', cat: 'service', format: 'local', regime: 'bic', client: 'Particuliers, personnes âgées, étudiants qui emménagent', probleme: 'Petits travaux trop petits pour un artisan.', offre: 'Montage de meubles, fixations, petites réparations à l’heure.', comp: { bricolage: 1, vente: 0.3 }, requis: ['bricolage'], mat: ['outils'], capital: 20, couts: 10, prix: [20, 28, 40], unite: 'heure', hU: 1.3, hC: 2.5, rec: 0.5, demande: 3, risque: 2, difficulte: 2, vente: 2, hMin: 4, delaiSem: 2, validation: 'Annonce sur 2 plateformes locales : 3 demandes en 3 semaines.' })
   ];
   const PAR_ID = {}; CATALOGUE.forEach(m => { PAR_ID[m.id] = m; });
+  // Accepte un identifiant du catalogue ou un modèle complet (activité proposée par l'IA puis validée)
+  const modele = x => (x && typeof x === 'object') ? x : PAR_ID[x];
 
   // Pondérations du classement (somme = 1). Documentées dans BUSINESS_RECOMMENDATION_ENGINE.md.
   const POIDS = { competences: 0.22, potentiel: 0.15, temps: 0.12, budget: 0.12, demande: 0.10, risque: 0.08, difficulte: 0.08, vente: 0.06, couts: 0.04, format: 0.03 };
@@ -69,7 +71,7 @@
     const age = num(p.age) || 0, capital = num(p.capital) || 0, heures = num(p.heuresProjet) || 0;
     const comps = (p.competences || []).filter(c => c !== 'aucune');
     const matUser = (p.materielPro || []).filter(x => x !== 'aucun');
-    const manque = m.mat.filter(x => matUser.indexOf(x) < 0);
+    const manque = (m.mat || []).filter(x => matUser.indexOf(x) < 0);
     const coutMat = manque.reduce((s, x) => s + (MATERIEL[x][1] || 0), 0);
     const budget = m.capital + coutMat + m.couts * 2; // démarrage + 2 mois de charges
     const r = { id: m.id, nom: m.nom, cat: m.cat, statut: 'compatible', raisons: [], budget, materielManquant: manque.map(x => MATERIEL[x][0]), coutMateriel: coutMat };
@@ -139,7 +141,7 @@
   const ATTRITION = 0.1; // 10 % des clients récurrents partent chaque mois (hypothèse)
   function projection(m, p, ventes) {
     const heures = num(p.heuresProjet) || 0, H = heures * SEM_PAR_MOIS, reg = REGIMES[m.regime];
-    const pa = planAction(m.id, p, {});
+    const pa = planAction(m, p, {});
     const pv = pa.ok ? pa.taches.find(t => t.id === 'premiere_vente') : null;
     // Avant la date de la première vente prévue par le plan d'action, aucun revenu n'est compté
     const delaiMois = Math.max(Math.ceil(m.delaiSem / SEM_PAR_MOIS), pv ? Math.ceil(pv.jourFin / 30.4) : 13);
@@ -172,7 +174,7 @@
     return { scenarios: out, premierMois: delaiMois };
   }
   function plan(id, p, ventes) {
-    const m = PAR_ID[id]; if (!m) return { ok: false, message: 'Activité inconnue.' };
+    const m = modele(id); if (!m) return { ok: false, message: 'Activité inconnue.' }; id = m.id;
     const ev = evaluer(m, p), reg = REGIMES[m.regime];
     const proj = projection(m, p, ventes || []);
     const margeUnit = m.prix[1] * (1 - reg.taux - reg.cfp) - m.cVar;
@@ -189,7 +191,7 @@
       margeParUnite: r2(margeUnit), seuilRentabilite: seuil === null ? null : { unites: seuil, texte: seuil + ' ' + m.unite + (seuil > 1 ? 's' : '') + ' par mois couvrent les charges fixes (' + m.couts + ' €).' },
       scenarios: proj.scenarios, retourInvestissement: { prudent: retour('prudent'), median: retour('median'), favorable: retour('favorable') },
       observe: observes.length ? { mois: observes.length, ca: observes.reduce((s, x) => s + x.ca, 0) } : null,
-      validation: m.validation, formalites: formalites(m, p), risques: risques(m, p),
+      validation: m.validation, formalites: formalites(m, p), risques: risques(m, p).concat(m.risquesIA || []), ia: !!m.ia, faits: m.faits || [], hypothesesIA: m.hypotheses || [], concurrents: m.concurrents || [], pourquoiToi: m.pourquoiToi || null,
       hypotheses: [
         'Prix ' + m.prix.join(' / ') + ' € par ' + m.unite + ' (prudent / médian / favorable) : hypothèse Cap à vérifier sur ton marché.',
         'Production : ' + m.hU + ' h par ' + m.unite + '. Prospection : ' + m.hC + ' h par nouveau client (×1,6 en prudent, ×0,7 en favorable).',
@@ -243,7 +245,7 @@
     return out;
   }
   function planAction(id, p, faites, debut) {
-    const m = PAR_ID[id]; if (!m) return { ok: false, message: 'Activité inconnue.' };
+    const m = modele(id); if (!m) return { ok: false, message: 'Activité inconnue.' }; id = m.id;
     const h = num(p.heuresProjet) || 0;
     if (h <= 0) return { ok: false, manquants: [{ champ: 'heuresProjet', raison: 'Sans heures disponibles, aucun calendrier n’est possible.' }], message: 'Indique combien d’heures par semaine tu peux consacrer au projet.' };
     faites = faites || {};
@@ -267,5 +269,5 @@
     const alerte = pv && !pv.fait && pv.phase === 'apres' ? 'Avec ' + h + ' h par semaine, la première vente arrive après 90 jours (jour ' + pv.jourFin + '). Plus d’heures ou une offre plus simple raccourcissent ce délai.' : null;
     return { ok: true, origine: 'calcul', id, heuresSemaine: h, debut: debut || null, taches: out, alerte, faites: out.filter(t => t.fait).length, total: out.length };
   }
-  return { VERSION, REGIMES, SOURCE_TAUX, CATALOGUE, PAR_ID, POIDS, COMPETENCES, MATERIEL, manquants, evaluer, recommander, projection, plan, planAction };
+  return { modele, VERSION, REGIMES, SOURCE_TAUX, CATALOGUE, PAR_ID, POIDS, COMPETENCES, MATERIEL, manquants, evaluer, recommander, projection, plan, planAction };
 });

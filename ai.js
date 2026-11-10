@@ -15,6 +15,22 @@
       try { sample = await window.claude.use('sample'); } catch (e) { sample = null; }
       if (sample) { try { limits = await sample.limits(); } catch (e) { limits = null; } }
     },
+    // Transport de génération pour CapIA : Claude (capacité sample) en priorité, sinon la fonction serveur.
+    branchement() {
+      if (!window.CapIA) return;
+      window.CapIA.configurer(async (tache, demande, o) => {
+        if (sample) {
+          const r = await sample(o.prompt, { modelTier: tache === 'business' ? 'complex' : 'default', cache: false, signal: o.signal });
+          if (r.truncated) { const e = new Error('truncated'); e.code = 'truncated'; throw e; }
+          return { data: window.CapIA.extraireJSON(r.text), modele: r.modelApplied || r.modelTierApplied || 'Claude' };
+        }
+        if (serveur()) {
+          const r = await window.CapCloud.ia({ type: 'generation', tache, demande, erreurs: o.erreurs || null });
+          return { data: r.data, modele: r.modele || null, sources: r.sources || null };
+        }
+        const e = new Error('ia_indisponible'); e.code = 'ia_indisponible'; throw e;
+      }, () => (sample ? 'claude' : 'serveur'), () => !!sample || serveur());
+    },
     photoDispo() { return !!(sample && limits && limits.images) || serveur(); },
     texteDispo() { return !!sample || serveur(); },
     // Réduit la photo (1 280 px max, JPEG) : moins de données envoyées, même précision utile
@@ -86,7 +102,9 @@
         non_connecte: 'Connecte ton compte Cap (Réglages) pour utiliser l’IA.',
         ia_indisponible: 'L’IA n’est pas activée sur cette version.',
         ia_non_configuree: 'L’IA du serveur n’a pas encore de clé. Elle doit être ajoutée dans Supabase.',
-        image_trop_lourde: 'Photo trop lourde. Essaie une autre photo.'
+        image_trop_lourde: 'Photo trop lourde. Essaie une autre photo.',
+        truncated: 'Réponse de l’IA coupée avant la fin. Réessaie.',
+        ia_echec: 'Le service IA a renvoyé une erreur. Rien n’a été modifié ; réessaie plus tard.'
       })[c] || 'L’analyse a échoué. Réessaie ou ajoute les aliments à la main.';
     }
   };
