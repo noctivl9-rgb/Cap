@@ -43,3 +43,22 @@ Tous ces tests ont été exécutés ; « simulé » indique un service externe i
 
 Non testé (impossible sans les comptes) : un vrai projet Supabase (e-mail de code, temps réel réel), un vrai appel à l'API Claude
 depuis la fonction, l'enregistrement de fichier sur un vrai iPhone (feuille de partage iOS).
+
+## Mise à jour du 10/11/2026 (après-midi) — moteur de personnalisation V5
+
+Tous exécutés dans le conteneur (Node 22, Chromium Playwright, iPhone 14 simulé). Aucun test sur un iPhone réel. Aucune IA réelle appelée.
+
+| Suite | Résultat | Ce qui est vérifié |
+|---|---|---|
+| `tests.js` | 80 / 80 | moteur historique inchangé (aucune régression après l’ajout de `energie`) |
+| `matrice-tests.js` | 89 / 89 | chaque variable du questionnaire est au registre ; changer chaque réponse modifie au moins une sortie déclarée ; questions manquantes justifiées |
+| `personnalisation-tests.js` | 47 / 47 | **tests A à J** du cahier V5 (profils fictifs Léa, Karim, Elias) |
+| `projet-ui.js` | 21 / 21 | parcours Entreprise seul, onglet Projet, choix d’activité, tâche cochée, vente réelle, réouverture (F), capital modifié dans l’interface (D), historique, programme expliqué |
+| `ui3.js` | 49 / 49 | parcours complet existant, adapté au nouveau questionnaire (modules multiples, formule de métabolisme, priorité) |
+| `donnees.js`, `sync-tests.js`, `persist2.js`, `sk.js`, `dir.js`, `font.js` | réussis | aucune régression |
+| `cap-ai-test.ts`, `rls-test.mjs` | 13 / 13, 15 / 15 | aucune régression côté serveur |
+| 320 px, 6 onglets | 0 débordement, 0 libellé tronqué | barre condensée (axe de largeur d’Archivo) |
+
+Défauts trouvés et corrigés par ces tests : « compétences » et « frein » sans effet ; douleur sans zone sans effet visible sur l’empreinte du programme ; projection business comptant un revenu dès le mois 1 alors que le plan d’action place la première vente au mois 2 ; activité à apprendre classée devant une activité maîtrisée ; vérification du temps non expliquée quand le programme tient ; libellés tronqués avec 6 onglets.
+
+Non testé : génération réelle par IA (programme, marché, questions) — non connectée ; prix et demande du catalogue business sur un marché réel ; affichage sur iPhone réel.

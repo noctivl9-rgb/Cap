@@ -37,3 +37,13 @@ Protéines 1,8 g/kg (1,6 en maintien), poids de référence à IMC 25 si IMC > 3
 
 ## Finances
 Capacité = revenus − fixes − variables − remboursements. Durée = reste ÷ capacité (aucun rendement, aucune inflation). Capacité ≤ 0 → aucune date. Revenu visé = scénario séparé. Coûts Dubaï datés du 09/11/2026 (sources dans engine.js › REF), 1 € = 4,10 AED.
+
+## Énergie détaillée (V5, 10/11/2026) — `CapEngine.energie`
+
+- **Paramètre physiologique** : H ou F si renseigné ; jamais déduit de l’identité de genre. « Ne pas répondre » : moyenne des équations H et F, et marge augmentée de la moitié de l’écart entre elles × coefficient d’activité.
+- **Métabolisme de base** : adulte avec taille → Mifflin-St Jeor (H : 10P + 6,25T − 5A + 5 ; F : … − 161). Moins de 18 ans, ou taille inconnue → Schofield (OMS/FAO/UNU 1985) par tranche d’âge : H 10-17 : 17,686P + 658,2 ; 18-29 : 15,057P + 692,2 ; 30-59 : 11,472P + 873,1 ; 60+ : 11,711P + 587,7. F 10-17 : 13,384P + 692,6 ; 18-29 : 14,818P + 486,6 ; 30-59 : 8,126P + 845,6 ; 60+ : 9,082P + 658,5.
+- **Dépense** = métabolisme × coefficient d’activité **hors sport** (assise 1,35, mixte 1,5, physique 1,65 ; inclut la digestion) + sport en MET nets (musculation 4, autre sport 6 × 1,5 h par séance) ÷ 7. Le sport n’est compté qu’une fois.
+- **Incertitude** : ±10 % (Mifflin) ou ±15 % (Schofield) de la dépense, +5 % si IMC ≥ 40, + écart H/F si non renseigné, ±25 % de la part sport. Affichée en plage.
+- **Repères** : fibres 30 g/j adulte (ANSES), 25 g/j retenu pour les 13-17 ans ; sel < 5 g/j (OMS) ; sucres libres < 10 % des calories (OMS).
+- **Rapport tour de taille / taille** : ≥ 0,5 risque accru, ≥ 0,6 risque élevé (NICE 2022, adultes ; lu avec prudence avant 18 ans).
+- Estimation statistique, pas une mesure clinique : la tendance réelle du poids sur 2-3 semaines prime.

@@ -255,8 +255,12 @@
       'Protéines : ' + (objectif === 'maintenir' ? '1,6' : '1,8') + ' g × ' + round(poidsRef, 1) + ' kg' + (imc > 30 ? ' (poids de référence à IMC 25)' : '') + '. Lipides ≥ 25 % des calories. Glucides : le reste.'
     ];
 
+    // Rapport tour de taille / taille (NICE 2022) : ≥ 0,5 = risque cardio-métabolique accru, ≥ 0,6 = élevé (adultes)
+    const rtt = has(p.tour) ? round(p.tour / p.taille, 2) : null;
+    const rttNote = rtt === null ? 'Tour de taille non renseigné : indicateur non calculé.' : mineur ? 'Rapport tour de taille / taille : ' + String(rtt).replace('.', ',') + '. Repère adulte, à lire avec prudence avant 18 ans.' : 'Rapport tour de taille / taille : ' + String(rtt).replace('.', ',') + (rtt >= 0.6 ? ' : risque élevé selon le repère NICE (≥ 0,6). Un avis médical est utile.' : rtt >= 0.5 ? ' : risque accru selon le repère NICE (≥ 0,5).' : ' : sous le seuil de risque du repère NICE (0,5).');
+    const CONSEILS = { regularite: 'Frein : régularité. Mange aux mêmes heures et prépare tes repas du lendemain la veille.', alim: 'Frein : alimentation. Change une seule habitude par semaine, en commençant par une portion de légumes à chaque repas.', temps: 'Frein : temps. Prévois 3 repas simples que tu sais préparer en moins de 15 minutes.', motivation: 'Frein : motivation. Regarde la tendance sur 2 semaines, jamais la pesée d’un seul jour.' };
     return {
-      ok: true, mineur, imc: round(imc, 1), imcNote, imcCible: round(imcCible, 1),
+      ok: true, mineur, imc: round(imc, 1), imcNote, imcCible: round(imcCible, 1), rtt, rttNote, conseil: CONSEILS[p.obstacle] || null,
       bmr: Math.round(bmr.valeur), bmrMethode: bmr.methode, pal, energie: en, reperes: reperesJour(p), sportKcal: Math.round(sportKcal), tdee: Math.round(tdee),
       kcal, macros: { prot: protG, lip: lipG, glu: gluG }, plancher: Math.round(plancher), plancherAtteint,
       objectif, cible, ecart: round(ecart, 1), ecartPct: round(ecartPct, 3), statut, alertes, planPossible,

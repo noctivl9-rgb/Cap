@@ -758,7 +758,7 @@
     if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted', style: 'text-align:center' }, window.CapCloud && window.CapCloud.configure() ? 'Tes données sont sur cet appareil uniquement. Connecte ton compte Cap dans Réglages pour les sauvegarder et les synchroniser.' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et le coach ne sont disponibles que dans l’appli Claude.'));
     const pill = h('span', { class: 'pill' });
     const btns = tabs.map(t => h('button', { type: 'button', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) { tab = t[0]; renderMain(); window.scrollTo(0, 0); } } }, icon(t[2]), h('span', null, t[1])));
-    const bar = h('nav', { class: 'tabbar', 'aria-label': 'Navigation principale' }, h('div', { class: 'in glass' }, pill, btns));
+    const bar = h('nav', { class: 'tabbar', 'aria-label': 'Navigation principale' }, h('div', { class: 'in glass' + (tabs.length > 5 ? ' dense' : '') }, pill, btns));
     $app.append(bar);
     if (d.corps && (tab === 'today' || tab === 'corps')) $app.append(h('button', { class: 'fab glass press', type: 'button', 'aria-label': 'Ajouter', onclick: () => J.menuAjout(d) }, icon('plus')));
     if (lastPill) { pill.style.transition = 'none'; pill.style.width = lastPill.w + 'px'; pill.style.transform = 'translateX(' + lastPill.x + 'px)'; }

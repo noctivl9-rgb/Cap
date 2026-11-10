@@ -170,6 +170,7 @@
       if (jours * minutes > budgetMin) minutes = Math.max(20, DUREES.find(x => x <= budgetMin) || 20);
       d('temps', jours + ' × ' + minutes + ' min', 'Tu demandais ' + avantJ + ' × ' + avantM + ' min, mais il te reste ' + Math.round(budgetMin / 60 * 10) / 10 + ' h par semaine (temps libre ' + p.tempsLibre + ' h − projet ' + projetH + ' h − autre sport ' + autreH + ' h). Cap réduit d’abord la durée, puis le nombre de séances.', ['tempsLibre', 'jours', 'minutes', 'heuresProjet', 'autreSport']);
     }
+    else if (budgetMin !== null) d('temps', jours + ' × ' + minutes + ' min', 'Ton programme prend ' + Math.round(demande / 6) / 10 + ' h par semaine, dans les ' + Math.round(budgetMin / 6) / 10 + ' h qu’il te reste (temps libre − projet − autre sport).', ['tempsLibre', 'jours', 'minutes']);
     // 2. Récupération et niveau
     const maxMuscu = Math.min(niv === 1 ? 4 : 6, mineur && age < 16 ? 4 : 6);
     if (jours + (num(p.autreSport) || 0) > 6) { const j2 = Math.max(1, 6 - (num(p.autreSport) || 0)); d('recuperation', j2 + ' séances', jours + ' séances + ' + p.autreSport + ' d’autre sport : au moins 1 jour de repos complet par semaine.', ['jours', 'autreSport']); jours = j2; }
@@ -246,7 +247,7 @@
     if (p.obstacle === 'motivation') notes.push('Motivation : un objectif court toutes les 2 semaines (ajouter une répétition par exercice) plutôt qu’un seul objectif lointain.');
     if (p.objectif === 'perdre') notes.push('Perte de gras : la musculation garde le muscle ; ajoute 8 000 à 10 000 pas par jour pour la dépense.');
     const parametres = { age, niveau: p.niveau, jours: num(p.jours), joursRetenus: jours, minutes: num(p.minutes), minutesRetenues: minutes, lieu: p.lieu, materiel: mat.liste, zones, priorite: pr, tempsLibre: p.tempsLibre, heuresProjet: projetH, autreSport: p.autreSport || 0, obstacle: p.obstacle || null };
-    return { ok: true, origine: 'calcul', version: VERSION, seances, planning, progression, notes, decisions, volume, parametres, empreinte: empreinte({ seances, planning }) };
+    return { ok: true, origine: 'calcul', version: VERSION, seances, planning, progression, notes, decisions, volume, parametres, empreinte: empreinte({ seances, planning, notes }) };
   }
   function empreinte(v) { const s = JSON.stringify(v); let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); }
   // Explication en langage clair des décisions (sert au coach, avec ou sans IA)
