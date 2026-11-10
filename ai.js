@@ -1,18 +1,22 @@
 /* Cap — services IA (reconnaissance de repas, coach).
  * L'IA identifie et estime ; tous les totaux sont recalculés par CapEngine. Aucun chiffre de l'IA
- * n'est affiché sans passer par la validation (CapEngine.validerScan). */
+ * n'est affiché sans passer par la validation (CapEngine.validerScan).
+ * Deux chemins : dans Claude, la capacité « sample » ; ailleurs, la fonction serveur Supabase « cap-ai »
+ * (clé IA côté serveur, consignes fixées côté serveur, quotas par jour). */
 (function () {
   'use strict';
   const E = window.CapEngine, F = window.CapFoods;
   let sample = null, limits = null;
+  const serveur = () => !!(window.CapCloud && window.CapCloud.iaActivee() && window.CapCloud.connecte());
+  const enBase64 = blob => new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1]); r.onerror = () => ko(new Error('image')); r.readAsDataURL(blob); });
   const A = {
     async init() {
       if (!window.claude || !window.claude.use) return;
       try { sample = await window.claude.use('sample'); } catch (e) { sample = null; }
       if (sample) { try { limits = await sample.limits(); } catch (e) { limits = null; } }
     },
-    photoDispo() { return !!(sample && limits && limits.images); },
-    texteDispo() { return !!sample; },
+    photoDispo() { return !!(sample && limits && limits.images) || serveur(); },
+    texteDispo() { return !!sample || serveur(); },
     // Réduit la photo (1 280 px max, JPEG) : moins de données envoyées, même précision utile
     async preparer(file) {
       const types = (limits && limits.images && limits.images.mediaTypes) || ['image/jpeg', 'image/png', 'image/webp'];
@@ -39,6 +43,12 @@
         'remarque : une phrase sur les incertitudes (sauce, huile, portion cachée). Si la photo ne montre pas de nourriture, renvoie une liste vide et explique-le.',
         'Réponds uniquement avec ce JSON : {"aliments":[{"nom":string,"grammes":number,"preparation":string,"confiance":string,"kcal_100g":number,"proteines_100g":number,"glucides_100g":number,"lipides_100g":number}],"remarque":string}'
       ].join('\n');
+      if (!sample && serveur()) {
+        const image = await enBase64(blob);
+        const rep = await window.CapCloud.ia({ type: 'scan', image, media_type: blob.type || 'image/jpeg', noms: F.BASE.map(a => a.n) });
+        if (signal && signal.aborted) { const e = new Error('cancelled'); e.code = 'cancelled'; throw e; }
+        return E.validerScan(rep);
+      }
       const rep = await sample.json(prompt, { images: [blob], signal });
       return E.validerScan(rep);
     },
@@ -54,6 +64,12 @@
         'Contexte (données que l’utilisateur a choisi de partager) :',
         JSON.stringify(contexte)
       ].join('\n');
+      if (!sample && serveur()) {
+        const rep = await window.CapCloud.ia({ type: 'coach', question, historique: historique.slice(-10), contexte });
+        const text = String((rep && rep.text) || '');
+        if (opts.onText) opts.onText({ text, delta: text });
+        return { text, truncated: false };
+      }
       const turns = [{ role: 'user', content: regles }, { role: 'assistant', content: 'Compris. Je m’appuie uniquement sur ce contexte.' }].concat(historique, [{ role: 'user', content: question }]);
       return sample(turns, { cache: false, onText: opts.onText, signal: opts.signal });
     },
@@ -65,7 +81,12 @@
         cancelled: 'Analyse arrêtée.',
         images_unavailable: 'L’analyse photo n’est pas disponible ici.',
         image_rejected: 'Photo refusée (format ou taille). Essaie une autre photo.',
-        invalid_json: 'Réponse illisible. Réessaie ou ajoute les aliments à la main.'
+        invalid_json: 'Réponse illisible. Réessaie ou ajoute les aliments à la main.',
+        quota_atteint: 'Limite du jour atteinte pour l’IA. Elle revient demain ; en attendant, ajoute à la main.',
+        non_connecte: 'Connecte ton compte Cap (Réglages) pour utiliser l’IA.',
+        ia_indisponible: 'L’IA n’est pas activée sur cette version.',
+        ia_non_configuree: 'L’IA du serveur n’a pas encore de clé. Elle doit être ajoutée dans Supabase.',
+        image_trop_lourde: 'Photo trop lourde. Essaie une autre photo.'
       })[c] || 'L’analyse a échoué. Réessaie ou ajoute les aliments à la main.';
     }
   };

@@ -49,7 +49,7 @@
   // ================================================================ Données (db ou mémoire)
   let db = null;
   const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [] };
-  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {} };
+  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {} };
   async function put(coll, id, data) {
     if (db) return db.collection(coll).doc(id).set(data);
     mem[coll][id] = data; store.set('cap-local', mem); syncMem(); return Promise.resolve();
@@ -70,9 +70,16 @@
     S.photos = Object.keys(mem.photos).map(id => Object.assign({ id }, mem.photos[id]));
     refresh();
   }
+  // Adaptation sans perte : chaque version remplacée du profil est gardée dans « historique »
+  async function archiverProfil(raison) {
+    if (!S.profil) return;
+    const quand = new Date().toISOString();
+    await put('historique', 'p-' + quand.replace(/[^0-9]/g, ''), { date: quand, raison, profil: S.profil });
+  }
   async function saveProfil(patch) {
     const p = Object.assign({}, S.profil || {}, patch, { v: 2, majLe: new Date().toISOString() });
     Object.keys(p).forEach(k => { if (p[k] === undefined) p[k] = null; });
+    await archiverProfil('modification');
     await put('profil', 'main', p);
     S.profil = p; refresh();
   }
@@ -638,6 +645,7 @@
     const now = new Date().toISOString();
     const data = Object.assign({}, S.profil && S.profil.v === 2 ? S.profil : {}, A, { v: 2, creeLe: (S.profil && S.profil.v === 2 && S.profil.creeLe) || now, majLe: now });
     try {
+      await archiverProfil('questionnaire');
       await put('profil', 'main', data);
       if (C(A) && has(A.poids) && !S.pesees.some(p => p.date === dayId())) await put('pesees', dayId(), Object.assign({ date: dayId(), poids: A.poids }, has(A.tour) ? { tour: A.tour } : {}));
       S.profil = data; store.del('cap-draft'); OB = null; tab = 'today'; refresh(); toast('Plan enregistré'); if (window.CapSon) window.CapSon.jouer('programme');
@@ -714,7 +722,7 @@
     const changed = lastTab !== tab; lastTab = tab;
     $app.textContent = '';
     $app.append(h('main', { class: 'screen' + (changed && !reduced() ? ' enter' : '') }, views[tab](d)));
-    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted', style: 'text-align:center' }, 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et le coach ne sont disponibles que dans l’appli Claude.'));
+    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted', style: 'text-align:center' }, window.CapCloud && window.CapCloud.configure() ? 'Tes données sont sur cet appareil uniquement. Connecte ton compte Cap dans Réglages pour les sauvegarder et les synchroniser.' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et le coach ne sont disponibles que dans l’appli Claude.'));
     const pill = h('span', { class: 'pill' });
     const btns = tabs.map(t => h('button', { type: 'button', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) { tab = t[0]; renderMain(); window.scrollTo(0, 0); } } }, icon(t[2]), h('span', null, t[1])));
     const bar = h('nav', { class: 'tabbar', 'aria-label': 'Navigation principale' }, h('div', { class: 'in glass' }, pill, btns));
@@ -925,20 +933,24 @@
     out.push(section(null, null, h('div', { class: 'cap' }, 'Sources et méthode'), h('div', { class: 'panel' },
       h('p', { class: 'sub' }, 'Les calculs sont faits par des formules fixes, testées, jamais par une IA. Ce sont des estimations, pas des garanties. Cap ne remplace ni un médecin ni un conseiller financier.'),
       h('ul', { class: 'calc' }, Object.keys(E.REF.sources).map(k => h('li', { class: 'foot' }, E.REF.sources[k]))))));
+    if (window.CapDonnees) out.push(window.CapDonnees.section());
+    const OU = { claude: 'Tes données sont dans ton espace Claude privé, synchronisé entre tes appareils connectés à Claude.', cloud: 'Tes données sont dans ton compte Cap (Supabase), protégées par ton identifiant et synchronisées entre tes appareils.', local: 'Tes données sont enregistrées sur cet appareil uniquement. Exporte-les régulièrement pour ne pas les perdre.' };
     out.push(section(null, null, h('div', { class: 'cap' }, 'Données'), h('div', { class: 'panel flush' },
       h('button', { class: 'cell', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { fresh: true }) }, h('span', { class: 'lbl' }, 'Refaire le questionnaire'), icon('chev', 'chev')),
       h('button', { class: 'cell danger', type: 'button', onclick: () => resetAll() }, h('span', { class: 'lbl' }, 'Effacer toutes mes données'))),
-      h('p', { class: 'foot muted', style: 'margin:0 16px' }, 'Tes données de santé et de budget restent dans ton espace Claude privé. Rien n’est envoyé ailleurs.')));
+      h('p', { class: 'foot muted', style: 'margin:0 16px' }, OU[db ? (db.cloud ? 'cloud' : 'claude') : 'local'])));
     return out;
   }
   function resetAll() {
-    const close = sheet('Tout effacer ?', [h('p', { class: 'muted sub' }, 'Profil, pesées, journal alimentaire, aliments, recettes, photos, séances et mouvements d’épargne seront supprimés. C’est définitif.'),
+    const close = sheet('Tout effacer ?', [h('p', { class: 'muted sub' }, 'Profil, pesées, journal alimentaire, aliments, recettes, photos, séances et mouvements d’épargne seront supprimés. Une copie de secours est d’abord gardée sur cet appareil (Réglages → Importer une sauvegarde).'),
       h('button', { class: 'btn', style: 'background:var(--bad)', type: 'button', onclick: async () => {
         try {
+          if (window.CapDonnees) await window.CapDonnees.sauvegardeAuto();
           const jobs = [];
           S.pesees.forEach(r => jobs.push(remove('pesees', r.id))); S.epargne.forEach(r => jobs.push(remove('epargne', r.id))); S.seances.forEach(r => jobs.push(remove('seances', r.id)));
           Object.keys(S.journaux).forEach(k => jobs.push(remove('repas', k))); jobs.push(remove('actions', weekKey())); jobs.push(remove('prefs', 'main'));
           S.perso.forEach(r => jobs.push(remove('aliments', r.id))); S.recettes.forEach(r => jobs.push(remove('recettes', r.id)));
+          if (window.CapDonnees) jobs.push(window.CapUI.snapshotData().then(d => Promise.all(Object.keys(d.historique || {}).map(id => remove('historique', id)))));
           S.photos.forEach(r => { jobs.push(remove('photos', r.id)); if (window.CapJournal) jobs.push(window.CapJournal.supprimerAsset(r.assetId)); });
           await Promise.all(jobs); await remove('profil', 'main'); S.profil = null; store.del('cap-draft'); close(); OB = null; refresh();
         } catch (e) { toast('Échec, réessaie'); }
@@ -948,13 +960,34 @@
   // ================================================================ Démarrage
   let booted = false;
   const boot = () => { if (booted) return; booted = true; refresh(); };
-  window.CapUI = { sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, setTab: t => { tab = t; renderMain(); window.scrollTo(0, 0); }, refresh: () => { window._keepScroll = true; refresh(); } };
+  window.CapUI = { sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => { tab = t; renderMain(); window.scrollTo(0, 0); }, refresh: () => { window._keepScroll = true; refresh(); } };
+  // Lecture de toutes les données, quel que soit le stockage (export, migration)
+  async function snapshotData() {
+    const colls = window.CapSync ? window.CapSync.COLLS : Object.keys(mem), out = {};
+    colls.forEach(c => { out[c] = {}; });
+    if (!db) { colls.forEach(c => { out[c] = JSON.parse(JSON.stringify(mem[c] || {})); }); return out; }
+    await Promise.all(colls.map(async c => { const q = await db.collection(c).get(); q.docs.forEach(d => { out[c][d.id] = d.data(); }); }));
+    return out;
+  }
+  const local = () => { db = null; loadLocal(); syncMem(); boot(); };
+  async function localOuCompte() {
+    if (window.CapCloud && window.CapCloud.configure()) {
+      const s = await window.CapCloud.init();
+      if (s) { db = window.CapCloud.db(); brancher(); return; }
+    }
+    local();
+  }
   const start = () => (async () => {
     const use = window.claude && window.claude.use;
-    if (!use) { loadLocal(); syncMem(); boot(); return; }
-    const timer = setTimeout(() => { if (!booted) { db = null; loadLocal(); syncMem(); boot(); } }, 10000);
-    try { db = await window.claude.use('db'); } catch (e) { db = null; }
-    if (!db) { clearTimeout(timer); loadLocal(); syncMem(); boot(); return; }
+    if (!use) { await localOuCompte(); return; }
+    let ok = null;
+    const attente = new Promise(r => setTimeout(() => r(null), 10000));
+    try { ok = await Promise.race([window.claude.use('db'), attente]); } catch (e) { ok = null; }
+    if (!ok) { await localOuCompte(); return; }
+    db = ok; brancher();
+  })();
+  function brancher() {
+    const timer = setTimeout(() => { if (!booted) boot(); }, 10000);
     const onErr = () => {};
     let first = true;
     db.doc('profil/main').onSnapshot(s => {
@@ -972,7 +1005,7 @@
     live('photos', v => { S.photos = v.filter(x => x.assetId); });
     db.doc('prefs/main').onSnapshot(s => { S.prefs = Object.assign({ favoris: [] }, s.exists ? s.data() : {}); if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
     db.collection('actions').doc(weekKey()).onSnapshot(s => { S.actions = s.exists ? s.data() : { done: {} }; if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
-  })();
+  }
   // Démarre après le chargement de tous les modules (journal.js, ai.js)
   const go = () => { intro(); if (window.CapAI) window.CapAI.init().then(() => { if (booted && !OB) { window._keepScroll = true; refresh(); } }); if (window.CapJournal) window.CapJournal.init(); start(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else setTimeout(go, 0);

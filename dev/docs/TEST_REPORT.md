@@ -24,3 +24,22 @@ Exécutés le 09/11/2026 dans un Chromium sans écran (Playwright), à 390 × 84
 - Fluidité à 60 i/s sur iPhone : non mesurée.
 - Lecteur d'écran VoiceOver : rôles et libellés présents, pas testés avec VoiceOver.
 - Permissions refusées : les messages existent, le refus réel n'a pas été simulé.
+
+## Mise à jour du 10/11/2026 — sauvegarde, données, compte, IA serveur
+
+Exécutés dans le conteneur de développement (Node 22, Chromium Playwright, Deno 2.9.6, PGlite 0.2.17).
+Tous ces tests ont été exécutés ; « simulé » indique un service externe imité, pas un vrai service.
+
+| Suite | Résultat | Ce qui est vérifié |
+|---|---|---|
+| `dev/tests/tests.js` | 80 / 80 | moteur de calcul (inchangé) |
+| `dev/tests/sync-tests.js` | 29 / 29 | export, empreinte, fichiers tronqués ou modifiés refusés, doublons, conflits, modes « garder » et « remplacer », aucune suppression, historique du profil |
+| `dev/tests/ui3.js` | 49 / 49 | parcours complet de l'appli (aucune régression) |
+| `dev/tests/donnees.js` | 27 / 27 | export/import dans l'interface, confirmation avant remplacement, copie de secours, connexion par code, inscriptions fermées, migration appareil → compte, deuxième appareil, synchro, IA par le serveur — **Supabase simulé dans le navigateur** |
+| `dev/tests/persist2.js`, `sk.js`, `dir.js`, `font.js` | réussis | persistance hors compte, Sparkle, accueil, police |
+| `supabase/tests/rls-test.mjs` | 15 / 15 | migration SQL exécutée dans un vrai Postgres (embarqué), isolement entre utilisateurs, quotas IA — **auth Supabase imitée** |
+| `supabase/tests/cap-ai-test.ts` | 13 / 13 | fonction serveur : jeton exigé, CORS, validation avant dépense, consignes côté serveur, quotas, clé absente — **API Claude et Supabase simulées** |
+| Restauration depuis GitHub | réussie | clone neuf → tests moteur et interface réussis, version Claude reconstruite à l'octet près |
+
+Non testé (impossible sans les comptes) : un vrai projet Supabase (e-mail de code, temps réel réel), un vrai appel à l'API Claude
+depuis la fonction, l'enregistrement de fichier sur un vrai iPhone (feuille de partage iOS).
