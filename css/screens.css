@@ -1,0 +1,101 @@
+/* Cap — écrans : accueil, journal, scan, intro, révélation, boussole (extrait d’index.html le 10/11/2026 ; ordre de chargement : font, tokens, base, components, screens, theme) */
+/* ---------- v3 : accueil, journal, scan ---------- */
+.fab{position:fixed;z-index:31;right:max(18px,calc(50% - 242px));bottom:calc(84px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;border:0;display:grid;place-items:center;color:var(--ink)}
+.fab svg.i{width:28px;height:28px;stroke-width:2.2}
+.seg-simple button.on{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.12),0 0 0 .5px rgba(0,0,0,.04);color:var(--ink)}
+.seg-simple button{transition:background var(--d1) var(--ease)}
+.week{flex:1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.daybtn{border:0;background:none;border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 0;color:var(--ink-2);min-height:64px}
+.daybtn small{font-size:11px;color:var(--muted);text-transform:capitalize}
+.daybtn b{font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.daybtn.on{background:var(--surface);box-shadow:var(--shadow),inset 0 0 0 1.5px var(--ink)}
+.daybtn:disabled{opacity:.35}
+.ringw{display:inline-grid;place-items:center;flex:none}
+.ringw.empty{width:34px;height:34px;border-radius:50%;border:2px dashed var(--faint)}
+.switch{width:51px;height:31px;border-radius:999px;background:var(--fill-2);position:relative;flex:none;transition:background var(--d2) var(--ease)}
+.switch i{position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.18);transition:transform var(--d2) var(--spring)}
+.switch.on{background:#34C759}
+.switch.on i{transform:translateX(20px)}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;background:var(--surface);border:0;border-radius:var(--r-l);box-shadow:var(--shadow);padding:16px;min-height:112px}
+.tile b{font-size:var(--t-call);font-weight:600}
+.tile small{font-size:var(--t-foot);color:var(--muted)}
+.tile-i{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--fill);color:var(--ink)}
+.tile:disabled{opacity:.45}
+.searchbox{display:flex;align-items:center;gap:8px;background:var(--fill);border-radius:12px;padding:0 12px;color:var(--muted)}
+.searchbox input{flex:1;border:0;background:none;padding:12px 0;font-size:var(--t-body);color:var(--ink);min-width:0}
+.searchbox input:focus{outline:none}
+.calgrid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;text-align:center}
+.calgrid small{font-size:var(--t-cap);color:var(--muted);padding:4px 0}
+.calday{border:0;background:none;border-radius:12px;min-height:44px;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:var(--t-sub)}
+.calday i{width:5px;height:5px;border-radius:50%;background:transparent}
+.calday.has i{background:var(--body)}
+.calday.on{background:var(--ink);color:#fff}
+.calday:disabled{opacity:.3}
+.chat{display:flex;flex-direction:column;gap:8px}
+.bubble{max-width:88%;padding:10px 14px;border-radius:18px;font-size:var(--t-sub);line-height:1.45;white-space:pre-wrap}
+.bubble.me{align-self:flex-end;background:var(--accent);color:#fff;border-bottom-right-radius:6px}
+.bubble.ai{align-self:flex-start;background:var(--surface);box-shadow:var(--shadow);border-bottom-left-radius:6px}
+.photos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.photos figure{margin:0;display:flex;flex-direction:column;gap:4px}
+.photos img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;background:var(--fill)}
+.photos figcaption{font-size:var(--t-cap);color:var(--muted);display:flex;justify-content:space-between;gap:4px;flex-wrap:wrap}
+.scan-img{width:100%;max-height:300px;object-fit:cover;border-radius:var(--r-l);display:block}
+.field textarea{resize:vertical;min-height:64px}
+label.btn{cursor:pointer}
+
+/* Mouvement de Cap : tap 120 ms · état 220 ms · panneau 380 ms · révélation 600 ms ; ressort pour les contrôles */
+
+/* Écran d'accueil — aligné à gauche, une seule pièce forte : le monogramme métal */
+.wl{gap:0;padding-top:4px}
+.wl-brand{display:flex;align-items:center;height:44px;animation:wlFade var(--m-reveal) var(--m-soft) both}
+.cap-word{display:inline-flex;align-items:center;gap:9px;font-size:18px;font-weight:600;letter-spacing:.01em}
+.wl-stage{position:relative;height:clamp(150px,30vh,280px);display:grid;place-items:center;margin:2vh 0 3vh}
+.wl-halo{position:absolute;width:min(300px,80%);aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,rgba(214,218,224,.13),rgba(214,218,224,0));pointer-events:none}
+.wl-hero-mark{position:relative;height:calc(100% - 16px);max-height:200px;aspect-ratio:1;border:0;padding:0;background:none;cursor:pointer;animation:wlLens var(--m-reveal) var(--m-soft) both;-webkit-tap-highlight-color:transparent}
+.wl-hero-mark svg{width:100%;height:100%;display:block}
+.wl-hero-mark:focus-visible{outline:2px solid var(--ink);outline-offset:6px;border-radius:24px}
+.wl-hero-mark:active{transform:scale(.97);transition:transform var(--m-tap)}
+/* Reflet : une bande de lumière découpée à la silhouette exacte du logo (masque fourni par CapLogo.masque()) */
+.lg-sheen{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0) 40%,rgba(255,255,255,.9) 50%,rgba(255,255,255,0) 60%,transparent 70%) no-repeat;background-size:250% 100%;background-position:120% 0;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
+.lg-sheen.run{animation:sheen .95s var(--m-soft) both}
+@keyframes sheen{0%{opacity:1;background-position:120% 0}100%{opacity:1;background-position:-20% 0}}
+.wl-title{font-size:clamp(36px,10.5vw,48px);font-weight:760;font-stretch:88%;letter-spacing:-.035em;line-height:1.02;margin:0;max-width:11ch;text-wrap:balance;animation:wlRise var(--m-reveal) var(--m-soft) .3s both}
+.wl-sub{font-size:var(--t-call);color:var(--ink-2);line-height:1.45;margin:14px 0 0;max-width:30ch;animation:wlRise var(--m-reveal) var(--m-soft) .42s both}
+.wl-cta{animation:wlRise var(--m-reveal) var(--m-soft) .6s both;background:none;border:0;box-shadow:none}
+.wl-foot{text-align:center;margin:6px 0 2px;font-size:var(--t-foot);color:var(--muted)}
+/* Scène d'obsidienne (accueil, révélation) : les jetons sont redéfinis localement, le reste de l'appli n'est pas touché */
+body.scene{--bg:#09090A;--surface:#141416;--ink:#F2F1EE;--ink-2:#B9BABE;--muted:#85868B;--faint:#4A4B4F;--line:rgba(255,255,255,.10);--fill:rgba(255,255,255,.07);--glass:rgba(20,20,22,.6);--glass-strong:rgba(20,20,22,.8);--glass-edge:rgba(255,255,255,.08);--glass-shadow:none;color-scheme:dark;background:radial-gradient(120% 70% at 50% 18%,#1B1B1E 0%,#09090A 60%) fixed,#09090A}
+@keyframes wlLens{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+@keyframes wlFade{from{opacity:0}to{opacity:1}}
+@keyframes wlRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.rv{gap:0}
+.rv-mark{width:56px;height:56px;margin:4vh 0 3vh}
+.rv-title{font-size:clamp(32px,9vw,40px);font-weight:760;letter-spacing:-.03em;line-height:1.05;margin:0;text-wrap:balance}
+.rv-sub{color:var(--ink-2);margin:10px 0 22px;font-size:var(--t-call)}
+.rv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.rv-item{display:grid;grid-template-columns:7.5em 1fr;gap:12px;padding:14px 0;border-top:.5px solid var(--line);animation:wlRise .45s var(--m-soft) both}
+.rv-item b{font-weight:600;color:var(--ink)}
+.rv-item span{color:var(--ink-2);min-width:0}
+.rv-item.alerte span{color:#E9B46A}
+.rv-go{width:100%}
+body.scene .btn:not(.text):not(.secondary){background:linear-gradient(180deg,#FFFFFF,#E6E5E1);color:#0A0A0B;box-shadow:inset 0 1px 0 #fff,0 8px 24px rgba(0,0,0,.4)}
+body.scene .btn:disabled{opacity:.35}
+/* Boussole (Accueil) : la seule pièce d'obsidienne de l'écran, trois réponses, aucune décoration */
+.boussole{background:radial-gradient(130% 120% at 15% 0%,#232327 0%,#0C0C0D 65%);color:#F2F1EE;border-radius:var(--r-xl);padding:6px 18px;display:flex;flex-direction:column;box-shadow:inset 0 1px 0 rgba(255,255,255,.09),0 14px 34px rgba(0,0,0,.16)}
+.bs-l{display:flex;flex-direction:column;gap:3px;padding:13px 0}
+.bs-l+.bs-l{border-top:.5px solid rgba(255,255,255,.1)}
+.bs-q{font-size:var(--t-foot);color:#9C9DA2}
+.bs-r{display:flex;flex-direction:column;gap:2px}.bs-r b{font-size:var(--t-head);font-weight:600;line-height:1.3}
+/* Introduction : obsidienne, la lumière révèle la matière */
+.intro{position:fixed;inset:0;z-index:100;background:radial-gradient(90% 60% at 50% 45%,#18181B,#060607 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;cursor:pointer;transition:opacity .36s var(--m-soft)}
+.intro.out{opacity:0}
+.intro-mark{position:relative;width:132px;height:132px}
+.intro-mark>span{position:absolute;inset:0}
+.intro-metal{opacity:0;filter:brightness(.15);animation:introMetal .7s var(--m-soft) .35s forwards}
+.intro-mark .lg-sheen.run{animation:sheen .9s var(--m-soft) .15s both}
+.intro-word{font-size:15px;font-weight:600;letter-spacing:.32em;margin-right:-.32em;color:#C9CACE;animation:wlFade .5s var(--m-soft) .8s both}
+@keyframes introIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
+@keyframes introMetal{0%{opacity:0;filter:brightness(.15)}40%{opacity:1}100%{opacity:1;filter:none}}
+@media (max-height:620px){.wl-stage{height:120px;margin:4px 0 10px}.wl-title{font-size:32px}.wl-sub{font-size:var(--t-sub);margin-top:8px}}
+

@@ -30,6 +30,7 @@
     heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>', bolt: '<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>', chart: '<path d="M4 19h16M7 16v-5M12 16V7M17 16v-8"/>',
     cal: '<path d="M7 4h10M6 8h12l-1 12H7z"/>', trash: '<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>', car: '<path d="M4 15l2-6h12l2 6v3H4z"/><circle cx="7.5" cy="15.5" r=".5"/><circle cx="16.5" cy="15.5" r=".5"/>', building: '<rect x="6" y="3" width="12" height="18" rx="1"/><path d="M10 7h.01M14 7h.01M10 11h.01M14 11h.01M10 15h.01M14 15h.01"/>', plane: '<path d="M3 13l18-7-5 14-4-6z"/>', star: '<path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/>', code: '<path d="M8 8l-4 4 4 4M16 8l4 4-4 4"/>', people: '<circle cx="9" cy="8" r="3"/><path d="M3 20c.5-3.5 3-5 6-5s5.5 1.5 6 5M16 5a3 3 0 0 1 0 6M18 15c2 .5 3 2 3.5 5"/>',
     chat: '<path d="M4 5h16v11H9l-5 4z"/>', drop: '<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>', run: '<circle cx="15" cy="4.5" r="1.8"/><path d="M5 20l4-5 3 2 1-4M8 11l3-3 4 1 2 3 3 1M12 13l-1 4"/>',
+    compass: '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>', person: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>', book: '<path d="M5 4h9a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h9"/>', image: '<rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M5 18l5-5 3 3 2-2 4 4"/>',
     camera: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>', search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>', copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'
   };
   const icon = (n, cls) => { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', 'i' + (cls ? ' ' + cls : '')); s.setAttribute('aria-hidden', 'true'); s.innerHTML = PATHS[n] || ''; return s; };
@@ -795,7 +796,7 @@
   }
 
   // ================================================================ Tableau de bord
-  let tab = 'today', lastTab = null, lastPill = null;
+  let tab = 'today', lastTab = null;
   function refresh() {
     if (OB) return;
     if (!S.profil) { startOnboarding(null); return; }
@@ -809,34 +810,82 @@
     Object.keys(A).forEach(k => { if (A[k] === undefined || A[k] === null) delete A[k]; });
     return A;
   }
+  // ================================================================ Navigation : 5 destinations au plus
+  // Aujourd'hui · Parcours (Corps, Argent, Projet) · ＋ (action centrale) · Journal (si Corps) · Profil.
+  // Les anciens onglets (prog, corps, argent, projet, reglages, today) sont redirigés : aucun lien interne ne casse.
+  const ANCIENS = { today: ['today'], prog: ['parcours', 'corps', 'seance'], corps: ['parcours', 'corps', 'progression'], argent: ['parcours', 'argent'], projet: ['parcours', 'projet'], reglages: ['profil'] };
+  let parcours = Object.assign({ mod: null, corps: 'seance' }, store.get('cap-parcours') || {});
+  function aller(dest, mod, sous) {
+    if (ANCIENS[dest] && dest !== 'today') { const a = ANCIENS[dest]; dest = a[0]; mod = mod || a[1]; sous = sous || a[2]; }
+    tab = dest;
+    if (mod) parcours.mod = mod;
+    if (sous && (mod || parcours.mod) === 'corps') parcours.corps = sous;
+    store.set('cap-parcours', parcours);
+    renderMain(); window.scrollTo(0, 0);
+  }
+  function modulesActifs(d) { return [d.corps ? ['corps', 'Corps'] : null, d.argent ? ['argent', 'Argent'] : null, d.entreprise && window.CapProjet ? ['projet', 'Projet'] : null].filter(Boolean); }
+  // Sélecteur segmenté accessible (radiogroupe) : flèches gauche/droite, état annoncé
+  function segments(items, actif, onPick, label, cls) {
+    const g = h('div', { class: 'segs ' + (cls || ''), role: 'tablist', 'aria-label': label });
+    items.forEach((it, i) => g.appendChild(h('button', { type: 'button', role: 'tab', 'aria-selected': String(it[0] === actif), tabindex: it[0] === actif ? '0' : '-1', class: it[0] === actif ? 'on' : '',
+      onclick: () => { if (it[0] !== actif) onPick(it[0]); },
+      onkeydown: e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return; e.preventDefault(); const n = items[(i + (e.key === 'ArrowRight' ? 1 : items.length - 1)) % items.length]; onPick(n[0]); setTimeout(() => { const b = document.querySelector('.segs.' + (cls || 'x') + ' [aria-selected="true"]'); if (b) b.focus(); }, 0); } }, it[1])));
+    return g;
+  }
+  // Retire l'en-tête d'une vue de module (le titre est porté par Parcours) et garde son action contextuelle
+  function sansTitre(arr) {
+    const out = [].concat(arr || []); let act = null;
+    if (out[0] && out[0].classList && out[0].classList.contains('lt')) { const hd = out.shift(); act = hd.children[1] || null; }
+    return { corps: out, action: act };
+  }
+  function viewParcours(d) {
+    const mods = modulesActifs(d);
+    if (!mods.length) return [largeTitle('Parcours'), h('div', { class: 'vide' }, h('p', null, 'Aucun module actif. Choisis Corps, Argent ou Projet dans ton profil.'), h('button', { class: 'btn', type: 'button', onclick: () => editStep('domaines') }, 'Choisir mes modules'))];
+    if (!mods.some(m => m[0] === parcours.mod)) parcours.mod = mods[0][0];
+    const mod = parcours.mod;
+    let v;
+    if (mod === 'corps') {
+      const SOUS = [['seance', 'Séance'], ['progression', 'Progression'], ['photos', 'Photos']].filter(x => x[0] !== 'photos' || window.CapPhotos);
+      if (!SOUS.some(x => x[0] === parcours.corps)) parcours.corps = 'seance';
+      v = sansTitre(parcours.corps === 'seance' ? viewProg(d) : parcours.corps === 'progression' ? window.CapJournal.viewProgres(d) : window.CapPhotos.view(d));
+      v.sous = segments(SOUS, parcours.corps, k => aller('parcours', 'corps', k), 'Vue du corps', 'sous');
+    } else if (mod === 'argent') v = sansTitre(viewArgent(d));
+    else v = sansTitre(window.CapProjet.view(d));
+    return [h('header', { class: 'pc-head mod-' + mod }, h('div', { class: 'pc-row' }, h('h1', null, 'Parcours'), v.action),
+      mods.length > 1 ? segments(mods, mod, k => aller('parcours', k), 'Module', 'mods') : h('p', { class: 'pc-seul' }, mods[0][1]), v.sous || null)].concat(v.corps);
+  }
+  // Action centrale : ce qu'on peut ajouter, selon les modules actifs
+  function menuCentral(d) {
+    let close; const go = fn => () => { close(); setTimeout(fn, 60); };
+    const J = window.CapJournal, tiles = []; let ti = 0;
+    const tile = (ic, t, s2, fn, mod) => tiles.push(h('button', { class: 'tile press mod-' + mod, type: 'button', onclick: go(fn), style: 'animation-delay:' + (ti++ * 30) + 'ms' }, h('span', { class: 'tile-i' }, icon(ic)), h('b', null, t), s2 ? h('small', null, s2) : null));
+    if (d.corps) {
+      tile('search', 'Repas', 'Rechercher, favoris', () => J.ajouter('aliment'), 'corps');
+      tile('camera', 'Scanner un plat', window.CapAI && window.CapAI.photoDispo() ? 'Estimation à vérifier' : 'Indisponible ici', () => J.ajouter('scan'), 'corps');
+      tile('drop', 'Eau', '+250 ml', () => J.ajouter('eau'), 'corps');
+      tile('run', 'Activité', 'Sport, marche', () => J.ajouter('activite', d), 'corps');
+      tile('scale', 'Pesée', 'Poids, tour de taille', () => addPesee(), 'corps');
+      if (window.CapPhotos) tile('image', 'Photo du corps', 'Privée', () => window.CapPhotos.ajouter(), 'corps');
+    }
+    if (d.argent) tile('wallet', 'Épargne', 'Mis de côté ou retiré', () => addMouvement(d), 'argent');
+    if (d.entreprise && window.CapProjet) tile('building', 'Vente', 'Montant encaissé', () => window.CapProjet.vente(), 'projet');
+    close = sheet('Ajouter', [h('div', { class: 'tiles' }, tiles)], { focus: false });
+  }
   function renderMain() {
     const d = derive();
-    const J = window.CapJournal;
-    const tabs = [['today', 'Accueil', 'home']];
-    if (d.corps) { tabs.push(['corps', 'Progrès', 'chart']); tabs.push(['prog', 'Programme', 'dumbbell']); }
-    if (d.argent) tabs.push(['argent', 'Argent', 'wallet']);
-    if (d.entreprise && window.CapProjet) tabs.push(['projet', 'Projet', 'building']);
-    tabs.push(['reglages', 'Réglages', 'gear']);
-    if (!tabs.some(t => t[0] === tab)) tab = 'today';
-    const views = { today: J.viewAccueil, corps: J.viewProgres, prog: viewProg, argent: viewArgent, reglages: viewReglages, projet: d2 => window.CapProjet.view(d2) };
+    if (ANCIENS[tab] && tab !== 'today') { const a = ANCIENS[tab]; tab = a[0]; if (a[1]) parcours.mod = a[1]; if (a[2]) parcours.corps = a[2]; }
+    const dests = [['today', 'Aujourd’hui', 'home'], ['parcours', 'Parcours', 'compass'], ['plus'], d.corps ? ['journal', 'Journal', 'book'] : null, ['profil', 'Profil', 'person']].filter(Boolean);
+    if (!dests.some(t => t[0] === tab)) tab = 'today';
+    const views = { today: d2 => window.CapAccueil.view(d2), parcours: viewParcours, journal: d2 => window.CapJournal.viewJournal(d2), profil: viewReglages };
     const scrollY = window.scrollY;
     const changed = lastTab !== tab; lastTab = tab;
     $app.textContent = '';
-    $app.append(h('main', { class: 'screen' + (changed && !reduced() ? ' enter' : '') }, views[tab](d)));
-    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted', style: 'text-align:center' }, window.CapCloud && window.CapCloud.configure() ? 'Tes données sont sur cet appareil uniquement. Connecte ton compte Cap dans Réglages pour les sauvegarder et les synchroniser.' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et le coach ne sont disponibles que dans l’appli Claude.'));
-    const pill = h('span', { class: 'pill' });
-    const btns = tabs.map(t => h('button', { type: 'button', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) { tab = t[0]; renderMain(); window.scrollTo(0, 0); } } }, icon(t[2]), h('span', null, t[1])));
-    const bar = h('nav', { class: 'tabbar', 'aria-label': 'Navigation principale' }, h('div', { class: 'in glass' + (tabs.length > 5 ? ' dense' : '') }, pill, btns));
-    $app.append(bar);
-    if (d.corps && (tab === 'today' || tab === 'corps')) $app.append(h('button', { class: 'fab glass press', type: 'button', 'aria-label': 'Ajouter', onclick: () => J.menuAjout(d) }, icon('plus')));
-    if (lastPill) { pill.style.transition = 'none'; pill.style.width = lastPill.w + 'px'; pill.style.transform = 'translateX(' + lastPill.x + 'px)'; }
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      const i = tabs.findIndex(t => t[0] === tab); const b = btns[i]; if (!b) return;
-      const x = b.offsetLeft - 5, w = b.offsetWidth;
-      pill.style.transition = '';
-      if (lastPill && (lastPill.x !== x) && !reduced()) { pill.classList.add('moving'); setTimeout(() => pill.classList.remove('moving'), 380); }
-      pill.style.width = w + 'px'; pill.style.transform = 'translateX(' + x + 'px)'; lastPill = { x, w };
-    }));
+    $app.append(h('main', { class: 'screen scr-' + tab + (changed && !reduced() ? ' enter' : '') }, views[tab](d)));
+    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted mode-note' }, window.CapCloud && window.CapCloud.configure() ? 'Tes données sont sur cet appareil uniquement. Connecte ton compte Cap dans Profil pour les sauvegarder et les synchroniser.' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et le coach ne sont disponibles que dans l’appli Claude.'));
+    const btns = dests.map(t => t[0] === 'plus'
+      ? h('button', { type: 'button', class: 'nav-plus', 'aria-label': 'Ajouter', onclick: () => menuCentral(d) }, icon('plus'))
+      : h('button', { type: 'button', class: 'nav-d', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) aller(t[0]); } }, icon(t[2]), h('span', null, t[1])));
+    $app.append(h('nav', { class: 'tabbar nav5', 'aria-label': 'Navigation principale' }, h('div', { class: 'in' }, btns)));
     animerNombres($app);
     if (window._keepScroll) { window.scrollTo(0, scrollY); window._keepScroll = false; }
   }
@@ -867,39 +916,62 @@
     } }, 'Enregistrer');
     close = sheet('Nouvelle pesée', [h('p', { class: 'muted sub' }, 'Le matin, à jeun, après les toilettes, une fois par semaine.'), r.el, t.el, h('label', { class: 'field', for: 'p-date' }, 'Date', dt), err, save]);
   }
-  // ---------- Programme
+  // ---------- Programme : la séance du jour (ou la prochaine) d'abord ; la semaine en lignes ; limites distinctes des conseils
+  function prochaineSeance(pr) {
+    const now = new Date().getDay();
+    for (let k = 0; k < 7; k++) { const j = (now + k) % 7, pl = pr.planning.find(x => x.jour === j); if (pl) return { pl, se: pr.seances.find(s => s.cle === pl.seance), dans: k }; }
+    return null;
+  }
+  function lancerSeance(se) { return window.CapSeance ? window.CapSeance.ouvrir(se) : logSeance(se); }
+  function detailSeance(se) {
+    let close;
+    close = sheet(se.nom, [h('p', { class: 'muted sub' }, se.duree + ' min · ' + se.objectif),
+      se.justification ? h('p', { class: 'sub' }, h('b', null, 'Pourquoi cette séance : '), se.justification) : null,
+      se.echauffement && se.echauffement !== 'Aucun' ? h('p', { class: 'foot muted' }, 'Échauffement : ' + se.echauffement) : null,
+      h('ol', { class: 'pg-ex' }, se.exercices.map(e => h('li', null, h('div', { class: 'pg-ex-l' }, h('b', null, e.nom), h('span', { class: 'num' }, e.type === 'cardio' ? e.reps : e.series + ' × ' + e.reps)),
+        h('small', null, [e.repos ? 'Repos ' + e.repos + ' s' : null, 'Alternative : ' + (e.alternative || 'aucune avec ton matériel'), e.consigne || null, e.raison ? 'Pourquoi : ' + e.raison : null, e.horsBibliotheque ? 'Hors bibliothèque, non vérifié par Cap' : null].filter(Boolean).join(' · '))))),
+      h('div', { class: 'ia-actions' }, h('button', { class: 'btn', type: 'button', onclick: () => { close(); setTimeout(() => lancerSeance(se), 60); } }, 'Commencer'), h('button', { class: 'btn secondary', type: 'button', onclick: () => logSeance(se) }, 'Déjà faite'))], { focus: false });
+  }
   function viewProg(d) {
-    const out = [largeTitle('Programme', d.prog && d.prog.seances.length ? d.prog.seances.length + ' séance' + (d.prog.seances.length > 1 ? 's' : '') + ' par semaine' : null)];
     const pr = d.prog;
-    if (!pr || !pr.ok) { out.push(h('div', { class: 'note' }, 'Il manque des réponses pour construire ton programme.'), h('button', { class: 'btn', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { only: missingSteps(), fresh: true }) }, 'Compléter')); return out; }
-    if (!pr.seances.length) { out.push(h('div', { class: 'note' }, pr.note), h('button', { class: 'btn tinted', type: 'button', onclick: () => editStep('jours') }, 'Ajouter des séances')); return out; }
-    const a = d.adapt;
-    out.push(h('div', { class: 'stats' },
-      h('div', { class: 'stat' }, h('b', null, a.faites + ' / ' + a.prevues), h('span', null, 'Séances faites (14 j)')),
-      h('div', { class: 'stat' }, h('b', null, a.taux === null ? '—' : fr(a.taux * 100) + ' %'), h('span', null, 'Régularité mesurée')),
-      h('div', { class: 'stat' }, h('b', null, ((pr.parametres && pr.parametres.minutesRetenues) || d.p.minutes || 0) + ' min'), h('span', null, 'Par séance'))));
-    // Origine honnête : calculé par les règles, pas généré par une IA
-    const viaIA = pr.origine === 'ia_validee';
-    const ia = window.CapContrats ? window.CapContrats.statutIA(() => !!(window.CapIA && window.CapIA.dispo())) : null;
-    if (!viaIA) out.push(h('div', { class: 'note' }, h('b', null, 'Programme calculé par les règles de Cap'), ' à partir de tes réponses (niveau, temps, matériel, douleurs, objectif). ', ia && !ia.actif ? ia.texte : 'Tu peux demander à l’IA de le personnaliser davantage.'));
-    if (window.CapIAUI) out.push(...window.CapIAUI.programmePanel(d));
-    const dec = viaIA ? (d.progRegles && d.progRegles.decisions) || [] : pr.decisions || [];
-    if (dec.length) out.push(section(viaIA ? 'Règles de sécurité appliquées par Cap' : 'Pourquoi ce programme', viaIA ? 'Limites que le programme IA doit respecter ; il est revérifié à chaque ouverture.' : null, h('div', { class: 'panel flush' }, dec.map(x => h('div', { class: 'cell', style: 'align-items:flex-start' }, h('span', { class: 'lbl' }, x.raison, x.champs.length ? h('small', null, 'Réponses utilisées : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null))))));
-    if (a.conseil) out.push(h('div', { class: 'alert info' }, icon('info'), h('div', null, h('h3', null, 'Ajustement suggéré'), h('p', null, a.conseil))));
+    const out = [largeTitle('Séance')];
+    if (!pr || !pr.ok) { out.push(h('div', { class: 'vide' }, h('p', null, 'Il manque des réponses pour construire ton programme.'), h('button', { class: 'btn', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { only: missingSteps(), fresh: true }) }, 'Compléter mes réponses'))); return out; }
+    if (!pr.seances.length) { out.push(h('div', { class: 'vide' }, h('p', null, pr.note), h('button', { class: 'btn', type: 'button', onclick: () => editStep('jours') }, 'Ajouter des séances'))); return out; }
+    const a = d.adapt, viaIA = pr.origine === 'ia_validee', t = dayId();
+    const nx = prochaineSeance(pr), faiteAuj = S.seances.some(l => l.date === t);
+    // 1. La séance qui compte
+    if (nx) {
+      const auj = nx.dans === 0, se = nx.se;
+      const quand = auj ? (faiteAuj ? 'Faite aujourd’hui' : 'Aujourd’hui') : nx.dans === 1 ? 'Demain' : nx.pl.jourNom;
+      out.push(h('section', { class: 'pg-hero mod-corps' + (auj && faiteAuj ? ' faite' : ''), 'aria-labelledby': 'pg-hero-t' },
+        h('p', { class: 'pg-quand' }, quand),
+        h('h2', { id: 'pg-hero-t', class: 'pg-nom' }, se.nom),
+        h('p', { class: 'pg-meta' }, se.duree + ' min · ' + se.exercices.length + ' exercices · ' + se.objectif),
+        h('div', { class: 'pg-acts' },
+          auj && !faiteAuj ? h('button', { class: 'btn pg-go', type: 'button', onclick: () => lancerSeance(se) }, 'Commencer la séance') : h('button', { class: 'btn secondary', type: 'button', onclick: () => detailSeance(se) }, 'Voir la séance'),
+          auj && !faiteAuj ? h('button', { class: 'btn text', type: 'button', onclick: () => logSeance(se) }, 'Déjà faite') : null)));
+      if (!auj && !faiteAuj) out.push(h('p', { class: 'pg-repos' }, 'Pas de séance prévue aujourd’hui : la récupération fait partie du programme.'));
+    }
+    // 2. La semaine, en lignes
     const today = new Date().getDay();
-    out.push(section('Ta semaine', null, pr.planning.map(pl => {
-      const se = pr.seances.find(s => s.cle === pl.seance);
-      const det = h('details', { class: 'session', open: pl.jour === today ? true : null },
-        h('summary', null, h('div', { style: 'flex:1;min-width:0' }, h('div', { class: 'day' }, pl.jourNom + (pl.jour === today ? ' · aujourd’hui' : '')), h('div', { style: 'font-weight:600;font-size:17px' }, se.nom), h('div', { class: 'foot muted' }, se.objectif + ' · ' + se.duree + ' min')), icon('chev', 'chev')),
-        se.justification ? h('div', { class: 'ex', style: 'grid-template-columns:1fr' }, h('small', { style: 'grid-column:auto' }, h('b', null, 'Pourquoi cette séance : '), se.justification)) : null,
-        h('div', { class: 'ex', style: 'grid-template-columns:1fr' }, h('small', { style: 'grid-column:auto' }, 'Échauffement : ' + se.echauffement)),
-        se.exercices.map(e => h('div', { class: 'ex' }, h('b', null, e.nom), h('span', { class: 'r' }, e.type === 'cardio' ? e.reps : e.series + ' × ' + e.reps), h('small', null, (e.repos ? 'Repos ' + e.repos + ' s · ' : '') + (e.alternative ? 'Alternative : ' + e.alternative : 'Pas d’alternative avec ton matériel') + (e.consigne ? ' · ' + e.consigne : '') + (e.raison ? ' · Pourquoi : ' + e.raison : '') + (e.horsBibliotheque ? ' · Hors bibliothèque, non vérifié par Cap' : '')))),
-        h('div', { style: 'padding:12px 16px 16px' }, h('button', { class: 'btn small tinted', type: 'button', style: 'width:100%', onclick: () => logSeance(se) }, icon('check'), 'J’ai fait cette séance')));
-      return det;
-    })));
-    out.push(section('Progression', null, h('div', { class: 'note' }, pr.progression), pr.progressionSemaines && pr.progressionSemaines.length ? h('div', { class: 'panel flush' }, pr.progressionSemaines.map(x => cellKV('Semaine ' + x.semaine, x.consigne))) : null, pr.recuperation ? h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Récupération : ' + pr.recuperation) : null));
-    const logs = S.seances.slice().sort((x, y) => y.date.localeCompare(x.date)).slice(0, 10);
-    out.push(section('Séances enregistrées', null, logs.length ? h('div', { class: 'panel flush' }, logs.map(l => h('div', { class: 'cell' }, h('span', { class: 'lbl' }, l.nom, h('small', null, fmtD(l.date) + ' · ressenti ' + ({ facile: 'facile', ok: 'correct', dur: 'très dur' }[l.ressenti] || '—'))), h('button', { class: 'round press', type: 'button', style: 'width:32px;height:32px;background:var(--fill)', 'aria-label': 'Supprimer', onclick: () => confirmDel(() => remove('seances', l.id)) }, icon('trash'))))) : h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Aucune séance enregistrée : aucune progression n’est affichée.')));
+    out.push(h('section', { class: 'pg-sem', 'aria-labelledby': 'pg-sem-t' }, h('h2', { id: 'pg-sem-t', class: 'td-h' }, 'Ta semaine'),
+      h('ul', { class: 'td-liste' }, pr.planning.map(pl => { const se = pr.seances.find(s => s.cle === pl.seance); return h('li', null, h('button', { class: 'td-ligne mod-corps' + (pl.jour === today ? ' auj' : ''), type: 'button', onclick: () => detailSeance(se) }, h('span', { class: 'pg-jour' }, pl.jourNom.slice(0, 3)), h('span', { class: 'td-l' }, h('b', null, se.nom), h('small', null, se.duree + ' min · ' + se.objectif)), icon('chev', 'chev'))); }))));
+    // 3. Régularité mesurée (si des séances sont prévues)
+    out.push(h('p', { class: 'pg-regul' }, a.prevues ? h('span', null, h('b', null, a.faites + ' sur ' + a.prevues), ' séances faites ces 14 derniers jours' + (a.taux !== null ? ' (' + fr(a.taux * 100) + ' %)' : '') + '.') : 'Ta régularité apparaîtra après tes premières séances enregistrées.'));
+    if (a.conseil) out.push(h('div', { class: 'alert info' }, icon('info'), h('div', null, h('h3', null, 'Ajustement suggéré'), h('p', null, a.conseil))));
+    // 4. Limites appliquées (contraintes réelles), séparées des conseils
+    const dec = viaIA ? (d.progRegles && d.progRegles.decisions) || [] : pr.decisions || [];
+    const lim = dec.filter(x => (x.champs || []).some(c => ['zonesDouleur', 'contraintes', 'age', 'materielSport', 'tempsLibre', 'autreSport'].indexOf(c) >= 0));
+    const autres = dec.filter(x => lim.indexOf(x) < 0);
+    if (lim.length) out.push(h('section', { class: 'pg-lim', 'aria-labelledby': 'pg-lim-t' }, h('h2', { id: 'pg-lim-t', class: 'td-h' }, 'Limites appliquées'), h('ul', null, lim.map(x => h('li', null, x.raison, x.champs.length ? h('small', null, 'D’après : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null)))));
+    // 5. Origine du programme et IA
+    out.push(h('section', { class: 'pg-origine' }, h('p', null, h('span', { class: 'tag ' + (viaIA ? 'ia' : 'calc') }, viaIA ? 'IA validée par Cap' : 'Calculé par Cap'), ' ', viaIA ? 'Programme proposé par l’IA, accepté par toi et revérifié par les règles de sécurité à chaque ouverture.' : 'Construit par les règles de Cap à partir de tes réponses (niveau, temps, matériel, douleurs, objectif).')));
+    if (window.CapIAUI) out.push(...window.CapIAUI.programmePanel(d));
+    // 6. Détails repliés
+    if (autres.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, viaIA ? 'Règles de sécurité vérifiées' : 'Pourquoi ce programme'), h('ul', null, autres.map(x => h('li', null, x.raison)))));
+    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Progression prévue'), h('p', null, pr.progression), pr.progressionSemaines && pr.progressionSemaines.length ? h('ul', null, pr.progressionSemaines.map(x => h('li', null, 'Semaine ' + x.semaine + ' : ' + x.consigne))) : null, pr.recuperation ? h('p', { class: 'foot muted' }, 'Récupération : ' + pr.recuperation) : null));
+    const logs = S.seances.slice().sort((x, y) => y.date.localeCompare(x.date)).slice(0, 20);
+    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Séances enregistrées (' + S.seances.length + ')'), logs.length ? h('ul', { class: 'td-liste' }, logs.map(l => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, l.nom), h('small', null, fmtD(l.date) + ' · ' + ({ facile: 'facile', ok: 'correct', dur: 'très dur' }[l.ressenti] || '—') + (l.partielle ? ' · partielle (' + l.exercicesFaits + '/' + l.exercicesPrevus + ')' : ''))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer la séance du ' + fmtD(l.date), onclick: () => confirmDel(() => remove('seances', l.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucune séance enregistrée : aucune progression n’est affichée.')));
     return out;
   }
   function logSeance(se) {
@@ -1079,7 +1151,7 @@
           Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.programmes.forEach(x => jobs.push(remove('programmes', x.id))); S.opportunites.forEach(x => jobs.push(remove('opportunites', x.id))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id)));
           S.perso.forEach(r => jobs.push(remove('aliments', r.id))); S.recettes.forEach(r => jobs.push(remove('recettes', r.id)));
           if (window.CapDonnees) jobs.push(window.CapUI.snapshotData().then(d => Promise.all(Object.keys(d.historique || {}).map(id => remove('historique', id)))));
-          S.photos.forEach(r => { jobs.push(remove('photos', r.id)); if (window.CapJournal) jobs.push(window.CapJournal.supprimerAsset(r.assetId)); });
+          S.photos.forEach(r => { jobs.push(remove('photos', r.id)); if (window.CapPhotos) jobs.push(window.CapPhotos.supprimerFichier(r)); else if (window.CapJournal) jobs.push(window.CapJournal.supprimerAsset(r.assetId)); });
           await Promise.all(jobs); await remove('profil', 'main'); S.profil = null; store.del('cap-draft'); close(); OB = null; refresh();
         } catch (e) { toast('Échec, réessaie'); }
       } }, 'Tout effacer'), h('button', { class: 'btn secondary', type: 'button', onclick: () => close() }, 'Annuler')]);
@@ -1088,7 +1160,7 @@
   // ================================================================ Démarrage
   let booted = false;
   const boot = () => { if (booted) return; booted = true; refresh(); };
-  window.CapUI = { derive: (...a) => derive(...a), viewProgRefresh: () => renderMain(), sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => { tab = t; renderMain(); window.scrollTo(0, 0); }, refresh: () => { window._keepScroll = true; refresh(); } };
+  window.CapUI = { derive: (...a) => derive(...a), viewProgRefresh: () => renderMain(), sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => aller(t), aller: (a, b, c) => aller(a, b, c), lancerSeance: se => lancerSeance(se), logSeance: se => logSeance(se), cocherAction: async k => { const done = Object.assign({}, S.actions.done || {}); done[k] = !done[k]; try { await put('actions', weekKey(), { done }); S.actions = { done }; toast(done[k] ? 'Action notée comme faite' : 'Action rouverte'); window._keepScroll = true; refresh(); } catch (e) { toast('Échec, réessaie'); } }, segments: (...a) => segments(...a), addMouvement: d2 => addMouvement(d2), refresh: () => { window._keepScroll = true; refresh(); } };
   // Lecture de toutes les données, quel que soit le stockage (export, migration)
   async function snapshotData() {
     const colls = window.CapSync ? window.CapSync.COLLS : Object.keys(mem), out = {};

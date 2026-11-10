@@ -73,7 +73,7 @@
   }
 
   // ================================================================ Accueil
-  J.viewAccueil = d => {
+  J.viewJournal = d => {
     const out = [], t = today();
     if (jour > t) jour = t;
     const S0 = S();
@@ -82,8 +82,7 @@
     const right = h('div', { style: 'display:flex;gap:8px;align-items:center' },
       d.corps ? h('span', { class: 'chip ' + (serie ? 'warn' : 'neutral'), title: 'Jours consécutifs avec au moins un repas noté' }, icon('flame'), serie + ' j') : null,
       h('button', { class: 'round glass press', type: 'button', 'aria-label': 'Coach', onclick: () => J.coach(d) }, icon('chat')));
-    out.push(U.largeTitle(jour === t ? 'Aujourd’hui' : (jour === shift(t, -1) ? 'Hier' : fr(new Date(jour + 'T12:00').getDate()) + ' ' + new Date(jour + 'T12:00').toLocaleDateString('fr-FR', { month: 'long' })), longDate(jour), right));
-    if (jour === t) { const bo = boussole(d); if (bo) out.push(bo); }
+    out.push(U.largeTitle(jour === t ? 'Journal' : (jour === shift(t, -1) ? 'Hier' : fr(new Date(jour + 'T12:00').getDate()) + ' ' + new Date(jour + 'T12:00').toLocaleDateString('fr-FR', { month: 'long' })), longDate(jour), right));
     if (d.corps) out.push(bandeSemaine(d));
     if (jour !== t) out.push(h('div', { class: 'note tint', style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' }, h('span', null, 'Tu modifies le journal du ' + longDate(jour) + '.'), h('button', { class: 'link', type: 'button', onclick: () => { jour = t; U.refresh(); } }, 'Revenir')));
     if (d.corps) {
@@ -96,34 +95,8 @@
         out.push(listeRepas(d, j));
       }
     }
-    if (jour === t) { const a = actions(d); if (a) out.push(a); }
-    const imp = d.issues.filter(i => i.niveau !== 'info');
-    if (imp.length) out.push(U.section('À vérifier', null, imp.map(i => U.issueView(i, champ => U.editStep(U.STEP_BY_FIELD[champ] || champ)))));
     return out;
   };
-  // Boussole : répond en trois lignes à « Où j'en suis ? Où je vais ? Qu'est-ce que je fais aujourd'hui ? »
-  // Uniquement des valeurs réelles (profil, pesées, moteur Cap) ; une ligne sans donnée n'est pas affichée.
-  function boussole(d) {
-    const p = d.p || {}, now = new Date(), ici = [], cap = [], jourL = [];
-    if (d.corps) {
-      const kg = poidsActuel();
-      if (kg) ici.push(fr(kg, 1) + ' kg');
-      if (p.objectif && p.objectif !== 'maintenir' && p.cible) cap.push(fr(p.cible, 1) + ' kg' + (d.phys && d.phys.ok && d.phys.planPossible && d.phys.semaines ? ', ≈ ' + d.phys.semaines + ' semaines' : ''));
-      else if (p.objectif === 'maintenir') cap.push('Garder ' + (kg ? fr(kg, 1) + ' kg' : 'ton poids'));
-      if (d.prog && d.prog.ok) {
-        const pl = d.prog.planning.find(x => x.jour === now.getDay()), se = pl && d.prog.seances.find(x => x.cle === pl.seance);
-        jourL.push(se ? se.nom + ', ' + se.duree + ' min' + (S().seances.some(l => l.date === today()) ? ' (faite)' : '') : 'Repos');
-      }
-      if (d.phys && d.phys.ok) { const b = budget(d, jour); jourL.push(b.restant >= 0 ? fr(b.restant) + ' kcal restantes' : fr(-b.restant) + ' kcal au-dessus'); }
-    }
-    if (d.argent && d.fin && d.fin.ok) {
-      ici.push(eurC(d.fin.capacite) + ' d’épargne possible par mois');
-      if (d.fin.reve && d.fin.reve.total) cap.push(eurC(d.fin.reve.total) + (p.reveAnnee ? ' en ' + p.reveAnnee : ''));
-    }
-    const lignes = [['Où j’en suis', ici], ['Où je vais', cap], ['Aujourd’hui', jourL]].filter(l => l[1].length);
-    if (!lignes.length) return null;
-    return h('section', { class: 'boussole', 'aria-label': 'Ton cap' }, lignes.map(l => h('div', { class: 'bs-l' }, h('span', { class: 'bs-q' }, l[0]), h('div', { class: 'bs-r' }, l[1].map(x => h('b', null, x))))));
-  }
   function bandeSemaine(d) {
     const t = today();
     const fin = jour < shift(t, -6) ? shift(jour, 3) : t;
@@ -189,21 +162,6 @@
     });
     return U.section('Repas', j.items.length ? null : 'Rien de noté pour ce jour. Cap n’estime rien à ta place.', blocs);
   }
-  function actions(d) {
-    const acts = [], now = new Date();
-    if (d.corps && d.prog && d.prog.ok) {
-      const pl = d.prog.planning.find(x => x.jour === now.getDay());
-      if (pl) { const se = d.prog.seances.find(s => s.cle === pl.seance); acts.push({ t: 'Séance : ' + se.nom, s: se.duree + ' min · ' + se.objectif, done: S().seances.some(l => l.date === today()), go: () => U.setTab('prog') }); }
-      const last = E.tendance(S().pesees).dernier;
-      if (!last || (new Date(today()) - new Date(last.date)) / 864e5 >= 7) acts.push({ t: 'Pesée de la semaine', s: 'Le matin, à jeun', done: false, go: () => U.addPesee() });
-    }
-    if (d.argent && d.fin && d.fin.ok) acts.push({ t: 'Action argent de la semaine', s: d.fin.niveaux.action.texte, done: !!(S().actions.done || {}).argent, toggle: 'argent' });
-    if (!acts.length) return null;
-    return U.section('Prochaines actions', null, h('div', { class: 'panel flush' }, acts.map(a => h('button', { class: 'cell', type: 'button', role: a.toggle ? 'checkbox' : null, 'aria-checked': a.toggle ? String(a.done) : null,
-      onclick: async () => { if (a.toggle) { const done = Object.assign({}, S().actions.done || {}); done[a.toggle] = !done[a.toggle]; try { await U.put('actions', U.weekKey(), { done }); S().actions = { done }; U.refresh(); } catch (e) { U.toast('Échec, réessaie'); } } else a.go(); } },
-      h('span', { class: 'ico', style: 'background:' + (a.done ? 'var(--good)' : 'var(--fill-2)') + ';color:' + (a.done ? '#fff' : 'var(--ink-2)') }, icon(a.done ? 'check' : 'chev')), h('span', { class: 'lbl' }, a.t, h('small', null, a.s))))));
-  }
-
   // ================================================================ Menu d'ajout (bouton flottant)
   J.menuAjout = d => {
     let close;
@@ -399,7 +357,25 @@
       return h('label', { class: 'btn ' + (cls || ''), for: inp.id, role: 'button', tabindex: '0', onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } } }, icon('camera'), label, inp);
     };
     const etapeChoix = () => { body.textContent = ''; U.add(body, h('p', { class: 'muted sub' }, 'Photographie ton assiette de haut, en entier, avec une bonne lumière. L’IA estime les aliments et les quantités ; tu corriges avant d’enregistrer.'), fileBtn('Prendre une photo', true), fileBtn('Choisir dans la galerie', false, 'secondary')); };
-    const etapeApercu = () => { body.textContent = ''; U.add(body, h('img', { src: st.apercu, alt: 'Photo du repas', class: 'scan-img' }), U.sparkle('Découvrir mon analyse', () => { if (window.CapSon) window.CapSon.jouer('ouverture'); analyser(); }).el, h('button', { class: 'btn secondary', type: 'button', onclick: etapeChoix }, 'Changer de photo'), h('p', { class: 'foot muted' }, 'La photo est envoyée à Claude, sur ton compte, uniquement pour cette analyse.')); };
+    // Avant tout envoi : ce qui part, à qui, pourquoi, ce qui n'est pas analysé ; consentement explicite mémorisé (révocable dans Profil)
+    const etapeApercu = () => {
+      body.textContent = '';
+      const dejaOk = !!(S().prefs || {}).consentScan;
+      const sk = U.sparkle('Analyser ma photo', async () => {
+        if (!dejaOk && !coche.checked) return;
+        if (!dejaOk) { try { await U.savePrefs({ consentScan: { accepte: new Date().toISOString() } }); } catch (e) { /* le consentement vaut pour cette analyse */ } }
+        if (window.CapSon) window.CapSon.jouer('ouverture'); analyser();
+      });
+      const coche = h('input', { type: 'checkbox', id: 'scan-ok' });
+      if (!dejaOk) { sk.btn.disabled = true; coche.addEventListener('change', () => { sk.btn.disabled = !coche.checked; }); }
+      U.add(body, h('img', { src: st.apercu, alt: 'Photo du repas, avant envoi', class: 'scan-img' }),
+        h('div', { class: 'scan-info' },
+          h('p', null, h('b', null, 'Ce qui est envoyé : '), 'cette photo, réduite, à Claude (Anthropic) via ton compte, uniquement pour estimer les aliments visibles et leurs quantités. Elle n’est pas gardée par Cap.'),
+          h('p', null, h('b', null, 'Ce qui n’est pas analysé : '), 'l’huile, le beurre et les sauces cachés, le poids exact, ta santé.'),
+          h('p', null, h('b', null, 'Ensuite : '), 'tu vérifies et corriges chaque aliment ; Cap recalcule les totaux ; rien n’est enregistré sans ta validation.')),
+        !dejaOk ? h('label', { class: 'scan-consent', for: 'scan-ok' }, coche, h('span', null, 'J’accepte d’envoyer cette photo à Claude pour l’analyser.')) : null,
+        sk.el, h('button', { class: 'btn secondary', type: 'button', onclick: etapeChoix }, 'Changer de photo'), h('button', { class: 'btn text', type: 'button', onclick: () => { close(); ajouterAliment(st.slot); } }, 'Plutôt saisir à la main'));
+    };
     async function analyser() {
       st.ctl = new AbortController();
       const t0 = Date.now(); const tick = h('span', null, '0 s');
@@ -409,11 +385,12 @@
       try {
         const r = await AI.analyserRepas(st.blob, st.ctl.signal);
         st.remarque = r.remarque; st.notes = r.notes;
-        st.rows = r.aliments.map(a => { const b = F.parNom(a.nom); const garder = b && ['Plats', 'Sucré', 'Boissons', 'Laitiers', 'Fruits'].indexOf(b.cat) < 0 && b.id !== 'frites'; return { nom: b ? b.n : a.nom, grammes: a.grammes, cuisson: b ? (garder ? a.cuisson : 'aucune') : a.cuisson, confiance: a.confiance, par100: b || a.par100, base: !!b, coherent: b ? true : a.coherent }; });
+        st.rows = r.aliments.map(a => { const b = F.parNom(a.nom); const garder = b && ['Plats', 'Sucré', 'Boissons', 'Laitiers', 'Fruits'].indexOf(b.cat) < 0 && b.id !== 'frites'; return { nom: b ? b.n : a.nom, grammes: a.grammes, cuisson: b ? (garder ? a.cuisson : 'aucune') : a.cuisson, confiance: a.confiance, par100: b || a.par100, base: !!b, coherent: b ? true : a.coherent, corrige: false }; });
+        if (!st.rows.length) st.vide = true;
         etapeResultat();
       } catch (e) {
         body.textContent = '';
-        U.add(body, h('div', { class: 'note' }, AI.erreur(e)), h('button', { class: 'btn', type: 'button', onclick: analyser }, 'Réessayer'), h('button', { class: 'btn secondary', type: 'button', onclick: () => { close(); ajouterAliment(st.slot); } }, 'Ajouter à la main'));
+        U.add(body, h('div', { class: 'note', role: 'alert' }, navigator.onLine === false ? 'Pas de connexion : la photo n’a pas été envoyée. Ajoute ton repas à la main, ou réessaie une fois connecté.' : AI.erreur(e)), h('button', { class: 'btn', type: 'button', onclick: analyser }, 'Réessayer'), h('button', { class: 'btn secondary', type: 'button', onclick: () => { close(); ajouterAliment(st.slot); } }, 'Ajouter à la main'));
       } finally { clearInterval(iv); }
     }
     function etapeResultat() {
@@ -425,32 +402,34 @@
         const es = st.rows.map(r => E.entreeDepuisAliment(r.par100, r.grammes, r.cuisson));
         const t = E.totaux(es);
         tot.textContent = '';
-        U.add(tot, h('div', { class: 'hero' }, h('div', null, h('b', { class: 'num' }, fr(t.k)), h('span', null, ' kcal estimées')), h('span', { class: 'chip warn' }, 'Estimation')), h('p', { class: 'sub' }, 'P ' + fr(t.p, 1) + ' g · G ' + fr(t.c, 1) + ' g · L ' + fr(t.f, 1) + ' g'),
+        U.add(tot, h('div', { class: 'hero' }, h('div', null, h('b', { class: 'num' }, fr(t.k)), h('span', null, ' kcal estimées')), h('span', { class: 'tag calc' }, 'Total calculé par Cap')), h('p', { class: 'sub' }, 'P ' + fr(t.p, 1) + ' g · G ' + fr(t.c, 1) + ' g · L ' + fr(t.f, 1) + ' g'),
           h('p', { class: 'foot muted' }, 'Une photo ne permet pas de peser : les quantités peuvent varier de ±20 % ou plus (sauces, huile, aliments cachés). Corrige les grammes si tu les connais.'));
         save.disabled = !st.rows.length || st.rows.some(r => !(r.grammes > 0 && r.grammes <= 3000));
       };
       const draw = () => {
         list.textContent = '';
-        if (!st.rows.length) U.add(list, h('p', { class: 'muted sub' }, 'Aucun aliment reconnu. Ajoute-les toi-même.'));
+        if (!st.rows.length) U.add(list, h('p', { class: 'muted sub' }, st.vide ? 'Aucun aliment n’a été reconnu sur cette photo (plat absent, photo floue ou trop sombre). Ajoute les aliments toi-même ou reprends une photo.' : 'Plus aucun aliment : ajoute-en un ou reprends une photo.'));
         st.rows.forEach((r, i) => {
           const e = E.entreeDepuisAliment(r.par100, r.grammes, r.cuisson);
           const kc = h('span', { class: 'num', style: 'font-weight:600' }, fr(e.k) + ' kcal');
-          const g = numInput('sg-' + i, r.grammes, '', v => { r.grammes = v; const e2 = E.entreeDepuisAliment(r.par100, v || 0, r.cuisson); kc.textContent = fr(e2.k) + ' kcal'; recalc(); }, 'numeric');
+          const etiq = h('span', { class: 'tag ' + (r.corrige ? 'corrige' : 'estime') }, r.corrige ? 'Corrigé par toi' : 'Estimé par l’IA');
+          const g = numInput('sg-' + i, r.grammes, '', v => { r.grammes = v; if (!r.corrige) { r.corrige = true; etiq.className = 'tag corrige'; etiq.textContent = 'Corrigé par toi'; } const e2 = E.entreeDepuisAliment(r.par100, v || 0, r.cuisson); kc.textContent = fr(e2.k) + ' kcal'; recalc(); }, 'numeric');
           U.add(list, h('div', { class: 'panel', style: 'gap:10px' },
-            h('div', { style: 'display:flex;justify-content:space-between;gap:8px;align-items:flex-start' }, h('div', { style: 'min-width:0' }, h('b', null, r.nom), h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:4px' }, h('span', { class: 'chip ' + (r.base ? 'good' : 'warn') }, r.base ? 'Valeurs de la base' : 'Valeurs estimées par l’IA'), h('span', { class: 'chip ' + (r.confiance === 'haute' ? 'neutral' : 'warn') }, 'Confiance ' + r.confiance), !r.coherent ? h('span', { class: 'chip bad' }, 'Valeurs à vérifier') : null)), kc),
-            h('div', { class: 'grid2', style: 'align-items:end' }, h('label', { class: 'field', for: 'sg-' + i }, 'Grammes', g), h('div', { class: 'field' }, 'Cuisson', seg(Object.keys(E.CUISSON).map(k => [k, ({ aucune: 'Sans', poele: 'Poêlé', frit: 'Frit' })[k]]), r.cuisson, v => { r.cuisson = v; draw(); recalc(); }, 'Cuisson'))),
-            h('div', { style: 'display:flex;gap:16px' }, h('button', { class: 'link', type: 'button', onclick: () => ajouterAliment(null, (en, al) => { r.nom = al.n; r.par100 = al.src === 'recette' ? { n: al.n, k: al.k, p: al.p, c: al.c, f: al.f } : al; r.base = al.src !== 'recette'; r.coherent = true; draw(); recalc(); }) }, 'Remplacer'), h('button', { class: 'link', type: 'button', style: 'color:var(--bad)', onclick: () => { st.rows.splice(i, 1); draw(); recalc(); } }, 'Supprimer'))));
+            h('div', { style: 'display:flex;justify-content:space-between;gap:8px;align-items:flex-start' }, h('div', { style: 'min-width:0' }, h('b', null, r.nom), h('div', { style: 'display:flex;gap:6px;flex-wrap:wrap;margin-top:4px' }, etiq, h('span', { class: 'chip ' + (r.base ? 'good' : 'warn') }, r.base ? 'Valeurs de la base' : 'Valeurs estimées par l’IA'), h('span', { class: 'chip ' + (r.confiance === 'haute' ? 'neutral' : 'warn') }, 'Confiance ' + r.confiance), !r.coherent ? h('span', { class: 'chip bad' }, 'Valeurs à vérifier') : null)), kc),
+            h('div', { class: 'grid2', style: 'align-items:end' }, h('label', { class: 'field', for: 'sg-' + i }, 'Grammes', g), h('div', { class: 'field' }, 'Cuisson', seg(Object.keys(E.CUISSON).map(k => [k, ({ aucune: 'Sans', poele: 'Poêlé', frit: 'Frit' })[k]]), r.cuisson, v => { r.cuisson = v; r.corrige = true; draw(); recalc(); }, 'Cuisson'))),
+            h('div', { style: 'display:flex;gap:16px' }, h('button', { class: 'link', type: 'button', onclick: () => ajouterAliment(null, (en, al) => { r.nom = al.n; r.par100 = al.src === 'recette' ? { n: al.n, k: al.k, p: al.p, c: al.c, f: al.f } : al; r.base = al.src !== 'recette'; r.coherent = true; r.corrige = true; draw(); recalc(); }) }, 'Remplacer'), h('button', { class: 'link', type: 'button', style: 'color:var(--bad)', onclick: () => { st.rows.splice(i, 1); draw(); recalc(); } }, 'Supprimer'))));
         });
       };
       save.addEventListener('click', async () => {
         const j = journal(jour);
-        st.rows.forEach(r => { const e = E.entreeDepuisAliment(r.par100, r.grammes, r.cuisson); j.items.push(Object.assign(e, { id: U.uid(), slot: st.slot, src: 'scan', conf: r.confiance, ts: new Date().toISOString() })); });
-        try { await saveJournal(jour, j); close(); U.toast('Repas enregistré'); if (window.CapSon) window.CapSon.jouer('valider'); } catch (e) { U.toast('Échec, réessaie'); }
+        st.rows.forEach(r => { const e = E.entreeDepuisAliment(r.par100, r.grammes, r.cuisson); j.items.push(Object.assign(e, { id: U.uid(), slot: st.slot, src: 'scan', conf: r.confiance, corrige: !!r.corrige, ts: new Date().toISOString() })); });
+        save.disabled = true;
+        try { await saveJournal(jour, j); close(); U.toast('Repas enregistré dans ton journal'); if (window.CapSon) window.CapSon.jouer('valider'); } catch (e) { U.toast('Échec, réessaie'); }
       });
       U.add(body, h('img', { src: st.apercu, alt: 'Photo analysée', class: 'scan-img', style: 'max-height:160px' }),
         st.remarque ? h('div', { class: 'note' }, h('b', null, 'Remarque de l’IA : '), st.remarque) : null,
         st.notes.length ? h('p', { class: 'foot', style: 'color:var(--warn)' }, st.notes.join(' ')) : null,
-        list, h('button', { class: 'btn tinted small', type: 'button', onclick: () => ajouterAliment(null, (en, al, q, cu) => { st.rows.push({ nom: al.n, grammes: al.src === 'recette' ? null : q, cuisson: cu || 'aucune', confiance: 'haute', par100: al, base: true, coherent: true }); if (al.src === 'recette') { st.rows.pop(); U.toast('Ajoute une recette depuis le journal'); } draw(); recalc(); }) }, icon('plus'), 'Ajouter un ingrédient'),
+        list, h('button', { class: 'btn tinted small', type: 'button', onclick: () => ajouterAliment(null, (en, al, q, cu) => { st.rows.push({ nom: al.n, grammes: al.src === 'recette' ? null : q, cuisson: cu || 'aucune', confiance: 'haute', par100: al, base: true, coherent: true, corrige: true }); if (al.src === 'recette') { st.rows.pop(); U.toast('Ajoute une recette depuis le journal'); } draw(); recalc(); }) }, icon('plus'), 'Ajouter un ingrédient'),
         tot, h('div', { class: 'field' }, 'Repas', slotSeg(st.slot, v => { st.slot = v; })), save);
       draw(); recalc();
     }
@@ -552,7 +531,6 @@
     // Situation
     out.push(U.section('Ton plan', null, h('div', { class: 'panel flush' }, U.cellKV('Dépense estimée', fr(ph.tdee) + ' kcal/j'), U.cellKV('Objectif calorique', fr(cj.kcal) + ' kcal/j' + (cj.perso ? ' (perso)' : '')), U.cellKV('Protéines · glucides · lipides', cj.macros.prot + ' · ' + cj.macros.glu + ' · ' + cj.macros.lip + ' g')), h('p', { class: 'foot muted', style: 'margin:0 4px' }, ph.imcNote), h('div', { style: 'margin:0 4px' }, U.howBtn('Objectif calorique', ph.calcul))));
     if (ph.etapes.length && ph.planPossible) out.push(U.section('Étapes prévues', 'Estimations au rythme du plan, recalculées avec tes vraies pesées.', h('div', { class: 'panel flush' }, ph.etapes.slice(0, 6).map(e => U.cellKV('Semaine ' + e.semaine, '≈ ' + U.wfmt(e.poids))))));
-    out.push(photos());
     const rows = S().pesees.slice().sort((a, b) => b.date.localeCompare(a.date));
     out.push(U.section('Pesées', null, rows.length ? h('div', { class: 'panel flush' }, rows.map(r => h('div', { class: 'cell' }, h('span', { class: 'lbl' }, U.fmtD(r.date), r.tour ? h('small', null, 'Tour de taille ' + fr(r.tour, 1) + ' cm') : null), h('span', { class: 'val num', style: 'color:var(--ink)' }, U.wfmt(r.poids)), h('button', { class: 'round press', type: 'button', style: 'width:32px;height:32px;background:var(--fill)', 'aria-label': 'Supprimer la pesée du ' + U.fmtD(r.date), onclick: () => U.confirmDel(() => U.remove('pesees', r.id)) }, icon('trash'))))) : h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Aucune pesée enregistrée.')));
     return out;
@@ -597,23 +575,6 @@
       s += '<text x="' + cx + '" y="' + (H - 8) + '" text-anchor="middle">' + new Date(j.date + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'short' }).slice(0, 3) + '</text>';
     });
     return h('div', { html: s + '</svg>' });
-  }
-  function photos() {
-    const ph = S().photos.slice().sort((a, b) => b.date.localeCompare(a.date));
-    if (!assets) return U.section('Photos de progression', null, h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Disponible quand Cap est ouvert dans l’appli Claude, connecté.'));
-    const inp = h('input', { type: 'file', accept: 'image/*', class: 'sr', id: 'ph-up' });
-    inp.addEventListener('change', async () => {
-      const f = inp.files && inp.files[0]; if (!f) return;
-      try {
-        U.toast('Envoi de la photo…');
-        const r = await AI.preparer(f).catch(() => ({ blob: f }));
-        const res = await assets.upload(r.blob);
-        await U.put('photos', U.uid(), { date: today(), assetId: res.id, url: res.url });
-        U.toast('Photo ajoutée');
-      } catch (e) { U.toast('Échec de l’envoi de la photo.'); }
-    });
-    return U.section('Photos de progression', 'Privées : visibles seulement par toi.', h('label', { class: 'btn small tinted', for: 'ph-up', role: 'button', tabindex: '0', style: 'align-self:flex-start;margin:0 4px' }, icon('camera'), 'Ajouter une photo', inp),
-      ph.length ? h('div', { class: 'photos' }, ph.map(x => h('figure', null, h('img', { src: x.url || ('/_blob/' + x.assetId), alt: 'Photo du ' + U.fmtD(x.date), loading: 'lazy' }), h('figcaption', null, U.fmtD(x.date), h('button', { class: 'link', type: 'button', style: 'color:var(--bad);padding:0', onclick: () => U.confirmDel(async () => { await J.supprimerAsset(x.assetId); await U.remove('photos', x.id); }) }, 'Supprimer'))))) : null);
   }
   J.supprimerAsset = async id => { if (assets && id) { try { await assets.delete(id); } catch (e) { /* déjà supprimé */ } } };
 
@@ -695,5 +656,13 @@
     return c;
   }
 
+  J.ajouter = (k, d) => {
+    if (k === 'aliment') return ajouterAliment();
+    if (k === 'scan') return scanner();
+    if (k === 'activite') return ajouterActivite(d || U.derive());
+    if (k === 'eau') { const j = journal(jour); j.eauMl += 250; return saveJournal(jour, j).then(() => U.toast('+250 ml'), () => U.toast('Échec, réessaie')); }
+  };
+  J.budgetDuJour = d => budget(d, today());
+  J.poidsActuel = () => poidsActuel();
   window.CapJournal = J;
 })();

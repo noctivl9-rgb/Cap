@@ -1,9 +1,10 @@
 /* Test d'interface : module Entreprise (questionnaire, onglet Projet, plan, tâches, ventes) et programme expliqué.
  * Mode sans compte (localStorage), iPhone 14 simulé. Prérequis : bash dev/tests/build.sh. Lancer depuis dev/tests : node projet-ui.js */
+const aller = require('./nav');
 const { chromium, devices } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const OUT = path.join(__dirname, 'out');
-const srv = http.createServer((q, r) => { const f = path.join(OUT, decodeURIComponent(q.url.split('?')[0])); if (!f.startsWith(OUT) || !fs.existsSync(f)) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); }).listen(8768);
+const srv = http.createServer((q, r) => { const f = path.join(OUT, decodeURIComponent(q.url.split('?')[0])); if (!f.startsWith(OUT) || !fs.existsSync(f)) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); }).listen(8768);
 const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c || i === undefined ? '' : ' → ' + JSON.stringify(i).slice(0, 300)));
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 14'] }); const pg = await ctx.newPage();
@@ -25,8 +26,8 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   T('bilan atteint sans question du module corps ni argent', /Vérification/.test(await titre()), await titre());
   await cont(); await pg.waitForTimeout(300);
   await pg.waitForSelector('.rv'); await pg.click('.rv'); await pg.click('.rv-go'); await pg.waitForTimeout(350); await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn, .stage .sk-btn'); await pg.waitForTimeout(700);
-  T('onglet Projet présent', await pg.$('.tabbar button:has-text("Projet")') !== null);
-  await pg.click('.tabbar button:has-text("Projet")'); await pg.waitForTimeout(400);
+  T('onglet Projet présent (dans Parcours)', await pg.$('.tabbar .nav-d:has-text("Parcours")') !== null);
+  await aller(pg, 'Projet'); await pg.waitForTimeout(400);
   let m = await main();
   T('origine honnête : calculé par les règles, IA indisponible', /Classement calculé par les règles de Cap/.test(m) && /indisponible/.test(m));
   const cartes = await pg.$$eval('main .panel h3', hs => hs.map(h => h.textContent));
@@ -51,7 +52,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   T('vente enregistrée : remplace la prévision du mois', /1 mois avec des ventes/.test(m) && /350 €/.test(m), m.slice(m.indexOf('Ventes réelles'), m.indexOf('Ventes réelles') + 200));
   await pg.screenshot({ path: path.join(__dirname, 'projet-plan.png'), fullPage: true });
   // Test F : fermeture puis réouverture
-  await pg.reload(); await pg.waitForTimeout(900); await pg.click('.tabbar button:has-text("Projet")'); await pg.waitForTimeout(400);
+  await pg.reload(); await pg.waitForTimeout(900); await aller(pg, 'Projet'); await pg.waitForTimeout(400);
   m = await main();
   T('F · après réouverture : activité choisie, tâche faite et vente conservées', /Activité choisie/.test(m) && /1 tâche\(s\) sur/.test(m) && /Garage test/.test(m));
   // Test D dans l'interface : capital à 0 → classement recalculé
@@ -67,10 +68,10 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   const ctx2 = await b.newContext({ ...devices['iPhone 14'] }); const p2 = await ctx2.newPage(); p2.on('pageerror', e => errs.push(e.message));
   await ctx2.addInitScript(() => { localStorage.setItem('cap-intro', String(Date.now())); localStorage.setItem('cap-local', JSON.stringify({ profil: { main: { v: 2, domaines: ['corps'], age: 16, tempsLibre: 3, sexe: 'H', taille: 170, poids: 71, objectif: 'perdre', cible: 66, delaiSem: 26, activite: 'assis', autreSport: 0, niveau: 'debutant', jours: 4, minutes: 60, lieu: 'maison', materielSport: ['aucun'], prioriteSport: 'auto', contraintes: ['aucune'], regime: 'omnivore', modeSimple: true, creeLe: '2026-11-10T08:00:00Z' } } })); });
   await p2.goto('http://localhost:8768/page.html'); await p2.waitForTimeout(900);
-  await p2.click('.tabbar button:has-text("Programme")'); await p2.waitForTimeout(400);
+  await aller(p2, 'Programme'); await p2.waitForTimeout(400);
   const mp = await p2.$eval('main', e => e.textContent);
-  T('programme : origine « calculé par les règles », IA indisponible', /Programme calculé par les règles de Cap/.test(mp) && /pas généré par une IA/.test(mp));
-  T('programme : décisions expliquées avec les réponses utilisées', /Pourquoi ce programme/.test(mp) && /il te reste 3 h/.test(mp) && /Réponses utilisées : temps libre/.test(mp));
+  T('programme : origine « calculé par les règles », IA indisponible', /Construit par les règles de Cap/.test(mp) && /pas généré par une IA/.test(mp));
+  T('programme : décisions expliquées avec les réponses utilisées', /Limites appliquées/.test(mp) && /il te reste 3 h/.test(mp) && /D’après : temps libre/.test(mp));
   T('programme : 3 h libres → 4 × 60 min réduits, décision affichée', (await p2.$$('details.session')).length <= 4 && /Tu demandais 4 × 60 min/.test(mp));
   await p2.screenshot({ path: path.join(__dirname, 'programme-pourquoi.png'), fullPage: true });
   console.log(res.join('\n')); console.log('\nerreurs :', errs);

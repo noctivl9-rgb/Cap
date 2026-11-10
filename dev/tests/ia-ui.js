@@ -3,6 +3,7 @@
  * Séances : réponse réelle A1 ; analyse et objectifs : écrits pour le test (fixtures/ia-karim-complet.json, champ _note).
  * Parcours : questions bloquantes → réponse → programme qui utilise la réponse → réouverture → « Pourquoi ? » →
  * temps libre modifié → ajustements proposés → appliqués → panne du service. Lancer depuis dev/tests : node ia-ui.js */
+const aller = require('./nav');
 const { chromium, devices } = require('playwright');
 const fs = require('fs'), path = require('path'), http = require('http');
 const OUT = path.join(__dirname, 'out');
@@ -21,7 +22,7 @@ const page = '<!doctype html><html><head><meta charset="utf-8"><meta name="viewp
 fs.writeFileSync(path.join(OUT, 'ia.html'), page);
 const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c || i === undefined ? '' : ' → ' + JSON.stringify(i).slice(0, 300)));
 (async () => {
-  const srv = http.createServer((q, r) => { const f = path.join(OUT, decodeURIComponent(q.url.split('?')[0])); if (!f.startsWith(OUT) || !fs.existsSync(f)) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); }).listen(8770);
+  const srv = http.createServer((q, r) => { const f = path.join(OUT, decodeURIComponent(q.url.split('?')[0])); if (!f.startsWith(OUT) || !fs.existsSync(f)) { r.writeHead(404); r.end(); return; } r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r); }).listen(8770);
   const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['iPhone 14'] }); const pg = await ctx.newPage();
   const errs = []; pg.on('pageerror', e => errs.push(e.message));
   await pg.goto('http://localhost:8770/ia.html'); await pg.waitForTimeout(300);
@@ -30,8 +31,8 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   const main = () => pg.$eval('main', e => e.textContent.replace(/[  ]/g, ' '));
   const fermer = async t => { await pg.click('.sheet:has-text("' + t + '") [aria-label="Fermer"]'); await pg.waitForTimeout(350); };
   const nbProg = () => pg.evaluate(() => Object.values(JSON.parse(localStorage.getItem('cap-local')).programmes || {}));
-  await pg.click('.tabbar button:has-text("Programme")'); await pg.waitForTimeout(400);
-  T('avant génération : programme calculé par les règles, présenté comme tel', /Programme calculé par les règles de Cap/.test(await main()));
+  await aller(pg, 'Programme'); await pg.waitForTimeout(400);
+  T('avant génération : programme calculé par les règles, présenté comme tel', /Calculé par Cap/.test(await main()) && /Construit par les règles de Cap/.test(await main()));
   // 1. Questions bloquantes
   await pg.click('main button:has-text("Générer mon programme avec l’IA")');
   await pg.waitForSelector('.sheet:has-text("Avant de créer ton programme")', { timeout: 15000 });
@@ -54,7 +55,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   T('avertissement : la vérification ne garantit pas l’absence de risque', /ne garantit pas l’absence de risque/.test(m));
   await pg.screenshot({ path: path.join(__dirname, 'ia-programme.png'), fullPage: true });
   // 3. Réouverture
-  await pg.reload(); await pg.waitForTimeout(900); await pg.click('.tabbar button:has-text("Programme")'); await pg.waitForTimeout(400);
+  await pg.reload(); await pg.waitForTimeout(900); await aller(pg, 'Programme'); await pg.waitForTimeout(400);
   T('F · après réouverture : programme IA et réponse complémentaire conservés', /Programme généré par IA et vérifié par Cap/.test(await main()) && /12 kg par haltère/.test(await pg.evaluate(() => localStorage.getItem('cap-local'))));
   // 4. Pourquoi
   await pg.click('main button:has-text("Pourquoi ce programme ?")'); await pg.waitForTimeout(300);
@@ -64,7 +65,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   await fermer('Pourquoi ce programme');
   // 5. Temps libre réduit → changement détecté → ajustements proposés (programme actuel conservé) → appliqués
   await pg.evaluate(() => { const d = JSON.parse(localStorage.getItem('cap-local')); d.profil.main.tempsLibre = 3; localStorage.setItem('cap-local', JSON.stringify(d)); });
-  await pg.reload(); await pg.waitForTimeout(900); await pg.click('.tabbar button:has-text("Programme")'); await pg.waitForTimeout(400);
+  await pg.reload(); await pg.waitForTimeout(900); await aller(pg, 'Programme'); await pg.waitForTimeout(400);
   m = await main();
   T('C · temps libre réduit : programme IA signalé (changement ou suspension)', /Tes réponses ont changé|Programme IA suspendu/.test(m) && /temps libre/.test(m), m.slice(0, 300));
   await pg.evaluate(() => { window.__SCENARIO = 'adaptation'; });

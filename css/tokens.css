@@ -1,0 +1,35 @@
+/* Cap — jetons : couleurs, typographie, espacements, rayons, ombres, mouvement (extrait d’index.html le 10/11/2026 ; ordre de chargement : font, tokens, base, components, screens, theme) */
+/* Layout: appli iOS en une colonne. Contenu sur surfaces blanches pleines ; verre (Liquid Glass) réservé
+   à la barre d'onglets flottante, aux boutons flottants, aux panneaux et au sélecteur segmenté. Thème clair voulu. */
+:root{
+  color-scheme:light;
+  /* Couleurs */
+  --bg:#F5F5F7; --surface:#FFFFFF; --ink:#1D1D1F; --ink-2:#424245; --muted:#6E6E73; --faint:#AEAEB2;
+  --line:rgba(60,60,67,.12); --fill:rgba(118,118,128,.10); --fill-2:rgba(118,118,128,.16);
+  --accent:#2C2C2E; --accent-soft:rgba(28,28,30,.07); --steel:#5E7891;
+  --matte:linear-gradient(180deg,#2D2D30 0%,#19191B 52%,#0E0E0F 100%); --silver:linear-gradient(115deg,#F6F7F9 0%,#C3C7CD 20%,#FCFCFD 36%,#9AA0A7 52%,#E3E5E9 70%,#B0B5BC 86%,#E9EBEE 100%);
+  --body:#E8553A; --body-soft:rgba(232,85,58,.10);
+  --money:#1F8A5B; --money-soft:rgba(31,138,91,.10);
+  --warn:#A15C00; --warn-soft:rgba(255,159,10,.14);
+  --bad:#C4111B; --bad-soft:rgba(255,59,48,.10);
+  --good:#1F7A39;
+  /* Typographie */
+  --f:"Archivo Cap",-apple-system,BlinkMacSystemFont,"Helvetica Neue","Segoe UI",Roboto,Arial,sans-serif;
+  --t-large:34px; --t-1:28px; --t-2:22px; --t-3:20px; --t-head:17px; --t-body:17px; --t-call:16px; --t-sub:15px; --t-foot:13px; --t-cap:12px;
+  /* Espacements, rayons, ombres */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px;
+  --r-s:10px; --r-m:14px; --r-l:20px; --r-xl:28px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 6px 20px rgba(0,0,0,.04);
+  /* Matériau verre */
+  --glass:rgba(255,255,255,.58); --glass-strong:rgba(250,250,252,.80);
+  --glass-edge:rgba(255,255,255,.75);
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(0,0,0,.04),0 10px 30px rgba(0,0,0,.10),0 1px 3px rgba(0,0,0,.06);
+  /* Mouvement */
+  --ease:cubic-bezier(.2,.8,.2,1); --spring:cubic-bezier(.34,1.4,.64,1); --d1:160ms; --d2:240ms;
+}
+:root{--m-tap:120ms;--m-state:220ms;--m-panel:380ms;--m-reveal:600ms;--m-soft:cubic-bezier(.2,.8,.2,1);--m-spring:cubic-bezier(.34,1.4,.64,1)}
+/* Refonte (10/11/2026) : palette de marque et rôles. Corail = corps et action ; vert = faits financiers positifs réels ;
+   argent minéral = projet et éléments secondaires ; obsidienne = la pièce forte unique d'un écran. */
+:root{--obsidienne:#0C0C0D;--graphite:#2A2A2D;--blanc-casse:#F4F3F0;--argent-min:#A7ABB1;
+  --corps:#E8553A;--corps-fonce:#B8391F;--argent:#1F8A5B;--projet:#5B6470;
+  --hair:rgba(28,28,30,.10);--zone:44px}

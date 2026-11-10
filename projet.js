@@ -105,5 +105,5 @@
         catch (e) { err.textContent = 'Échec, réessaie.'; }
       } }, 'Enregistrer')]);
   }
-  window.CapProjet = { view };
+  window.CapProjet = { view, vente };
 })();

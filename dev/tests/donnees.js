@@ -2,6 +2,7 @@
  * Partie 1 : mode sans compte (page de test). Partie 2 : version GitHub avec un Supabase SIMULÉ dans le navigateur
  * (aucun vrai projet n'existe encore) : vérifie cloud.js, la migration et la synchro entre deux « appareils ».
  * Prérequis : bash dev/tests/build.sh, puis lancer depuis dev/tests : node donnees.js */
+const aller = require('./nav');
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const S = require('../../sync.js');
@@ -12,7 +13,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (i
 const srv = http.createServer((q, r) => {
   const u = decodeURIComponent(q.url.split('?')[0]); const f = u.startsWith('/out/') ? path.join(__dirname, u) : path.join(RACINE, u === '/' ? 'index.html' : u);
   if (!f.startsWith(RACINE) || !fs.existsSync(f) || fs.statSync(f).isDirectory()) { r.writeHead(404); r.end(); return; }
-  r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.json') ? 'application/json' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r);
+  r.writeHead(200, { 'content-type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : f.endsWith('.json') ? 'application/json' : 'text/html; charset=utf-8' }); fs.createReadStream(f).pipe(r);
 }).listen(8766);
 
 // Supabase simulé : un « serveur » partagé entre pages via un objet Node exposé (exposeFunction)
@@ -67,7 +68,7 @@ async function serveur(op, a) {
     await pg.click('.ob-bar .btn.text'); await pg.waitForTimeout(250); await cont(pg); await pg.waitForTimeout(400);
     await pg.waitForSelector('.rv'); await pg.click('.rv'); await pg.click('.rv-go'); await pg.waitForTimeout(350); await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn, .stage .sk-btn'); await pg.waitForTimeout(600);
   }
-  const reglages = async pg => { await pg.click('.tabbar button:has-text("Réglages")'); await pg.waitForTimeout(250); };
+  const reglages = async pg => { await aller(pg, 'Réglages'); await pg.waitForTimeout(250); };
   const exporterTexte = async pg => { await reglages(pg); await pg.click('button.cell:has-text("Exporter mes données")'); await pg.waitForTimeout(300); await pg.click('.sheet button:has-text("Copier le texte")'); await pg.waitForTimeout(200); const t = await pg.evaluate(() => navigator.clipboard.readText()); await pg.click('.sheet [aria-label="Fermer"]'); await pg.waitForTimeout(250); return t; };
   const importerTexte = async (pg, texte) => { await reglages(pg); await pg.click('button.cell:has-text("Importer une sauvegarde")'); await pg.waitForTimeout(300); await pg.fill('#imp-t', texte); await pg.click('.sheet button:has-text("Analyser")'); await pg.waitForTimeout(300); return pg.$eval('.sheet', e => e.textContent); };
 
@@ -75,7 +76,7 @@ async function serveur(op, a) {
   const ctx1 = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx1.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: 'http://localhost:8766' });
   const p1 = await nouvellePage(ctx1, 'http://localhost:8766/out/page.html');
   await onboardingArgent(p1);
-  await p1.click('.tabbar button:has-text("Argent")'); await p1.waitForTimeout(200); await p1.click('button:has-text("Mouvement")'); await p1.waitForTimeout(250); await p1.fill('#m-montant', '50'); await p1.click('.sheet .btn:has-text("Enregistrer")'); await p1.waitForTimeout(300);
+  await aller(p1, 'Argent'); await p1.waitForTimeout(200); await p1.click('button:has-text("Mouvement")'); await p1.waitForTimeout(250); await p1.fill('#m-montant', '50'); await p1.click('.sheet .btn:has-text("Enregistrer")'); await p1.waitForTimeout(300);
   const t1 = await exporterTexte(p1); const lu1 = S.lireExport(t1);
   T('export : fichier valide (empreinte vérifiée)', lu1.ok, lu1.erreurs);
   T('export : profil + 1 mouvement d’épargne', lu1.ok && lu1.data.profil.main && Object.keys(lu1.data.epargne).length === 1);
@@ -136,13 +137,13 @@ async function serveur(op, a) {
   await bb.click('.sk-btn').catch(() => {}); // accueil d'un appareil neuf
   await bb.evaluate(() => localStorage.setItem('cap-auth-sim', JSON.stringify({ user: { id: 'u-1', email: 'elias@exemple.fr' } })));
   await bb.reload(); await bb.waitForTimeout(1200);
-  await bb.click('.tabbar button:has-text("Argent")').catch(() => {}); await bb.waitForTimeout(300);
+  await aller(bb, 'Argent').catch(() => {}); await bb.waitForTimeout(300);
   const mB = await bb.$eval('main', e => e.textContent.replace(/[  ]/g, ' '));
   T('appareil B : profil et épargne retrouvés depuis le compte', mB.includes('Appartement') && mB.includes('+50 €'), mB.slice(0, 160));
   // Écriture sur B → visible sur A en temps réel
   await bb.click('button:has-text("Mouvement")'); await bb.waitForTimeout(250); await bb.fill('#m-montant', '7'); await bb.click('.sheet .btn:has-text("Enregistrer")'); await bb.waitForTimeout(400);
   await a.evaluate(ev => window.__notify(ev), SERVEUR.dernier); await a.waitForTimeout(300);
-  await a.click('.tabbar button:has-text("Argent")'); await a.waitForTimeout(300);
+  await aller(a, 'Argent'); await a.waitForTimeout(300);
   T('synchro : mouvement de B visible sur A', (await a.$eval('main', e => e.textContent.replace(/[  ]/g, ' '))).includes('+7 €'));
   // IA par le serveur
   T('IA serveur : coach et scan disponibles', await a.evaluate(() => window.CapAI.texteDispo() && window.CapAI.photoDispo()));

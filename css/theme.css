@@ -1,0 +1,146 @@
+/* Cap — identité : Sparkle, typographie, noir mat × argent, hiérarchie des boutons, verre, mouvement (extrait d’index.html le 10/11/2026 ; ordre de chargement : font, tokens, base, components, screens, theme) */
+/* ================= Sparkle — d'après « Sparkle Button » de JkHuger (Uiverse.io), adapté et isolé (préfixe sk-) =================
+   Corrections : variables par défaut, « runnin » → running, plus d'activation globale via body:has(),
+   actif au toucher (.on), au clavier (:focus-visible), au survol souris seulement, états désactivé et chargement,
+   violet remplacé par le corail de Cap, halo réduit, particules contenues dans la largeur du bouton. */
+.sk{--active:0;--play-state:paused;--transition:.25s;--spark:1.8s;--cut:.1em;--sk-h:220;position:relative;display:block;isolation:isolate;width:100%}
+.sk-btn{
+  --bg:radial-gradient(40% 50% at center 100%,hsl(var(--sk-h) 10% 82% / calc(var(--active) * .55)),transparent),
+       radial-gradient(80% 100% at center 120%,hsl(var(--sk-h) 8% 60% / calc(var(--active) * .5)),transparent),
+       linear-gradient(180deg,hsl(240 2% calc(17% + var(--active) * 4%)),hsl(240 3% calc(7% + var(--active) * 4%)));
+  background:var(--bg);font-size:var(--t-head);font-weight:600;border:0;cursor:pointer;padding:0 1em;min-height:54px;width:100%;
+  display:flex;align-items:center;justify-content:center;gap:.25em;white-space:nowrap;border-radius:100px;position:relative;
+  box-shadow:0 0 calc(var(--active) * .7em) 0 hsl(var(--sk-h) 12% 70% / .35),
+    0 1px 0 0 hsl(0 0% 100% / .16) inset,0 -1px 0 0 hsl(0 0% 0% / .5) inset,0 6px 16px rgba(0,0,0,.16);
+  transition:box-shadow var(--transition),scale var(--transition),background var(--transition);
+  scale:calc(1 + (var(--active) * .025));-webkit-tap-highlight-color:transparent}
+.sk-btn:active{scale:.98;transition:.12s}
+.sk-btn:focus-visible{outline:3px solid #8E949B;outline-offset:3px}
+.sk-btn:disabled{cursor:default;opacity:.32;scale:1}
+.sk:has(.sk-btn:disabled){--active:0}
+.sk.on,.sk.loading,.sk:has(.sk-btn:focus-visible){--active:1;--play-state:running}
+@media (hover:hover){.sk:has(.sk-btn:not(:disabled):hover){--active:1;--play-state:running}}
+.sk-iconw{display:inline-flex;translate:-25% -5%}
+.sk-icon{inline-size:1.25em;block-size:1.25em}
+.sk-icon path{color:hsl(0 0% calc((var(--active,0) * 30%) + var(--base)));transform-box:fill-box;transform-origin:center;fill:currentColor;stroke:currentColor;
+  animation-delay:calc((var(--transition) * 1.5) + (var(--delay) * 1s));animation-duration:.6s;transition:color var(--transition)}
+.sk.on .sk-icon path,.sk.loading .sk-icon path,.sk-btn:focus-visible .sk-icon path{animation-name:sk-bounce}
+@media (hover:hover){.sk-btn:hover .sk-icon path{animation-name:sk-bounce}}
+.sk.loading .sk-icon path{animation-iteration-count:infinite}
+@keyframes sk-bounce{35%,65%{scale:var(--scale)}}
+.sk-icon path:nth-of-type(1){--scale:.5;--delay:.1;--base:70%}
+.sk-icon path:nth-of-type(2){--scale:1.5;--delay:.2;--base:60%}
+.sk-icon path:nth-of-type(3){--scale:2.5;--delay:.35;--base:66%}
+.sk-btn::before{content:"";position:absolute;inset:-.2em;z-index:-1;border:.15em solid hsl(var(--sk-h) 10% 72% / .4);border-radius:100px;opacity:var(--active,0);transition:opacity var(--transition)}
+.sk-spark{position:absolute;inset:0;border-radius:100px;rotate:0deg;overflow:hidden;-webkit-mask:linear-gradient(white,transparent 50%);mask:linear-gradient(white,transparent 50%);animation:sk-flip calc(var(--spark) * 2) infinite steps(2,end);animation-play-state:var(--play-state)}
+@keyframes sk-flip{to{rotate:360deg}}
+.sk-spark::before{content:"";position:absolute;width:200%;aspect-ratio:1;top:0%;left:50%;z-index:-1;translate:-50% -15%;rotate:0;transform:rotate(-90deg);opacity:calc(var(--active) * .9 + .15);
+  background:conic-gradient(from 0deg,transparent 0 340deg,white 360deg);transition:opacity var(--transition);animation:sk-rotate var(--spark) linear infinite both;animation-play-state:var(--play-state)}
+.sk-spark::after{content:"";position:absolute;inset:var(--cut);border-radius:100px}
+.sk-backdrop{position:absolute;inset:var(--cut);background:var(--bg);border-radius:100px;transition:background var(--transition)}
+@keyframes sk-rotate{to{transform:rotate(90deg)}}
+.sk-pen{position:absolute;inset:-60% 0;-webkit-mask:radial-gradient(white,transparent 65%);mask:radial-gradient(white,transparent 65%);z-index:-1;opacity:var(--active,0);transition:opacity var(--transition);pointer-events:none;overflow:hidden}
+.sk-p{fill:white;width:calc(var(--size,.25) * 1rem);aspect-ratio:1;position:absolute;top:calc(var(--y) * 1%);left:calc(var(--x) * 1%);opacity:var(--alpha,1);
+  animation:sk-float calc(var(--duration,1) * 1s) calc(var(--delay) * -1s) infinite linear;transform-origin:var(--origin-x,1000%) var(--origin-y,1000%);z-index:-1;animation-play-state:var(--play-state,paused)}
+.sk-p path{fill:hsl(var(--sk-h) 12% 90%);stroke:none}
+.sk-p:nth-of-type(even){animation-direction:reverse}
+@keyframes sk-float{to{rotate:360deg}}
+.sk-text{translate:2% -6%;letter-spacing:.01ch;background:linear-gradient(90deg,hsl(0 0% calc((var(--active) * 100%) + 96%)),hsl(0 0% calc((var(--active) * 100%) + 78%)));-webkit-background-clip:text;background-clip:text;color:transparent;transition:background var(--transition)}
+.sk.loading .sk-btn{cursor:progress}
+
+
+/* ================= Typographie Archivo ================= */
+body{font-stretch:100%;font-feature-settings:"kern" 1}
+.lt h1,.stage h1,.sec>h2,.sheet-h h2,.hero b,.stat b,.ruler-value .big,.money input,.calday,.daybtn b,.pct,.big,.tile b,.choice .ct,.btn,.sk-btn{font-stretch:112%}
+.lt h1,.stage h1{font-weight:760;letter-spacing:-.025em}
+.wl-title{font-weight:800;letter-spacing:-.035em}
+.hero b{font-weight:720;letter-spacing:-.025em}
+.stat b{font-weight:700;letter-spacing:-.01em}
+.ruler-value .big{font-weight:720;letter-spacing:-.03em}
+.sec>h2{font-weight:700;letter-spacing:-.01em}
+.choice .ct{font-weight:600}
+.btn,.sk-btn{font-weight:620;letter-spacing:.01em}
+.cap-word,.intro-word{font-stretch:125%;font-weight:640}
+.cap,.prog small,.stage .kicker{font-stretch:108%}
+.ruler-value small,.foot,.muted{font-stretch:100%}
+
+/* ================= Identité Cap : noir mat × argent brossé × blanc doux ================= */
+.btn{position:relative;overflow:hidden;background:var(--matte);color:#F4F5F7;letter-spacing:.005em;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.17),inset 0 -1px 0 rgba(0,0,0,.55),0 1px 1px rgba(0,0,0,.2),0 6px 16px rgba(0,0,0,.13)}
+.btn::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.2) 50%,transparent 65%);transform:translateX(-130%)}
+.btn:active::before{transform:translateX(130%);transition:transform .5s var(--m-soft)}
+.btn::after{content:"";position:absolute;left:14%;right:14%;top:0;height:1px;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(220,224,230,.55),transparent)}
+.btn.secondary,.btn.tinted{color:var(--ink);background:repeating-linear-gradient(90deg,rgba(0,0,0,.012) 0 1px,transparent 1px 3px),linear-gradient(180deg,#FFFFFF,#ECEDF0);
+  box-shadow:inset 0 0 0 .5px rgba(0,0,0,.16),inset 0 1px 0 #fff,0 1px 2px rgba(0,0,0,.06);-webkit-backdrop-filter:none;backdrop-filter:none}
+.btn.secondary::before,.btn.tinted::before{background:linear-gradient(105deg,transparent 35%,rgba(255,255,255,.9) 50%,transparent 65%)}
+.btn.secondary::after,.btn.tinted::after{display:none}
+.btn.text{background:none;color:var(--ink);box-shadow:none}
+.btn.text::before,.btn.text::after{display:none}
+.btn:disabled{background:#C9CACD;color:#fff;box-shadow:none}
+.btn:disabled::before,.btn:disabled::after{display:none}
+.link{color:var(--ink);font-weight:600;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px;text-decoration-color:rgba(0,0,0,.25)}
+/* Sélection du questionnaire : passe au noir mat, la coche devient argent */
+.choice{transition:background var(--m-state) var(--m-soft),box-shadow var(--m-state),color var(--m-state),transform var(--m-tap)}
+.choice[aria-checked="true"]{background:var(--matte);color:#F4F5F7;box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 6px 16px rgba(0,0,0,.14)}
+.choice[aria-checked="true"] .ct small{color:rgba(244,245,247,.66)}
+.choice[aria-checked="true"] .ci{background:var(--silver);color:#141416}
+.choice[aria-checked="true"] .ck{background:var(--silver);box-shadow:none;color:#141416}
+.choice[aria-checked="true"] .ck svg{stroke:#141416}
+.daybtn.on{box-shadow:var(--shadow),inset 0 0 0 1.5px #1D1D1F}
+.switch.on{background:#1D1D1F}
+.tabbar button[aria-current="page"]{color:var(--ink)}
+.fab{background:var(--matte)!important;color:#E9EBEE;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 10px 26px rgba(0,0,0,.24)!important}
+.fab::before,.fab::after{display:none}
+.ruler-needle{background:var(--ink)}
+.chip.info{background:rgba(28,28,30,.07);color:var(--ink)}
+.bubble.me{background:var(--matte)}
+@media (max-width:340px){.sk-btn{font-size:16px}}
+@media (prefers-reduced-motion:reduce){.sk-spark,.sk-spark::before,.sk-p,.sk-icon path{animation:none!important}.sk-pen{display:none}.sk-btn{scale:1}}
+
+/* ================= Hiérarchie des boutons ================= */
+.btn{box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 1px 2px rgba(0,0,0,.14),0 4px 14px rgba(0,0,0,.08);transition:transform .35s var(--spring),opacity var(--d1),box-shadow var(--d1)}
+.btn:active{transform:scale(.97);transition:transform .08s var(--ease)}
+.btn.secondary{background:rgba(118,118,128,.12);box-shadow:none;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.btn.tinted{box-shadow:none}
+.btn.text,.link{transition:opacity var(--d1)}
+.btn.text{box-shadow:none}
+.btn.text:active,.link:active{opacity:.45;transform:none}
+.btn:disabled{box-shadow:none}
+.btn:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+
+/* ================= Verre : contour optique, reflet, déformation au toucher ================= */
+.glass::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
+  background:linear-gradient(140deg,rgba(255,255,255,.95),rgba(255,255,255,.15) 35%,rgba(255,255,255,0) 55%,rgba(255,255,255,.55) 100%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.round.glass,.fab,.stepbtn.glass{transition:transform .45s var(--spring),box-shadow var(--d1)}
+.round.glass:active,.fab:active,.stepbtn.glass:active{transform:scale(.9,.86);transition:transform .1s var(--ease)}
+.fab{box-shadow:var(--glass-shadow),0 12px 30px rgba(0,0,0,.14)}
+.tabbar .pill.moving{animation:pillLiquid .38s var(--ease)}
+@keyframes pillLiquid{40%{scale:1.12 .86}100%{scale:1 1}}
+.tabbar button{transition:color var(--d1),transform .35s var(--spring)}
+.tabbar button:active{transform:scale(.92)}
+
+/* ================= Mouvement : entrée d'écran, panneaux, menu ================= */
+.screen.enter>*{animation:enterRise .38s var(--ease) both}
+.screen.enter>*:nth-child(2){animation-delay:30ms}.screen.enter>*:nth-child(3){animation-delay:60ms}.screen.enter>*:nth-child(4){animation-delay:90ms}.screen.enter>*:nth-child(5){animation-delay:120ms}.screen.enter>*:nth-child(n+6){animation-delay:150ms}
+@keyframes enterRise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.sheet{animation:sheetUp .36s cubic-bezier(.2,.9,.25,1.05)}
+@keyframes sheetUp{from{transform:translateY(60%)}to{transform:none}}
+.scrim.closing{animation:fadeOut .22s var(--ease) forwards}
+.scrim.closing .sheet{animation:sheetDown .22s var(--ease) forwards}
+@keyframes fadeOut{to{opacity:0}}
+@keyframes sheetDown{to{transform:translateY(40%)}}
+.tiles .tile{animation:enterRise .3s var(--ease) both}
+.tile{transition:transform .35s var(--spring)}
+.tile:active{transform:scale(.96);transition:transform .08s}
+.choice[aria-checked="true"] .ci{animation:pop .3s var(--spring)}
+@keyframes pop{50%{transform:scale(1.12)}}
+.calday,.daybtn{transition:background var(--d1),box-shadow var(--d1),transform .3s var(--spring)}
+.daybtn:active,.calday:active{transform:scale(.92)}
+.switch{transition:background var(--d2) var(--ease)}
+.switch i{transition:transform .35s var(--spring),width .2s}
+.cell[role="switch"]:active .switch i{width:33px}
+.cell[role="switch"]:active .switch.on i{transform:translateX(14px)}
+@media (prefers-reduced-motion:reduce){.intro{display:none}.lg-sheen{display:none}}
+@media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
+@media (max-width:360px){:root{--t-large:30px;--t-1:25px}.ruler-value .big{font-size:44px}.stats{grid-template-columns:1fr 1fr}}

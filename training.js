@@ -173,7 +173,7 @@
     else if (budgetMin !== null) d('temps', jours + ' × ' + minutes + ' min', 'Ton programme prend ' + Math.round(demande / 6) / 10 + ' h par semaine, dans les ' + Math.round(budgetMin / 6) / 10 + ' h qu’il te reste (temps libre − projet − autre sport).', ['tempsLibre', 'jours', 'minutes']);
     // 2. Récupération et niveau
     const maxMuscu = Math.min(niv === 1 ? 4 : 6, mineur && age < 16 ? 4 : 6);
-    if (jours + (num(p.autreSport) || 0) > 6) { const j2 = Math.max(1, 6 - (num(p.autreSport) || 0)); d('recuperation', j2 + ' séances', jours + ' séances + ' + p.autreSport + ' d’autre sport : au moins 1 jour de repos complet par semaine.', ['jours', 'autreSport']); jours = j2; }
+    if (jours + (num(p.autreSport) || 0) > 6) { const j2 = Math.max(1, 6 - (num(p.autreSport) || 0)); d('recuperation', j2 + ' séances', jours + ' séances' + ((num(p.autreSport) || 0) ? ' + ' + num(p.autreSport) + ' d’autre sport' : '') + ' : au moins 1 jour de repos complet par semaine.', ['jours', 'autreSport']); jours = j2; }
     if (p.obstacle === 'regularite' && jours > 3) { d('regularite', '3 séances', 'Tu as indiqué que la régularité est ton frein : 3 séances tenues valent mieux que 5 prévues.', ['obstacle']); jours = 3; }
     if (p.obstacle === 'temps' && minutes > 45) { d('duree', '45 min', 'Le manque de temps est ton frein : séances limitées à 45 min, exercices enchaînés.', ['obstacle']); minutes = 45; }
     let muscu = Math.min(jours, maxMuscu), cardio = jours - muscu;
