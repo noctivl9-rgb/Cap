@@ -337,3 +337,59 @@ html.anim-reduites *,html.anim-reduites *::before,html.anim-reduites *::after{an
 .td-etat.mod-argent .td-etat-n,.ag-gros,.num.pos{color:var(--argent-texte)}
 .td-etat.mod-corps .td-etat-n,.td-ligne.auj .pg-jour{color:var(--corps-texte)}
 .pg-lim small{color:var(--ink-2)}
+.pc-acts{display:flex;gap:8px;align-items:center}
+.pc-coach{width:44px;height:44px;background:rgba(28,28,30,.06)!important}
+.segs.evo{align-self:flex-start}
+.segs.evo button{min-height:36px;font-size:var(--t-foot);padding:0 14px}
+.pc-row{flex-wrap:wrap}
+.pc-head h1{min-width:0}
+.jr-jour{margin:0;font-size:var(--t-2);font-weight:700;font-stretch:106%}
+.jr-jour::first-letter{text-transform:uppercase}
+@media (max-width:360px){.pc-acts .btn.small{padding:0 12px}.pc-head h1{font-size:30px}}
+
+/* ---------- Flamme de régularité ---------- */
+.td-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+.td-head-l{min-width:0}
+.td-flamme{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 12px 0 8px;border:0;border-radius:999px;background:rgba(28,28,30,.06);font:inherit;font-weight:700;font-size:17px;color:var(--ink)}
+.td-flamme.allumee{background:rgba(232,85,58,.10);color:var(--corps-texte)}
+.td-flamme-i svg{width:22px;height:28px;display:block}
+.flm{overflow:visible}
+.flm .flm-ext{transform-origin:32px 76px;animation:flmRespire 2.6s ease-in-out infinite}
+.flm .flm-int{transform-origin:32px 74px;animation:flmDanse 1.9s ease-in-out infinite}
+.flm.eteinte .flm-ext,.flm.eteinte .flm-int{animation:none}
+.td-flamme:not(.allumee) .flm-ext,.td-flamme:not(.allumee) .flm-int{animation:none}
+@keyframes flmRespire{0%,100%{transform:scale(1,1)}50%{transform:scale(.97,1.04)}}
+@keyframes flmDanse{0%,100%{transform:skewX(0) scale(1)}35%{transform:skewX(-4deg) scale(1.03,.98)}70%{transform:skewX(3deg) scale(.98,1.04)}}
+.fl-hero{display:flex;align-items:center;gap:18px;padding:8px 0}
+.fl-icone svg{width:72px;height:90px;display:block}
+.flm.grande .flm-ext{animation-duration:3.2s}
+.fl-n{margin:0;font-size:64px;font-weight:780;font-stretch:118%;line-height:1;letter-spacing:-.03em}
+.fl-l{margin:4px 0 0;color:var(--ink-2)}
+.fl-chiffres{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;margin:0}
+.fl-chiffres dt{color:var(--muted)}.fl-chiffres dd{margin:0}
+.fl-h{margin:12px 0 4px;font-size:var(--t-call)}
+.fl-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.fl-j{text-align:center;font-size:12px;color:var(--muted)}
+.fl-c{aspect-ratio:1;border-radius:10px;display:grid;place-items:center;font-size:12px;font-variant-numeric:tabular-nums;background:rgba(28,28,30,.05);color:var(--muted)}
+.fl-c.actif{background:var(--corps);color:#fff;font-weight:650}
+.fl-c.repos{background:rgba(28,28,30,.03);box-shadow:inset 0 0 0 1px rgba(28,28,30,.12)}
+.fl-c.couvert{background:rgba(232,85,58,.16);color:var(--corps-texte)}
+.fl-c.neutre{background:rgba(28,28,30,.05)}
+.fl-c.attente{box-shadow:inset 0 0 0 2px var(--corps);color:var(--ink)}
+.fl-c.manque{background:rgba(28,28,30,.08)}
+.fl-c.vide-c,.fl-c.avant{background:none}
+.fl-c.mini{display:inline-block;width:14px;height:14px;border-radius:4px;vertical-align:-2px}
+.fl-leg{margin:6px 0 0;font-size:var(--t-foot);color:var(--muted);line-height:1.8}
+.fl-paliers{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fl-paliers li{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:8px;align-items:center;padding:10px;border-radius:14px;background:rgba(28,28,30,.04)}
+.fl-paliers li.ok{background:rgba(232,85,58,.08)}
+.fl-pi{grid-row:1/3}.fl-pi svg{width:20px;height:25px;display:block}
+.fl-paliers small{color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.flm .flm-ext,.flm .flm-int{animation:none}}
+.sg-temps{font-weight:650;color:var(--ink-2);font-variant-numeric:tabular-nums;min-width:3.2em;text-align:right}
+.sg-pause{margin-left:4px}
+.sg-outils{display:flex;gap:8px;flex-wrap:wrap}
+.sg-remp{margin:-6px 0 0;color:var(--muted);font-size:var(--t-sub)}
+.sg textarea{width:100%;font:inherit;padding:12px;border-radius:12px;border:.5px solid var(--hair);background:#fff;resize:vertical}
+.pg-sec{display:flex;gap:4px;flex-wrap:wrap}
+.pg-hero .pg-sec .btn.text{color:#C6C7CB}

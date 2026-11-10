@@ -1,3 +1,4 @@
+const aller = require('./nav');
 const { chromium } = require('playwright');
 const out = __dirname + '/out/v3-';
 (async () => {
@@ -65,11 +66,11 @@ const out = __dirname + '/out/v3-';
   T('objectif perso appliqué dans l\'aperçu', kcalPlan2 === '2 500' && (await pg.$eval('.stage', e => e.textContent)).includes('Personnalisé'), [kcalPlan, kcalPlan2]);
   await cont(); await pg.waitForTimeout(400);
   await shot('aujourdhui');
-  const nav = async t => { await pg.click('.tabbar .nav-d:has-text("' + t + '")'); await pg.waitForTimeout(300); };
-  const parcours = async (mod, sous) => { await nav('Parcours'); if (await pg.$('.segs.mods')) { await pg.click('.segs.mods button:has-text("' + mod + '")'); await pg.waitForTimeout(250); } if (sous) { await pg.click('.segs.sous button:has-text("' + sous + '")'); await pg.waitForTimeout(250); } };
+  const nav = async t => { await aller(pg, t); await pg.waitForTimeout(100); };
+  const parcours = async (mod, sous) => { await aller(pg, sous === 'Progression' ? 'Progrès' : sous === 'Séance' ? 'Programme' : sous || mod); };
   const plus = async t => { await pg.click('.nav-plus'); await pg.waitForTimeout(250); await pg.click(lastSheet + ' .tile:has-text("' + t + '")'); await pg.waitForTimeout(300); };
   const navs = await pg.$$eval('.tabbar .nav-d', l => l.map(e => e.textContent));
-  T('navigation : 4 destinations + action centrale (≤ 5)', navs.join('|') === 'Aujourd’hui|Parcours|Journal|Profil' && !!(await pg.$('.nav-plus')), navs);
+  T('navigation : 4 destinations + action centrale (≤ 5)', navs.join('|') === 'Aujourd’hui|Corps|Avenir|Profil' && !!(await pg.$('.nav-plus')), navs);
   const prio = await pg.$eval('.td-prio', e => e.textContent).catch(() => '');
   T('aujourd\'hui : une seule priorité avec une action', (await pg.$$('.td-prio')).length === 1 && (await pg.$$('.td-prio button')).length === 1, prio);
   const etats = await pg.$$eval('.td-etat', l => l.map(e => e.textContent.replace(/[\u202f\u00a0]/g, ' ')));
@@ -246,7 +247,7 @@ const out = __dirname + '/out/v3-';
   const ov = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   const bad = await pg.evaluate(() => { const W = document.documentElement.clientWidth; const out = []; document.querySelectorAll('body *').forEach(e => { const r = e.getBoundingClientRect(); if (r.right > W + 1 && r.width > 0 && getComputedStyle(e).position !== 'fixed') out.push(e.tagName + '.' + e.className + ':' + Math.round(r.right)); }); return out.slice(0, 8); });
   T('320 px : pas de défilement horizontal', ov <= 0, [ov, bad]);
-  for (const tb of [['Corps', 'Progression'], ['Corps', 'Séance'], ['Corps', 'Photos'], ['Argent'], ['Profil'], ['Aujourd’hui']]) { if (tb[0] === 'Profil' || tb[0] === 'Aujourd’hui') await nav(tb[0]); else await parcours(tb[0], tb[1]); const o2 = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); T('320 px ' + tb.join(' › ') + ' : pas de débordement', o2 <= 0, o2); }
+  for (const tb of [['Progrès'], ['Programme'], ['Photos'], ['Journal'], ['Argent'], ['Profil'], ['Aujourd’hui']]) { await nav(tb[0]); const o2 = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth); T('320 px ' + tb.join(' › ') + ' : pas de débordement', o2 <= 0, o2); }
   await shot('320');
   console.log(res.join('\n')); console.log('\nerreurs console :', errs);
   // Sans IA : modes manuels

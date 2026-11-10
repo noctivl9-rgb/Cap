@@ -79,6 +79,7 @@
     const S0 = S();
     const right = h('button', { class: 'round press jr-coach', type: 'button', 'aria-label': 'Coach', onclick: () => J.coach(d) }, icon('chat'));
     out.push(U.largeTitle(jour === t ? 'Journal' : (jour === shift(t, -1) ? 'Hier' : fr(new Date(jour + 'T12:00').getDate()) + ' ' + new Date(jour + 'T12:00').toLocaleDateString('fr-FR', { month: 'long' })), longDate(jour), right));
+    out.push(h('h2', { class: 'jr-jour' }, jour === t ? 'Aujourd’hui' : jour === shift(t, -1) ? 'Hier' : longDate(jour)));
     if (d.corps) out.push(bandeSemaine(d));
     if (jour !== t) out.push(h('div', { class: 'note tint', style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' }, h('span', null, 'Tu modifies le journal du ' + longDate(jour) + '.'), h('button', { class: 'link', type: 'button', onclick: () => { jour = t; U.refresh(); } }, 'Revenir')));
     if (d.corps) {

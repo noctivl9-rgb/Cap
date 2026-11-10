@@ -28,9 +28,9 @@ async function ouvrir(b, mem, opts) {
   // ---------- Navigation selon les modules ----------
   let pg = await ouvrir(b, { profil: { main: Object.assign({}, BASE, { domaines: ['argent'], revenus: 1500, fixes: 900, variables: 400, remboursements: 0, epargne: 300, reve: 'appart', reveAnnee: 2032, reveMontant: 200000 }) } });
   let navs = await pg.$$eval('.tabbar .nav-d', l => l.map(e => e.textContent));
-  T('module Argent seul : pas d’onglet Journal (4 destinations dont ＋)', navs.join('|') === 'Aujourd’hui|Parcours|Profil' && !!(await pg.$('.nav-plus')), navs);
+  T('module Argent seul : pas d’onglet Corps (Aujourd’hui, ＋, Avenir, Profil)', navs.join('|') === 'Aujourd’hui|Avenir|Profil' && !!(await pg.$('.nav-plus')), navs);
   await aller(pg, 'Argent');
-  T('Parcours avec un seul module : pas de sélecteur de modules, nom du module affiché', !(await pg.$('.segs.mods')) && (await pg.$eval('.pc-seul', e => e.textContent)) === 'Argent');
+  T('Avenir avec un seul module : pas de sélecteur, titre « Finances »', !(await pg.$('.segs.mods')) && (await pg.$eval('.pc-head h1', e => e.textContent)) === 'Finances');
   T('Argent : Réel, Projection et Hypothèse nommés', await pg.evaluate(() => { const t = document.querySelector('main').textContent; return t.includes('Réel') && t.includes('Projection') && t.includes('Ce n’est pas une promesse'); }));
 
   // ---------- Priorité : déficit avant tout le reste ----------
@@ -57,12 +57,51 @@ async function ouvrir(b, mem, opts) {
   T('séance guidée : quitter propose de garder ce qui est fait, sans culpabiliser', (await pg.$eval('.sg-titre', e => e.textContent)) === 'Quitter la séance ?' && (await pg.$eval('.sg', e => e.textContent)).includes('Rien n’est perdu'));
   await pg.click('.sg-barre .btn:has-text("Enregistrer ce que j’ai fait")'); await pg.waitForTimeout(150);
   T('séance guidée : enregistrement impossible sans ressenti', await pg.$eval('.sg-barre .btn:has-text("Enregistrer la séance")', e => e.disabled));
-  await pg.click('.sg .choice:has-text("Correct")'); await pg.click('.sg-barre .btn:has-text("Enregistrer la séance")'); await pg.waitForTimeout(400);
+  await pg.click('.sg .choice:has-text("Correct")');
+  T('séance guidée : la question « gêne ? » est obligatoire avant d’enregistrer', await pg.$eval('.sg-barre .btn:has-text("Enregistrer la séance")', e => e.disabled));
+  await pg.click('.sg .choice:has-text("Non")'); await pg.fill('#sg-com', 'Bonne énergie'); await pg.click('.sg-barre .btn:has-text("Enregistrer la séance")'); await pg.waitForTimeout(400);
   const se = await pg.evaluate(() => Object.values(JSON.parse(localStorage.getItem('cap-local')).seances || {}));
   T('séance guidée : séance partielle enregistrée comme telle', se.length === 1 && se[0].partielle === true && se[0].ressenti === 'ok' && se[0].exercicesFaits === 0, se);
+  T('séance guidée : durée mesurée, gêne et commentaire enregistrés', typeof se[0].dureeMin === 'number' && se[0].gene === false && se[0].commentaire === 'Bonne énergie', se[0]);
   T('focus rendu à la page après la séance', !(await pg.$('.sg')) && !(await pg.evaluate(() => document.body.classList.contains('sg-ouvert'))));
   await aller(pg, 'Séance');
   T('Séance : séance du jour marquée faite, pas de nouvelle demande', (await pg.$eval('.pg-quand', e => e.textContent)) === 'Faite aujourd’hui');
+
+  // ---------- Séance : pause, alternative, gêne signalée, report ----------
+  {
+    const p2 = await ouvrir(b, { profil: { main: Object.assign({}, BASE, { domaines: ['corps'] }) } });
+    await p2.click('.td-prio button'); await p2.waitForTimeout(300); await p2.click('.sg-go'); await p2.waitForTimeout(200);
+    await p2.clock.setFixedTime(new Date('2026-11-09T09:31:05')); await p2.waitForTimeout(700);
+    const t1 = await p2.$eval('.sg-temps', e => e.textContent);
+    await p2.click('.sg-pause'); await p2.waitForTimeout(100);
+    T('pause : écran « En pause »', (await p2.$eval('.sg-titre', e => e.textContent)) === 'En pause');
+    await p2.clock.setFixedTime(new Date('2026-11-09T09:33:05'));
+    await p2.click('.sg-barre .btn:has-text("Reprendre")'); await p2.waitForTimeout(100);
+    await p2.waitForTimeout(700); const t2 = await p2.$eval('.sg-temps', e => e.textContent);
+    T('pause : le temps de séance ne court pas pendant la pause', t1.startsWith('1:') && t2.startsWith('1:'), [t1, t2]);
+    const nom1 = await p2.$eval('.sg-titre', e => e.textContent);
+    await p2.click('.sg-outils .btn:has-text("Faire l’alternative")'); await p2.waitForTimeout(100);
+    T('modifier un exercice : l’alternative remplace, l’original est rappelé', (await p2.$eval('.sg-titre', e => e.textContent)) !== nom1 && (await p2.$eval('.sg-remp', e => e.textContent)).includes(nom1));
+    await p2.click('.sg-gene'); await p2.waitForTimeout(100);
+    const g = await p2.$eval('.sg', e => e.textContent);
+    T('gêne : arrêt du mouvement, signes d’urgence et numéros (15 / 112), aucune incitation à continuer', g.includes('Arrête ce mouvement') && g.includes('15 ou le 112') && !/continue|pousse/i.test(g));
+    await p2.click('.sg .choice:has-text("Une douleur")'); await p2.fill('#sg-gene-note', 'genou droit');
+    await p2.click('.sg-barre .btn:has-text("Arrêter la séance")'); await p2.waitForTimeout(100);
+    T('après une gêne signalée, « Oui » est déjà indiqué', await p2.$eval('.sg .choice[aria-checked="true"], .sg .choice.on', e => e.textContent.includes('Oui')).catch(() => false));
+    await p2.click('.sg .choice:has-text("Facile")'); await p2.click('.sg-barre .btn:has-text("Enregistrer la séance")'); await p2.waitForTimeout(400);
+    const s2 = await p2.evaluate(() => Object.values(JSON.parse(localStorage.getItem('cap-local')).seances)[0]);
+    T('gêne enregistrée avec l’exercice, la précision et le remplacement', s2.gene === true && s2.signalements[0].type === 'douleur' && s2.signalements[0].note === 'genou droit' && s2.remplacements.length === 1, s2);
+    await aller(p2, 'Programme');
+    T('Programme : gêne récente rappelée, pas d’augmentation de charge', (await p2.$eval('main', e => e.textContent)).includes('Cap ne propose aucune augmentation de charge'));
+    // Report : nouveau jour (mercredi = repos) → on teste depuis un lundi neuf
+    const p3 = await ouvrir(b, { profil: { main: Object.assign({}, BASE, { domaines: ['corps'] }) } });
+    await aller(p3, 'Programme');
+    await p3.click('.pg-hero .btn:has-text("Reporter à demain")'); await p3.waitForTimeout(400);
+    const q = await p3.$eval('.pg-quand', e => e.textContent);
+    T('reporter une séance : affichée « Reportée à demain »', q === 'Reportée à demain', q);
+    await aller(p3, 'Aujourd’hui');
+    T('Aujourd’hui : la séance reportée n’est plus la priorité du jour', (await p3.$eval('.td-prio-t', e => e.textContent)) !== 'Corps complet A' && !(await p3.$eval('main', e => e.textContent)).includes('Commencer la séance'));
+  }
 
   // ---------- Pesée : note facultative, rappel sur les variations ----------
   await pg.click('.nav-plus'); await pg.waitForTimeout(250); await pg.click('.sheet .tile:has-text("Pesée")'); await pg.waitForTimeout(300);
@@ -97,7 +136,7 @@ async function ouvrir(b, mem, opts) {
 
   // ---------- Accessibilité de base ----------
   pg = await ouvrir(b, { profil: { main: Object.assign({}, BASE, { domaines: ['corps'] }) } });
-  for (const ec of ['Aujourd’hui', 'Séance', 'Progrès', 'Journal', 'Profil']) {
+  for (const ec of ['Aujourd’hui', 'Programme', 'Progrès', 'Photos', 'Journal', 'Profil']) {
     await aller(pg, ec);
     const sansNom = await pg.evaluate(() => [...document.querySelectorAll('main button, nav button, main a, main input, main select')].filter(e => e.offsetParent && !(e.getAttribute('aria-label') || e.textContent.trim() || (e.labels && e.labels.length) || e.title)).map(e => e.outerHTML.slice(0, 80)));
     T(ec + ' : chaque contrôle a un nom accessible', sansNom.length === 0, sansNom);
@@ -107,8 +146,8 @@ async function ouvrir(b, mem, opts) {
     T(ec + ' : un seul titre de niveau 1', h1 === 1, h1);
   }
   // Clavier : la navigation s'atteint et s'active au clavier
-  await pg.focus('.tabbar .nav-d:has-text("Journal")'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(250);
-  T('clavier : destination activable avec Entrée', (await pg.$eval('.tabbar [aria-current="page"]', e => e.textContent)) === 'Journal');
+  await pg.focus('.tabbar .nav-d:has-text("Corps")'); await pg.keyboard.press('Enter'); await pg.waitForTimeout(250);
+  T('clavier : destination activable avec Entrée', (await pg.$eval('.tabbar [aria-current="page"]', e => e.textContent)) === 'Corps');
   const errs = [];
   console.log(res.join('\n')); const f = res.filter(r => r.startsWith('FAIL')).length; console.log('\n' + (res.length - f) + ' réussis, ' + f + ' échoués');
   await b.close();
