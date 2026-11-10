@@ -1,13 +1,13 @@
 # Cap — moteur de personnalisation (A déterministe, B IA, C validation)
 
-Dernière mise à jour : 10/11/2026.
+Dernière mise à jour : 10/11/2026 (V5 phase IA réelle).
 
 ## Principe
 
 | Moteur | Fichiers | Rôle | État |
 |---|---|---|---|
 | **A — déterministe** | `engine.js`, `training.js`, `business.js`, `matrice.js` | Tous les chiffres critiques, le programme sportif, le classement des activités, les plans | **Actif, sans IA**, testé |
-| **B — IA générative** | `ai.js` (+ fonction serveur `supabase/functions/cap-ai`) | Scan photo, coach ; plus tard : adaptation du programme, recherche de marché, questions complémentaires | Scan et coach : dans l’artefact Claude seulement. Le reste : **non connecté** |
+| **B — IA générative** | `prompts.js`, `ia.js`, `ai.js`, `iaui.js` (+ fonction serveur `cap-ai`) | Programme complet et individualisé, adaptation, activités hors catalogue, questions complémentaires, « Pourquoi ? », scan, coach | **Actif dans la version Claude** (IA du compte Claude) ; version GitHub : actif dès que Supabase et la clé API sont configurés |
 | **C — validation** | `engine.js` (`validerScan`), `contrats.js` | Vérifie toute sortie de l’IA avant affichage ; refuse ou corrige | Actif, testé avec des réponses IA simulées |
 
 Règle d’honnêteté : tant que B n’est pas connecté, l’interface affiche « Programme calculé par les règles de Cap » / « Classement calculé par les règles de Cap » et « Génération IA indisponible ». Aucun contenu préenregistré n’est présenté comme généré par une IA (`CapContrats.statutIA`).
@@ -65,3 +65,30 @@ Un programme refusé n’est jamais affiché ; Cap garde le programme calculé.
 1. Activer Supabase et la fonction `cap-ai` (DEPLOYMENT_GUIDE.md).
 2. Ajouter dans `cap-ai` les types `programme` et `marche` qui reçoivent `demandeProgramme` / `demandeMarche` (consignes côté serveur).
 3. Brancher les validateurs `contrats.js` sur les réponses, puis afficher « proposition IA vérifiée » à côté du programme calculé, avec acceptation explicite.
+
+
+## Phase IA réelle (10/11/2026)
+
+### Cycle de génération (`ia.js`)
+1. Cap construit une demande structurée (`contrats.js`) : réponses, métabolisme et dépense, objectif calorique, tendance de poids, temps réellement disponible, matériel, zones douloureuses, autre sport, historique et ressentis, réponses complémentaires, programme précédent et changements depuis.
+2. Les consignes (`prompts.js`, identiques navigateur et serveur) fixent les limites de sécurité et le format JSON.
+3. La réponse est validée. Si elle est refusée, l’IA reçoit la liste exacte des erreurs et a droit à **une** correction. Deux refus : rien n’est remplacé, les raisons sont affichées.
+4. Les durées sont recalculées par Cap (pas celles annoncées par l’IA).
+
+### Programme
+- La bibliothèque (62 exercices) sert de référence ; l’IA peut proposer d’autres exercices s’ils sont plus adaptés, à condition de déclarer mouvement, matériel et articulations sollicitées. Ils sont contrôlés sur le matériel et les douleurs, et affichés « hors bibliothèque, non vérifié par Cap ».
+- Chaque séance porte une justification qui cite les réponses ; chaque exercice une raison.
+- Chaque version est enregistrée (`programmes`), jamais écrasée. À chaque ouverture, le programme IA actif est **revérifié contre les contraintes actuelles** : s’il ne les respecte plus (temps réduit, nouvelle douleur), il est suspendu et le programme calculé s’affiche, avec la raison.
+- Les changements de réponses depuis la génération sont listés champ par champ ; « Adapter avec l’IA » envoie le programme précédent et ces changements, avec consigne de garder ce qui fonctionne.
+
+### Activités
+- L’IA propose 3 activités, catalogue ou non. Elle fournit des paramètres (prix bas/médian/haut, heures par unité, heures de prospection, coûts, matériel, régime, âge minimum, réglementation), **jamais de revenu** : budget, statut (compatible / non finançable / écartée), scénarios, seuil et plan 30/60/90 jours sont calculés par Cap et recalculés quand capital, heures ou compétences changent.
+- Avec recherche web (serveur), un fait n’est gardé comme « sourcé » que si son URL figure parmi les résultats réellement renvoyés par l’outil de recherche. Sans web (version Claude), tous les faits sont affichés comme hypothèses.
+
+### Questions et « Pourquoi ? »
+- Au plus 3 questions, justifiées, liées à une variable du registre ou nouvelles (enregistrées dans `profil.complements`, renvoyées à chaque génération, donc avec une conséquence).
+- « Pourquoi ce programme ? » : l’IA répond à partir des réponses, des décisions de sécurité de Cap et des justifications ; sans IA, l’explication calculée s’affiche.
+
+### Tests
+- `dev/tests/ia-tests.js` (25) : mécanique avec un transport scripté.
+- `dev/essais-ia/` + `dev/tests/reel-verif.js` : **vrais appels au modèle** sur profils fictifs, résultats bruts revalidés hors navigateur.

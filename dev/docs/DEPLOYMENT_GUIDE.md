@@ -108,7 +108,8 @@ au même compte retrouve le profil.
    supabase secrets set CAP_ORIGINE=https://noctivl9-rgb.github.io
    supabase functions deploy cap-ai
    ```
-   Réglages facultatifs : `CAP_SCANS_JOUR` (20 par défaut), `CAP_MESSAGES_JOUR` (40), `CAP_MODELE` (`claude-haiku-5-5`).
+   Réglages facultatifs : `CAP_SCANS_JOUR` (20 par défaut), `CAP_MESSAGES_JOUR` (40), `CAP_GENERATIONS_JOUR` (10), `CAP_MODELE` (`claude-haiku-5-5`), `CAP_MODELE_BUSINESS` (`claude-sonnet-5-5`), `CAP_WEB=1` (recherche web réelle pour les activités, 10 $ / 1 000 recherches), `CAP_WEB_MAX` (5).
+   Exécuter aussi `supabase/migrations/20261110120000_cap_generations.sql`, puis `bash dev/scripts/sync-shared.sh` avant `supabase functions deploy cap-ai`.
 3. Dans `config.js`, passer `ia: true`, committer, pousser.
 
 Vérification : scanner un repas depuis la version GitHub connectée ; Supabase → Table Editor → `cap_ai_usage`
