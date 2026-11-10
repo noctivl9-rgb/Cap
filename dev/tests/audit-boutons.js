@@ -3,7 +3,7 @@
 const { chromium, devices } = require('playwright');
 const aller = require('./nav');
 const PROFIL = { v: 2, domaines: ['corps', 'argent', 'entreprise'], sexe: 'H', age: 22, taille: 178, poids: 78, objectif: 'perdre', cible: 73, delaiSem: 20, activite: 'mixte', niveau: 'intermediaire', lieu: 'salle', jours: 3, minutes: 50, autreSport: 0, tempsLibre: 12, prioriteSport: 'muscle', contraintes: ['aucune'], obstacle: 'regularite', regime: 'omnivore', revenus: 1900, fixes: 800, variables: 450, remboursements: 0, epargne: 2500, reve: 'appart', reveMontant: 250000, reveAnnee: 2034, pays: 'france', capital: 250, competences: ['code'], materielPro: ['ordinateur'], heuresProjet: 8, experience: 'projets', aisanceVente: 2, risque: 'moyen', formatPref: 'les_deux' };
-const ECRANS = (process.env.ECRANS || 'Aujourd’hui,Séance,Progrès,Photos,Journal,Argent,Projet,Profil').split(',');
+const ECRANS = (process.env.ECRANS || 'Aujourd’hui,Programme,Journal,Progrès,Photos,Finances,Business,Profil').split(',');
 (async () => {
   const b = await chromium.launch(); const ctx = await b.newContext(devices['iPhone 14']); const pg = await ctx.newPage();
   const errs = []; pg.on('pageerror', e => errs.push(e.message));

@@ -914,7 +914,7 @@
     const changed = lastTab !== tab; lastTab = tab;
     $app.textContent = '';
     $app.append(h('main', { class: 'screen scr-' + tab + (changed && !reduced() ? ' enter' : '') }, views[tab](d)));
-    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted mode-note' }, window.CapCloud && window.CapCloud.configure() ? 'Tes données sont sur cet appareil uniquement. Connecte ton compte Cap dans Profil pour les sauvegarder et les synchroniser.' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et le coach ne sont disponibles que dans l’appli Claude.'));
+    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted mode-note' }, window.CapCloud && window.CapCloud.configure() ? 'Tes données sont sur cet appareil uniquement. Connecte ton compte Cap dans Profil pour les sauvegarder et les synchroniser.' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et les questions libres au coach ne fonctionnent que dans l’appli Claude.'));
     const btns = dests.map(t => t[0] === 'plus'
       ? h('button', { type: 'button', class: 'nav-plus', 'aria-label': 'Ajouter', onclick: () => menuCentral(d) }, icon('plus'))
       : h('button', { type: 'button', class: 'nav-d', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) aller(t[0]); } }, icon(t[2]), h('span', null, t[1])));
