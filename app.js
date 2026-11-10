@@ -498,7 +498,7 @@
       body: ctx => choices(ctx, 'formatPref', [{ v: 'en_ligne', t: 'En ligne' }, { v: 'local', t: 'Près de chez moi' }, { v: 'les_deux', t: 'Les deux me vont' }]) },
     // Bilan
     { id: 'bilan', sec: 'Bilan', f: [], q: 'Vérification de tes réponses', ok: () => true, cta: 'Créer mon plan', body: ctx => bilan(ctx) },
-    { id: 'plan', sec: 'Bilan', f: ['objectifsPerso'], q: 'Ton plan', lead: 'Calculé à partir de tes réponses. Tu peux tout modifier, maintenant ou plus tard.', ok: () => true, cta: 'Commencer le suivi', body: ctx => planApercu(ctx) }
+    { id: 'plan', sec: 'Bilan', f: ['objectifsPerso'], q: 'Ton plan', lead: 'Calculé à partir de tes réponses. Tu peux tout modifier, maintenant ou plus tard.', ok: () => true, cta: 'Commencer mon plan', body: ctx => planApercu(ctx) }
   ];
   const LIB_CHAMPS = { tempsLibre: 'temps libre', jours: 'séances voulues', minutes: 'durée', heuresProjet: 'heures projet', autreSport: 'autre sport', niveau: 'niveau', age: 'âge', materielSport: 'matériel', zonesDouleur: 'zones douloureuses', objectif: 'objectif', prioriteSport: 'priorité', obstacle: 'frein principal', lieu: 'lieu' };
   const STEP_BY_FIELD = {}; STEPS.forEach(s => s.f.forEach(f => { STEP_BY_FIELD[f] = s.id; })); STEP_BY_FIELD.cible = 'cible'; STEP_BY_FIELD.rythme = 'faisabilite';
@@ -683,6 +683,7 @@
       next(skipped) {
         if (s.id === 'plan') { finishOnboarding(); return; }
         if (OB.returnTo) { const vs = visibleSteps(OB.A, OB.only); const i = vs.findIndex(x => x.id === OB.returnTo); OB.returnTo = null; OB.idx = i >= 0 ? i : OB.idx + 1; OB.dir = 1; renderStep(); return; }
+        if (s.id === 'bilan' && !OB.only) { revelation(OB.A, () => { OB.idx++; OB.dir = 1; renderStep(); }); return; }
         OB.idx++; OB.dir = 1; renderStep();
       },
       prev() { if (OB.returnTo) { const vs = visibleSteps(OB.A, OB.only); OB.idx = vs.findIndex(x => x.id === OB.returnTo); OB.returnTo = null; } else OB.idx--; OB.dir = -1; renderStep(); },
@@ -691,6 +692,53 @@
       rerender: () => renderStep()
     };
     return ctx;
+  }
+  // Révélation du programme : chaque ligne correspond à un calcul réellement exécuté à cet instant par le moteur Cap
+  // (aucune barre de progression simulée). Les résultats sont posés un par un pour être lus (≈ 0,35 s chacun),
+  // un toucher affiche tout, « Réduire les animations » affiche tout d'un coup.
+  function etapesRevelation(A) {
+    const d = derive(A), et = [];
+    const champs = Object.keys(A).filter(k => k[0] !== '_' && has(A[k]) && A[k] !== '').length;
+    et.push({ t: 'Comprendre', r: champs + ' réponses lues' + (d.corps && d.argent ? ', corps et argent' : d.corps ? ', côté corps' : d.argent ? ', côté argent' : '') + '.' });
+    const calc = [];
+    if (d.corps && d.phys && d.phys.ok) calc.push(fr(E.cibleJour(d.phys, A.objectifsPerso).kcal) + ' kcal par jour');
+    if (d.argent && d.fin && d.fin.ok) calc.push(eur(d.fin.capacite) + ' d’épargne possible par mois');
+    if (calc.length) et.push({ t: 'Calculer', r: calc.join(', ') + '.' });
+    const cons = [];
+    if (d.corps && d.prog && d.prog.ok) cons.push(d.prog.seances.length ? d.prog.planning.length + ' séances par semaine' : 'repos et mobilité');
+    if (d.argent && d.fin && d.fin.ok && d.fin.reve) cons.push('un projet chiffré à ' + eur(d.fin.reve.total));
+    if (cons.length) et.push({ t: 'Construire', r: cons.join(', ') + '.' });
+    const err = STEPS.reduce((n, st) => n + (st.f || []).filter(f => E.valider(f, A[f])).length, 0);
+    const garde = d.corps && d.phys && d.phys.ok && d.phys.plancher ? ' Plancher de sécurité : ' + fr(d.phys.plancher) + ' kcal par jour.' : '';
+    et.push({ t: 'Vérifier', r: (err ? err + ' réponse' + (err > 1 ? 's' : '') + ' à revoir.' : 'Réponses cohérentes.') + garde, alerte: err > 0 });
+    et.push({ t: 'Révéler', r: 'Ouvre ton plan pour le découvrir.' });
+    return et;
+  }
+  function revelation(A, suite) {
+    const et = etapesRevelation(A);
+    scene(true);
+    const L = window.CapLogo;
+    const liste = h('ol', { class: 'rv-list' });
+    let i = 0, fini = false, timer = null;
+    const poser = () => {
+      if (i >= et.length) { termine(); return; }
+      const e = et[i++];
+      liste.append(h('li', { class: 'rv-item' + (e.alerte ? ' alerte' : '') }, h('b', null, e.t), h('span', null, e.r)));
+      timer = setTimeout(poser, 380);
+    };
+    const titre = h('h1', { class: 'rv-title', 'aria-live': 'polite' }, 'Ton plan se construit.');
+    const btn = h('button', { class: 'btn rv-go', type: 'button', disabled: true, onclick: () => { scene(false); suite(); } }, 'Voir mon plan');
+    const termine = () => { if (fini) return; fini = true; clearTimeout(timer); while (i < et.length) { const e = et[i++]; liste.append(h('li', { class: 'rv-item' + (e.alerte ? ' alerte' : '') }, h('b', null, e.t), h('span', null, e.r))); } btn.disabled = false; titre.textContent = 'Ton plan est prêt.'; if (window.CapSon) window.CapSon.jouer('programme'); };
+    $app.textContent = '';
+    const page = h('div', { class: 'ob rv', onclick: e => { if (e.target !== btn) termine(); } },
+      h('div', { class: 'rv-mark', 'aria-hidden': 'true', html: L.mark({ size: 56, mode: 'dark' }) }),
+      titre,
+      h('p', { class: 'rv-sub' }, 'Ce que Cap vient de calculer à partir de tes réponses :'),
+      liste,
+      h('div', { class: 'ob-bar' }, h('div', { class: 'in wl-cta' }, btn)));
+    $app.append(page);
+    window.scrollTo(0, 0);
+    if (reduced()) termine(); else poser();
   }
   async function finishOnboarding() {
     const A = Object.assign({}, OB.A); delete A._dom;

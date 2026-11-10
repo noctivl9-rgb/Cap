@@ -12,6 +12,7 @@
   };
   const h = (...a) => U.h(...a), icon = (...a) => U.icon(...a), fr = (...a) => U.fr(...a);
   const S = () => U.S;
+  const eurC = v => fr(Math.round(v)) + ' €';
   const today = () => U.dayId();
   const shift = (d, n) => { const x = new Date(d + 'T12:00'); x.setDate(x.getDate() + n); return U.dayId(x); };
   const longDate = d => new Date(d + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -82,6 +83,7 @@
       d.corps ? h('span', { class: 'chip ' + (serie ? 'warn' : 'neutral'), title: 'Jours consécutifs avec au moins un repas noté' }, icon('flame'), serie + ' j') : null,
       h('button', { class: 'round glass press', type: 'button', 'aria-label': 'Coach', onclick: () => J.coach(d) }, icon('chat')));
     out.push(U.largeTitle(jour === t ? 'Aujourd’hui' : (jour === shift(t, -1) ? 'Hier' : fr(new Date(jour + 'T12:00').getDate()) + ' ' + new Date(jour + 'T12:00').toLocaleDateString('fr-FR', { month: 'long' })), longDate(jour), right));
+    if (jour === t) { const bo = boussole(d); if (bo) out.push(bo); }
     if (d.corps) out.push(bandeSemaine(d));
     if (jour !== t) out.push(h('div', { class: 'note tint', style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' }, h('span', null, 'Tu modifies le journal du ' + longDate(jour) + '.'), h('button', { class: 'link', type: 'button', onclick: () => { jour = t; U.refresh(); } }, 'Revenir')));
     if (d.corps) {
@@ -99,6 +101,29 @@
     if (imp.length) out.push(U.section('À vérifier', null, imp.map(i => U.issueView(i, champ => U.editStep(U.STEP_BY_FIELD[champ] || champ)))));
     return out;
   };
+  // Boussole : répond en trois lignes à « Où j'en suis ? Où je vais ? Qu'est-ce que je fais aujourd'hui ? »
+  // Uniquement des valeurs réelles (profil, pesées, moteur Cap) ; une ligne sans donnée n'est pas affichée.
+  function boussole(d) {
+    const p = d.p || {}, now = new Date(), ici = [], cap = [], jourL = [];
+    if (d.corps) {
+      const kg = poidsActuel();
+      if (kg) ici.push(fr(kg, 1) + ' kg');
+      if (p.objectif && p.objectif !== 'maintenir' && p.cible) cap.push(fr(p.cible, 1) + ' kg' + (d.phys && d.phys.ok && d.phys.planPossible && d.phys.semaines ? ', ≈ ' + d.phys.semaines + ' semaines' : ''));
+      else if (p.objectif === 'maintenir') cap.push('Garder ' + (kg ? fr(kg, 1) + ' kg' : 'ton poids'));
+      if (d.prog && d.prog.ok) {
+        const pl = d.prog.planning.find(x => x.jour === now.getDay()), se = pl && d.prog.seances.find(x => x.cle === pl.seance);
+        jourL.push(se ? se.nom + ', ' + se.duree + ' min' + (S().seances.some(l => l.date === today()) ? ' (faite)' : '') : 'Repos');
+      }
+      if (d.phys && d.phys.ok) { const b = budget(d, jour); jourL.push(b.restant >= 0 ? fr(b.restant) + ' kcal restantes' : fr(-b.restant) + ' kcal au-dessus'); }
+    }
+    if (d.argent && d.fin && d.fin.ok) {
+      ici.push(eurC(d.fin.capacite) + ' d’épargne possible par mois');
+      if (d.fin.reve && d.fin.reve.total) cap.push(eurC(d.fin.reve.total) + (p.reveAnnee ? ' en ' + p.reveAnnee : ''));
+    }
+    const lignes = [['Où j’en suis', ici], ['Où je vais', cap], ['Aujourd’hui', jourL]].filter(l => l[1].length);
+    if (!lignes.length) return null;
+    return h('section', { class: 'boussole', 'aria-label': 'Ton cap' }, lignes.map(l => h('div', { class: 'bs-l' }, h('span', { class: 'bs-q' }, l[0]), h('div', { class: 'bs-r' }, l[1].map(x => h('b', null, x))))));
+  }
   function bandeSemaine(d) {
     const t = today();
     const fin = jour < shift(t, -6) ? shift(jour, 3) : t;

@@ -45,6 +45,12 @@ const out = __dirname + '/out/v3-';
   await pick('Appartement + Urus'); await cont(); await pick('2036'); await cont(); await pick('Code'); await cont(); await type('7'); await cont(); await pg.click('.ob-bar .btn.text'); await pg.waitForTimeout(220);
   T('bilan affiché', (await pg.$eval('.stage h1', e => e.textContent)).includes('Vérification'));
   await cont();
+  // Révélation : seulement des calculs réellement exécutés, puis la page du plan
+  await pg.waitForSelector('.rv-item'); await pg.click('.rv'); await pg.waitForTimeout(100);
+  const rv = await pg.$$eval('.rv-item', l => l.map(e => e.textContent));
+  T('révélation : étapes réelles avec leurs résultats', rv.length >= 4 && rv[0].startsWith('Comprendre') && rv.some(x => x.includes('kcal par jour')) && rv[rv.length - 1].startsWith('Révéler') && !(await pg.$('.loader, progress')), rv);
+  await pg.waitForTimeout(500); await pg.screenshot({ path: 'rv.png' });
+  await pg.click('.rv-go'); await pg.waitForTimeout(300);
   // Aperçu du plan
   t = await pg.$eval('.stage', e => e.textContent);
   T('aperçu du plan calculé avant enregistrement (pas d\'animation factice)', t.includes('Ton plan') && t.includes('kcal / jour') && !(await pg.$('.loader')));
@@ -62,6 +68,8 @@ const out = __dirname + '/out/v3-';
   let m = await main();
   T('accueil : 2 500 kcal restantes, mode simple', m.includes('2 500') && m.includes('Mode simple'), m.slice(0, 200));
   T('accueil : jour vide signalé sans estimation', m.includes('Rien de noté pour ce jour'));
+  const bs = await pg.$$eval('.boussole .bs-l', l => l.map(e => e.textContent.replace(/[\u202f\u00a0]/g, ' ')));
+  T('boussole : où j\'en suis / où je vais / aujourd\'hui, valeurs réelles', bs.length === 3 && bs[0].startsWith('Où j’en suis') && bs[1].startsWith('Où je vais') && bs[2].includes('2 500 kcal restantes'), bs);
   // Recherche + ajout
   await pg.click('.fab'); await pg.waitForTimeout(250); await shot('menu');
   await pg.click('.tile:has-text("Rechercher")'); await pg.waitForTimeout(300);

@@ -65,7 +65,7 @@ async function serveur(op, a) {
     for (const f of ['revenus', 'fixes', 'variables', 'remboursements', 'epargne']) { await pg.fill('#m-' + f, f === 'revenus' ? '40' : '0'); await cont(pg); }
     await pg.click('.choice:has-text("Appartement à Dubaï")'); await cont(pg); await pg.click('.choice:has-text("2036")'); await cont(pg); await pg.click('.choice:has-text("Code")'); await cont(pg); await type(pg, '7'); await cont(pg);
     await pg.click('.ob-bar .btn.text'); await pg.waitForTimeout(250); await cont(pg); await pg.waitForTimeout(400);
-    await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn, .stage .sk-btn'); await pg.waitForTimeout(600);
+    await pg.waitForSelector('.rv'); await pg.click('.rv'); await pg.click('.rv-go'); await pg.waitForTimeout(350); await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn, .stage .sk-btn'); await pg.waitForTimeout(600);
   }
   const reglages = async pg => { await pg.click('.tabbar button:has-text("Réglages")'); await pg.waitForTimeout(250); };
   const exporterTexte = async pg => { await reglages(pg); await pg.click('button.cell:has-text("Exporter mes données")'); await pg.waitForTimeout(300); await pg.click('.sheet button:has-text("Copier le texte")'); await pg.waitForTimeout(200); const t = await pg.evaluate(() => navigator.clipboard.readText()); await pg.click('.sheet [aria-label="Fermer"]'); await pg.waitForTimeout(250); return t; };

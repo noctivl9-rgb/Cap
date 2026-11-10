@@ -24,7 +24,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   await pick('Ordinateur'); await cont(); await pick('Des projets perso'); await cont(); await pick('Ça va'); await cont(); await pick('Moyen'); await cont(); await pick('Les deux me vont'); await cont();
   T('bilan atteint sans question du module corps ni argent', /Vérification/.test(await titre()), await titre());
   await cont(); await pg.waitForTimeout(300);
-  await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn, .stage .sk-btn'); await pg.waitForTimeout(700);
+  await pg.waitForSelector('.rv'); await pg.click('.rv'); await pg.click('.rv-go'); await pg.waitForTimeout(350); await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn, .stage .sk-btn'); await pg.waitForTimeout(700);
   T('onglet Projet présent', await pg.$('.tabbar button:has-text("Projet")') !== null);
   await pg.click('.tabbar button:has-text("Projet")'); await pg.waitForTimeout(400);
   let m = await main();
