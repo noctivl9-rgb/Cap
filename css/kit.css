@@ -215,3 +215,11 @@ button.pj-puce:active{transform:scale(.97)}
 .fi-vide small,.pj-kpi small{color:var(--ink-2)}
 .ag-kpi .tu-t{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pr-leg{flex-wrap:wrap;row-gap:6px}.pr-leg span{white-space:nowrap}
+/* Regroupement « Plus de détails » */
+details.plus{border-top:1px solid var(--hair, rgba(0,0,0,.08));margin-top:4px}
+details.plus>summary{display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:4px 2px;font-size:15px;font-weight:600;color:var(--ink-2);cursor:pointer;list-style:none}
+details.plus>summary::-webkit-details-marker{display:none}
+details.plus>summary::after{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg);margin-right:6px;transition:transform .2s}
+details.plus[open]>summary::after{transform:rotate(-135deg)}
+.plus-c{display:flex;flex-direction:column;gap:10px;padding-bottom:8px}
+.pg-kpi>:only-child{grid-column:1/-1}

@@ -1,7 +1,7 @@
 /* Mesure la quantité de texte visible par écran (mots hors <details> fermés) et le nombre d'éléments interactifs.
  * Usage : bash build.sh && node densite.js [fichier-json-sortie] */
 const { chromium, devices } = require('playwright');
-const aller = require('./nav'), fs = require('fs');
+const aller = require('./nav').seul, fs = require('fs');
 const PROFIL = { v: 2, domaines: ['corps', 'argent', 'entreprise'], sexe: 'H', age: 22, taille: 178, poids: 78, objectif: 'perdre', cible: 73, delaiSem: 20, activite: 'mixte', niveau: 'intermediaire', lieu: 'salle', jours: 3, minutes: 50, autreSport: 0, tempsLibre: 12, prioriteSport: 'muscle', contraintes: ['douleur'], zonesDouleur: ['genou'], obstacle: 'regularite', regime: 'omnivore', revenus: 1900, fixes: 800, variables: 450, remboursements: 0, epargne: 2500, reve: 'appart', reveMontant: 250000, reveAnnee: 2034, revenuVise: 3000, pays: 'france', capital: 600, competences: ['code'], materielPro: ['ordinateur'], heuresProjet: 8, experience: 'projets', aisanceVente: 2, risque: 'moyen', formatPref: 'les_deux', creeLe: '2026-09-01T10:00:00Z' };
 const J = d => new Date(Date.parse('2026-11-10') - d * 864e5).toISOString().slice(0, 10);
 const MEM = { profil: { main: PROFIL }, pesees: { a: { date: J(42), poids: 78.4 }, b: { date: J(28), poids: 77.6, tour: 88 }, c: { date: J(14), poids: 77.1 }, d: { date: J(1), poids: 76.5, tour: 86.5 } },
@@ -20,7 +20,7 @@ if (require.main === module) (async () => {
     await aller(pg, ec); await pg.waitForTimeout(250);
     const r = await pg.evaluate(() => {
       const m = document.querySelector('main'), w = document.createTreeWalker(m, NodeFilter.SHOW_TEXT); let mots = 0, n;
-      while ((n = w.nextNode())) { const el = n.parentElement; if (!el || !el.offsetParent || el.closest('.sr')) continue; const det = el.closest('details:not([open])'); if (det && !el.closest('summary')) continue; mots += (n.textContent.match(/[A-Za-zÀ-ÿ0-9’']+/g) || []).length; }
+      while ((n = w.nextNode())) { const el = n.parentElement; if (!el || !el.offsetParent || el.closest('.sr')) continue; const cache = (el) => { for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) { if (!d.open) { const s = d.querySelector(':scope > summary'); if (!(s && s.contains(el))) return true; } } return false; }; if (cache(el)) continue; mots += (n.textContent.match(/[A-Za-zÀ-ÿ0-9’']+/g) || []).length; }
       return { mots, hauteur: Math.round(m.scrollHeight / innerHeight * 10) / 10, paragraphes: [...m.querySelectorAll('p')].filter(p => p.offsetParent && p.textContent.trim().split(/\s+/).length > 12).length };
     });
     out[ec] = r; tot += r.mots;

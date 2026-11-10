@@ -915,7 +915,7 @@
     const ouverts = changed ? [] : [...$app.querySelectorAll('main details[open] > summary')].map(x => x.textContent);
     $app.textContent = '';
     $app.append(h('main', { class: 'screen scr-' + tab + (changed && !reduced() ? ' enter' : '') }, views[tab](d)));
-    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted mode-note' }, window.CapCloud && window.CapCloud.configure() ? 'Sur cet appareil · Connecte ton compte Cap dans Profil pour synchroniser' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et les questions libres au coach ne fonctionnent que dans l’appli Claude.'));
+    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted mode-note' }, window.CapCloud && window.CapCloud.configure() ? 'Sur cet appareil · Connecte ton compte Cap dans Profil pour synchroniser' : 'Données sur cet appareil uniquement'));
     const btns = dests.map(t => t[0] === 'plus'
       ? h('button', { type: 'button', class: 'nav-plus', 'aria-label': 'Ajouter', onclick: () => menuCentral(d) }, icon('plus'))
       : h('button', { type: 'button', class: 'nav-d', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) aller(t[0]); } }, icon(t[2]), h('span', null, t[1])));
@@ -926,7 +926,9 @@
   }
   const largeTitle = (t, s, right) => h('header', { class: 'lt', style: right ? 'flex-direction:row;align-items:flex-end;justify-content:space-between' : '' }, h('div', null, h('h1', null, t), s ? h('p', null, s) : null), right || null);
   const section = (title, hint, ...kids) => h('section', { class: 'sec' }, title ? h('h2', null, title) : null, hint ? h('p', { class: 'hint' }, hint) : null, kids);
-  const howBtn = (title, lines, extra) => h('button', { class: 'link', type: 'button', onclick: () => sheet(title, [h('ol', { class: 'calc' }, lines.map(l => h('li', null, l))), extra || null]) }, 'Comment est-ce calculé ?');
+  const howBtn = (title, lines, extra) => h('button', { class: 'ib', type: 'button', 'aria-label': 'Comment est-ce calculé ? (' + title + ')', onclick: e => { e.stopPropagation(); sheet(title, [h('ol', { class: 'calc' }, lines.map(l => h('li', null, l))), extra || null]); } }, icon('info'));
+  // Regroupe les sections de détail d'un écran sous une seule ligne repliée
+  const plus = items => { items = (items || []).filter(Boolean); return items.length ? h('details', { class: 'plus' }, h('summary', null, h('span', null, 'Plus de détails')), h('div', { class: 'plus-c' }, items)) : null; };
 
   // Accueil, journal et progrès : journal.js
   function confirmDel(fn) { const close = sheet('Supprimer ?', [h('p', { class: 'muted sub' }, 'Cette donnée sera supprimée définitivement.'), h('button', { class: 'btn', style: 'background:var(--bad)', type: 'button', onclick: async () => { try { await fn(); close(); toast('Supprimé'); } catch (e) { toast('Échec, réessaie'); } } }, 'Supprimer'), h('button', { class: 'btn secondary', type: 'button', onclick: () => close() }, 'Annuler')]); }
@@ -1018,7 +1020,7 @@
     const K = window.CapKit;
     if (K) out.push(h('div', { class: 'pg-kpi' },
       K.tuile({ mod: 'corps', icone: 'check', titre: 'Régularité · 14 j', valeur: a.prevues ? a.faites + '/' + a.prevues : '–', sous: a.prevues ? (a.taux !== null ? fr(a.taux * 100) + ' % des séances prévues' : '') : 'après tes premières séances', vide: !a.prevues, visuel: a.prevues ? h('i', { class: 'jr-jauge', 'aria-hidden': 'true' }, h('i', { style: 'width:' + Math.min(100, a.faites / a.prevues * 100) + '%;background:var(--corps)' })) : null }),
-      K.tuile({ mod: 'neutre', icone: viaIA ? 'chat' : 'target', titre: 'Origine', valeur: viaIA ? 'IA validée' : 'Calculé par Cap', sous: viaIA ? 'accepté par toi' : 'à partir de tes réponses', onclick: () => sheet('Origine du programme', [h('p', { class: 'sub' }, h('span', { class: 'tag ' + (viaIA ? 'ia' : 'calc') }, viaIA ? 'IA validée par Cap' : 'Calculé par Cap'), ' ', viaIA ? 'Programme proposé par l’IA, accepté par toi et revérifié par les règles de sécurité à chaque ouverture.' : 'Construit par les règles de Cap à partir de tes réponses (niveau, temps, matériel, douleurs, objectif).')], { focus: false }) })));
+      viaIA ? K.tuile({ mod: 'neutre', icone: viaIA ? 'chat' : 'target', titre: 'Origine', valeur: viaIA ? 'IA validée' : 'Calculé par Cap', sous: viaIA ? 'accepté par toi' : 'à partir de tes réponses', onclick: () => sheet('Origine du programme', [h('p', { class: 'sub' }, h('span', { class: 'tag ' + (viaIA ? 'ia' : 'calc') }, viaIA ? 'IA validée par Cap' : 'Calculé par Cap'), ' ', viaIA ? 'Programme proposé par l’IA, accepté par toi et revérifié par les règles de sécurité à chaque ouverture.' : 'Construit par les règles de Cap à partir de tes réponses (niveau, temps, matériel, douleurs, objectif).')], { focus: false }) }) : null));
     if (a.conseil) out.push(h('div', { class: 'pg-conseil', role: 'note' }, icon('info'), h('span', null, a.conseil)));
     const genes = S.seances.filter(l => l.gene && (Date.parse(t) - Date.parse(l.date)) / 864e5 <= 14).sort((x, y) => y.date.localeCompare(x.date));
     if (genes.length) out.push(h('details', { class: 'pg-fiche alerte' }, h('summary', null, icon('alert'), h('span', null, 'Gêne signalée le ' + fmtD(genes[0].date))), h('p', null, (genes[0].signalements && genes[0].signalements[0] ? genes[0].signalements[0].exercice + (genes[0].signalements[0].note ? ', « ' + genes[0].signalements[0].note + ' »' : '') + '. ' : '') + 'Cap ne propose aucune augmentation de charge pendant 14 jours. Prends l’alternative si le mouvement la réveille ; si la douleur persiste plus de quelques jours ou s’aggrave, consulte un professionnel de santé.')));
@@ -1027,13 +1029,15 @@
     const lim = dec.filter(x => (x.champs || []).some(c => ['zonesDouleur', 'contraintes', 'age', 'materielSport', 'tempsLibre', 'autreSport'].indexOf(c) >= 0));
     const autres = dec.filter(x => lim.indexOf(x) < 0);
     const fiche = (ic, titre, n, corps, cls) => h('details', { class: 'pg-fiche' + (cls ? ' ' + cls : '') }, h('summary', null, icon(ic), h('span', null, titre), n ? h('b', { class: 'pg-n' }, String(n)) : null), corps);
+    out.push(h('p', { class: 'sr' }, viaIA ? 'IA validée par Cap.' : 'Calculé par Cap. Construit par les règles de Cap à partir de tes réponses.'));
+    const i0 = out.length;
     if (lim.length) out.push(fiche('alert', 'Limites appliquées', lim.length, h('ul', null, lim.map(x => h('li', null, x.raison, x.champs.length ? h('small', null, 'D’après : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null))), 'lim'));
     if (autres.length) out.push(fiche('info', viaIA ? 'Règles de sécurité vérifiées' : 'Pourquoi ce programme', autres.length, h('ul', null, autres.map(x => h('li', null, x.raison)))));
     out.push(fiche('chart', 'Progression prévue', null, [h('p', null, pr.progression), pr.progressionSemaines && pr.progressionSemaines.length ? h('ul', null, pr.progressionSemaines.map(x => h('li', null, 'Semaine ' + x.semaine + ' : ' + x.consigne))) : null, pr.recuperation ? h('p', { class: 'foot muted' }, 'Récupération : ' + pr.recuperation) : null]));
-    out.push(h('p', { class: 'sr' }, viaIA ? 'IA validée par Cap.' : 'Calculé par Cap. Construit par les règles de Cap à partir de tes réponses.'));
     if (window.CapIAUI) out.push(...window.CapIAUI.programmePanel(d));
     const logs = S.seances.slice().sort((x, y) => y.date.localeCompare(x.date)).slice(0, 20);
     out.push(h('details', { class: 'pg-fiche' }, h('summary', null, icon('today'), h('span', null, 'Historique'), h('b', { class: 'pg-n' }, String(S.seances.length))), logs.length ? h('ul', { class: 'td-liste' }, logs.map(l => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, l.nom), h('small', null, fmtD(l.date) + ' · ' + ({ facile: 'facile', ok: 'correct', dur: 'très dur' }[l.ressenti] || '—') + (l.partielle ? ' · partielle (' + l.exercicesFaits + '/' + l.exercicesPrevus + ')' : ''))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer la séance du ' + fmtD(l.date), onclick: () => confirmDel(() => remove('seances', l.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucune séance enregistrée : aucune progression n’est affichée.')));
+    out.push(plus(out.splice(i0)));
     return out;
   }
   function logSeance(se) {
@@ -1065,7 +1069,7 @@
     const dernier = mv[0];
     out.push(h('section', { class: 'ag-reel2 carte', 'aria-labelledby': 'ag-reel' },
       h('div', { class: 'ag-reel-g' }, K.anneau({ valeur: Math.max(0, f.actuelle), max: n.intermediaire.montant, label: 'Épargne vers ' + n.intermediaire.titre, texte: eur(Math.max(0, f.actuelle)), centre: Math.round(pct * 100) + ' %', sousCentre: 'de l’étape', couleur: 'var(--argent)', taille: 104, epaisseur: 10 })),
-      h('div', { class: 'ag-reel-d' }, h('h2', { id: 'ag-reel', class: 'ag-h' }, h('span', { class: 'tag mesure' }, 'Réel'), ' Épargne'),
+      h('div', { class: 'ag-reel-d' }, h('h2', { id: 'ag-reel', class: 'ag-h' }, 'Épargne'),
         h('p', { class: 'ag-gros num' }, nombre('fin-act', f.actuelle, eur)),
         h('p', { class: 'ag-sous' }, n.intermediaire.titre + ' · ' + eur(n.intermediaire.montant)),
         dernier ? h('p', { class: 'ag-der' }, h('b', { class: 'num ' + (dernier.montant >= 0 ? 'pos' : 'neg') }, (dernier.montant >= 0 ? '+' : '−') + eur(Math.abs(dernier.montant))), ' ' + fmtD(dernier.date)) : null)));
@@ -1077,15 +1081,16 @@
     if (window.CapFinances) out.push(sectionMois(d));
     // 3. Projection
     const fz = { atteint: 'Objectif atteint.', atteignable: 'Atteignable pour ' + p.reveAnnee + ' si ta capacité se maintient.', ecart: 'Il manquerait ' + eur(f.ecartMensuel) + ' par mois pour ' + p.reveAnnee + '.', impossible_en_l_etat: 'Aucune date calculable en l’état.' }[f.faisabilite];
-    out.push(h('section', { class: 'ag-couche carte', 'aria-labelledby': 'ag-proj' }, h('div', { class: 'pr-courbe-h' }, h('h2', { id: 'ag-proj', class: 'ag-h' }, h('span', { class: 'tag calc' }, 'Projection'), ' 24 mois'), howBtn('Capacité et calendrier', f.calcul)),
+    out.push(h('section', { class: 'ag-couche carte', 'aria-labelledby': 'ag-proj' }, h('div', { class: 'pr-courbe-h' }, h('h2', { id: 'ag-proj', class: 'ag-h' }, 'Projection sur 24 mois'), howBtn('Capacité et calendrier', f.calcul)),
       h('div', { class: 'chart' }, moneyChart(d)),
       h('div', { class: 'pr-leg' }, h('span', null, h('i', { class: 'l-plein ag' }), 'Réel'), h('span', null, h('i', { class: 'l-point ag' }), 'Si rien ne change'), f.hypothese && f.hypothese.capacite > 0 ? h('span', null, h('i', { class: 'l-point hy' }), 'Hypothèse') : null, K.info('Projection', [fz, 'Trait plein : le réel saisi. Pointillés : la projection, sans rendement, sans inflation ni imprévu.', n.reve.titre + ' : ' + eur(f.reve.total) + ' estimés.'])),
       h('p', { class: 'foot muted' }, 'Sans rendement ni imprévu. Ce n’est pas une promesse.')));
     // 4. Hypothèse (facultative)
-    if (f.hypothese && has(p.revenuVise)) out.push(h('section', { class: 'ag-hypo2', 'aria-labelledby': 'ag-hyp' }, h('span', { class: 'tag hypo', id: 'ag-hyp' }, 'Hypothèse'),
-      h('span', { class: 'ag-hypo-t' }, 'À ' + eur(f.hypothese.revenu) + '/mois : ', h('b', { class: 'num' }, eur(f.hypothese.capacite)), ' d’épargne'),
+    if (f.hypothese && has(p.revenuVise)) out.push(h('section', { class: 'ag-hypo2', 'aria-label': 'Hypothèse' },
+      h('span', { class: 'ag-hypo-t' }, 'Si tu gagnais ' + eur(f.hypothese.revenu) + '/mois : ', h('b', { class: 'num' }, eur(f.hypothese.capacite)), ' d’épargne'),
       K.info('Hypothèse', ['Avec ' + eur(f.hypothese.revenu) + ' nets par mois (le revenu que tu vises), ta capacité serait de ' + eur(f.hypothese.capacite) + ' par mois.', 'Ce revenu n’est pas acquis : il n’entre dans aucun calcul du réel.', h('button', { class: 'link', type: 'button', onclick: () => editStep('revenuVise') }, 'Modifier ce revenu visé')])));
-    // 5. Détails
+    // 5. Détails, regroupés
+    const i0 = out.length;
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Budget mensuel'), h('ul', { class: 'td-liste' },
       [['Revenus nets', eur(p.revenus)], ['Dépenses fixes', '− ' + eur(p.fixes)], ['Dépenses variables', '− ' + eur(p.variables)], ['Remboursements', '− ' + eur(p.remboursements || 0)], ['Reste pour épargner', eur(f.capacite)]].map(x => h('li', { class: 'pr-jalon' }, h('span', null, x[0]), h('b', { class: 'num' }, x[1])))),
       h('button', { class: 'link', type: 'button', onclick: () => editStep('variables') }, 'Modifier mes dépenses')));
@@ -1097,6 +1102,8 @@
     const imp = d.issues.filter(i => i.domaine === 'argent');
     if (imp.length) out.push(h('details', { class: 'pg-det verif' }, h('summary', null, icon('alert'), 'À vérifier · ' + imp.length), imp.map(i => issueView(i, champ => editStep(STEP_BY_FIELD[champ] || champ)))));
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Historique des mouvements (' + mv.length + ')'), mv.length ? h('ul', { class: 'td-liste' }, mv.map(m => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, m.note || (m.montant >= 0 ? 'Mis de côté' : 'Retiré')), h('small', null, fmtD(m.date))), h('b', { class: 'num ' + (m.montant >= 0 ? 'pos' : 'neg') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer le mouvement du ' + fmtD(m.date), onclick: () => confirmDel(() => remove('epargne', m.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucun mouvement noté.')));
+    const det = out.splice(i0), verif = det.filter(e => e.classList && e.classList.contains('verif'));
+    out.push(...verif, plus(det.filter(e => verif.indexOf(e) < 0)));
     return out;
   }
   // Montants réels : au centime près quand il y a des centimes
@@ -1108,7 +1115,7 @@
     const nomMois = new Date(m0 + '-15T12:00').toLocaleDateString('fr-FR', { month: 'long' });
     const ops = S.operations.filter(o => F.valider(o).length === 0).sort((a, b) => b.date.localeCompare(a.date));
     return h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-mois' },
-      h('div', { class: 'bp-h' }, h('h2', { id: 'ag-mois', class: 'ag-h' }, h('span', { class: 'tag mesure' }, 'Réel'), ' ' + nomMois.charAt(0).toUpperCase() + nomMois.slice(1)), h('button', { class: 'btn small secondary', type: 'button', onclick: () => addOperation(d) }, icon('plus'), 'Opération')),
+      h('div', { class: 'bp-h' }, h('h2', { id: 'ag-mois', class: 'ag-h' }, '' + nomMois.charAt(0).toUpperCase() + nomMois.slice(1)), h('button', { class: 'btn small secondary', type: 'button', onclick: () => addOperation(d) }, icon('plus'), 'Opération')),
       m.nb ? (() => {
         const K = window.CapKit, segs = m.classement.slice(0, 5).map(c => ({ nom: c.nom, valeur: c.montant }));
         if (m.classement.length > 5) segs.push({ nom: 'Autres', valeur: m.classement.slice(5).reduce((x, c) => x + c.montant, 0) });
@@ -1212,22 +1219,22 @@
       ['bolt', 'Connexion', enLigne ? 'En ligne' : 'Hors ligne', enLigne ? 'En ligne.' : 'Hors ligne : tout fonctionne sauf l’IA ; les changements restent sur l’appareil.', enLigne ? 'ok' : 'warn'],
       ['chat', 'IA', iaOn ? 'Disponible' : 'Indisponible', iaOn ? 'Disponible (Claude). Elle propose ; Cap vérifie ; tu décides.' : 'Indisponible ici. Tous les chiffres viennent des règles de Cap.', iaOn ? 'ok' : 'off'],
       ['camera', 'Photo de plat', photoDispo ? 'Après accord' : 'Saisie manuelle', photoDispo ? 'Analyse disponible, après ton accord.' : 'Analyse indisponible ici : saisie manuelle.', photoDispo ? 'ok' : 'off']];
-    const etat = h('div', { class: 'pf-etat2' }, ET.map(x => h('button', { class: 'pf-et ' + x[4], type: 'button', 'aria-label': x[1] + ' : ' + x[3], onclick: () => sheet(x[1], [h('p', { class: 'sub' }, x[3])], { focus: false }) }, h('span', { class: 'pf-et-i' }, icon(x[0])), h('span', { class: 'pf-et-t' }, h('small', null, x[1]), h('b', null, x[2])))));
+    const etat = h('div', { class: 'pf-etat2' }, ET.filter(x => x[4] !== 'off').map(x => h('button', { class: 'pf-et ' + x[4], type: 'button', 'aria-label': x[1] + ' : ' + x[3], onclick: () => sheet(x[1], [h('p', { class: 'sub' }, x[3])], { focus: false }) }, h('span', { class: 'pf-et-i' }, icon(x[0])), h('span', { class: 'pf-et-t' }, h('small', null, x[1]), h('b', null, x[2])))));
     const ligne = (titre, texte, actions) => h('div', { class: 'pf-cons' }, h('div', { class: 'td-l' }, h('b', null, titre), h('small', null, texte)), actions ? h('div', { class: 'pf-cons-a' }, actions) : null);
     const sw = (on, label, fn) => h('button', { class: 'pf-sw', type: 'button', role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: fn }, h('span', { class: 'switch' + (on ? ' on' : '') }, h('i')));
     const cons = [];
-    if (d.corps) cons.push(ligne('Coach · données du corps', 'Poids, objectifs, repas · lus à ta question', sw(prefs.coachCorps, 'Partager mes données corps avec le coach', () => savePrefs({ coachCorps: !prefs.coachCorps }).then(() => renderMain()))));
-    if (d.argent) cons.push(ligne('Coach · données d’argent', 'Budget, épargne, projet · lus à ta question', sw(prefs.coachArgent, 'Partager mes données argent avec le coach', () => savePrefs({ coachArgent: !prefs.coachArgent }).then(() => renderMain()))));
-    if (d.entreprise) cons.push(ligne('IA · projet', 'Envoyé seulement si tu lances une recherche', null));
-    if (d.corps) cons.push(ligne('IA · photos de plats', prefs.consentScan ? 'Accordé le ' + fmtD(prefs.consentScan.accepte.slice(0, 10)) + ' · photo montrée avant envoi' : 'Rien n’est envoyé sans ton accord', prefs.consentScan ? h('button', { class: 'btn small text', type: 'button', onclick: () => savePrefs({ consentScan: null }).then(() => { toast('Accord retiré'); renderMain(); }) }, 'Retirer') : null));
+    if (iaOn && d.corps) cons.push(ligne('Coach · données du corps', 'Poids, objectifs, repas · lus à ta question', sw(prefs.coachCorps, 'Partager mes données corps avec le coach', () => savePrefs({ coachCorps: !prefs.coachCorps }).then(() => renderMain()))));
+    if (iaOn && d.argent) cons.push(ligne('Coach · données d’argent', 'Budget, épargne, projet · lus à ta question', sw(prefs.coachArgent, 'Partager mes données argent avec le coach', () => savePrefs({ coachArgent: !prefs.coachArgent }).then(() => renderMain()))));
+    if (iaOn && d.entreprise) cons.push(ligne('IA · projet', 'Envoyé seulement si tu lances une recherche', null));
+    if (iaOn && photoDispo && d.corps) cons.push(ligne('IA · photos de plats', prefs.consentScan ? 'Accordé le ' + fmtD(prefs.consentScan.accepte.slice(0, 10)) + ' · photo montrée avant envoi' : 'Rien n’est envoyé sans ton accord', prefs.consentScan ? h('button', { class: 'btn small text', type: 'button', onclick: () => savePrefs({ consentScan: null }).then(() => { toast('Accord retiré'); renderMain(); }) }, 'Retirer') : null));
     if (d.corps && window.CapPhotos) {
       const ph = window.CapPhotos.reglages();
       const conf = h('div', { class: 'ph-conf', hidden: true }, h('p', { class: 'sub' }, 'Supprimer définitivement tes ' + ph.n + ' photo(s) de progression ? Les fichiers et leurs informations seront effacés. Irréversible.'), h('button', { class: 'btn danger', type: 'button', onclick: () => ph.toutSupprimer() }, 'Tout supprimer définitivement'));
-      cons.push(ligne('Photos de progression', ph.n + ' photo' + (ph.n > 1 ? 's' : '') + ' · ' + (ph.stockage === 'claude' ? 'espace Claude' : 'cet appareil') + ' · jamais à une IA' + (ph.consenti ? '' : ' · conditions non acceptées'),
+      cons.push(ligne('Photos de progression', ph.n + ' photo' + (ph.n > 1 ? 's' : '') + ' · ' + (ph.stockage === 'claude' ? 'espace Claude' : 'cet appareil') + (ph.consenti ? '' : ' · conditions non acceptées'),
         [ph.n ? h('button', { class: 'btn small text', type: 'button', onclick: () => ph.toutTelecharger() }, 'Tout télécharger') : null, ph.consenti ? h('button', { class: 'btn small text', type: 'button', onclick: () => ph.retirerConsentement().then(() => renderMain()) }, 'Retirer l’accord') : null, ph.n ? h('button', { class: 'btn small text danger-t', type: 'button', onclick: () => { conf.hidden = false; } }, 'Supprimer…') : null]), conf);
     }
     return [h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-etat' }, h('h2', { id: 'pf-etat', class: 'pf-h' }, 'État'), etat),
-      h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-conf' }, h('div', { class: 'kt' }, h('h2', { id: 'pf-conf', class: 'pf-h' }, 'Confidentialité et IA'), K ? K.info('Confidentialité et IA', 'Chaque usage a son propre accord. Rien n’est partagé par défaut, et chaque accord se retire ici.') : null), cons)];
+      cons.length ? h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-conf' }, h('div', { class: 'kt' }, h('h2', { id: 'pf-conf', class: 'pf-h' }, iaOn ? 'Confidentialité et IA' : 'Confidentialité'), K ? K.info('Confidentialité', 'Chaque usage a son propre accord. Rien n’est partagé par défaut, et chaque accord se retire ici.') : null), cons) : null];
   }
   function viewReglages(d) {
     const p = d.p; const out = [largeTitle('Profil', ['corps', 'argent', 'entreprise'].filter(m => (p.domaines || []).indexOf(m) >= 0).map(m => ({ corps: 'Corps', argent: 'Argent', entreprise: 'Projet' })[m]).join(' · ') + (p.age ? ' · ' + p.age + ' ans' : ''))];
@@ -1291,6 +1298,8 @@
         row('Risque accepté', lbl([['faible', 'Faible'], ['moyen', 'Moyen'], ['eleve', 'Élevé']], p.risque), 'risque', 'chart', 'var(--ink)'),
         row('Format', lbl([['en_ligne', 'En ligne'], ['local', 'Local'], ['les_deux', 'Les deux']], p.formatPref), 'formatPref', 'home', 'var(--ink)'))));
     }
+    if (window.CapDonnees) out.push(window.CapDonnees.section());
+    const i0 = out.length;
     const sonOn = !!(window.CapSon && window.CapSon.actif());
     const animOn = !!store.get('cap-anim-reduites');
     out.push(section(null, null, h('div', { class: 'cap' }, 'Préférences'), h('div', { class: 'panel flush' },
@@ -1305,12 +1314,12 @@
       h('p', { class: 'sub' }, 'Les calculs sont faits par des formules fixes, testées, jamais par une IA. Ce sont des estimations, pas des garanties. Cap ne remplace ni un médecin ni un conseiller financier.'),
       h('ul', { class: 'calc' }, Object.keys(E.REF.sources).map(k => h('li', { class: 'foot' }, E.REF.sources[k]))))));
     if (window.CapIAUI) { const cs = window.CapIAUI.complementsSection(); if (cs) out.push(cs); }
-    if (window.CapDonnees) out.push(window.CapDonnees.section());
     const OU = { claude: 'Tes données sont dans ton espace Claude privé, synchronisé entre tes appareils connectés à Claude.', cloud: 'Tes données sont dans ton compte Cap (Supabase), protégées par ton identifiant et synchronisées entre tes appareils.', local: 'Sur cet appareil uniquement : exporte-les régulièrement.' };
     out.push(section(null, null, h('div', { class: 'cap' }, 'Données'), h('div', { class: 'panel flush' },
       h('button', { class: 'cell', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { fresh: true }) }, h('span', { class: 'lbl' }, 'Refaire le questionnaire'), icon('chev', 'chev')),
       h('button', { class: 'cell danger', type: 'button', onclick: () => resetAll() }, h('span', { class: 'lbl' }, 'Effacer toutes mes données'))),
       h('p', { class: 'foot muted', style: 'margin:0 16px' }, OU[db ? (db.cloud ? 'cloud' : 'claude') : 'local'])));
+    const reg = plus(out.splice(i0)); if (reg) { reg.querySelector('summary span').textContent = 'Plus de réglages'; out.push(reg); }
     return out;
   }
   function resetAll() {
@@ -1333,7 +1342,7 @@
   // ================================================================ Démarrage
   let booted = false;
   const boot = () => { if (booted) return; booted = true; refresh(); };
-  window.CapUI = { derive: (...a) => derive(...a), viewProgRefresh: () => renderMain(), sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => aller(t), aller: (a, b, c) => aller(a, b, c), lancerSeance: se => lancerSeance(se), reporter: se => reporterSeance(se), seanceDuJour: date => { const d2 = derive(); return d2.prog && d2.prog.ok ? seanceDu(d2.prog, date || dayId()) : null; }, logSeance: se => logSeance(se), cocherAction: async k => { const done = Object.assign({}, S.actions.done || {}); done[k] = !done[k]; try { await put('actions', weekKey(), { done }); S.actions = { done }; toast(done[k] ? 'Action notée comme faite' : 'Action rouverte'); window._keepScroll = true; refresh(); } catch (e) { toast('Échec, réessaie'); } }, segments: (...a) => segments(...a), addMouvement: d2 => addMouvement(d2), refresh: () => { window._keepScroll = true; refresh(); } };
+  window.CapUI = { plus, derive: (...a) => derive(...a), viewProgRefresh: () => renderMain(), sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => aller(t), aller: (a, b, c) => aller(a, b, c), lancerSeance: se => lancerSeance(se), reporter: se => reporterSeance(se), seanceDuJour: date => { const d2 = derive(); return d2.prog && d2.prog.ok ? seanceDu(d2.prog, date || dayId()) : null; }, logSeance: se => logSeance(se), cocherAction: async k => { const done = Object.assign({}, S.actions.done || {}); done[k] = !done[k]; try { await put('actions', weekKey(), { done }); S.actions = { done }; toast(done[k] ? 'Action notée comme faite' : 'Action rouverte'); window._keepScroll = true; refresh(); } catch (e) { toast('Échec, réessaie'); } }, segments: (...a) => segments(...a), addMouvement: d2 => addMouvement(d2), refresh: () => { window._keepScroll = true; refresh(); } };
   // Lecture de toutes les données, quel que soit le stockage (export, migration)
   async function snapshotData() {
     const colls = window.CapSync ? window.CapSync.COLLS : Object.keys(mem), out = {};

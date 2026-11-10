@@ -110,7 +110,7 @@ async function ouvrir(b, mem, opts) {
   await pg.fill('#p-note', 'Repas salé hier'); await pg.click('.sheet .btn:has-text("Enregistrer")'); await pg.waitForTimeout(400);
   await aller(pg, 'Progrès');
   const pr = await pg.$eval('main', e => e.textContent);
-  T('Progression : mesuré, nombre de mesures et date affichés ; tendance non inventée avec 1 pesée', pr.includes('Mesuré') && pr.includes('1 pesée depuis') && pr.includes('Pas encore calculable'), pr.slice(0, 300));
+  T('Progression : mesuré, nombre de mesures et date affichés ; tendance non inventée avec 1 pesée', pr.includes('Pesée du') && pr.includes('1 pesée depuis') && pr.includes('Pas encore calculable'), pr.slice(0, 300));
   T('pesée : note conservée', pr.includes('Repas salé hier'));
 
   // ---------- Photos v1 → migration à l'ouverture, sans perte ----------
@@ -123,11 +123,13 @@ async function ouvrir(b, mem, opts) {
   // ---------- Profil : consentements séparés, retrait, réduction des animations ----------
   await aller(pg, 'Profil');
   const pf = await pg.$eval('main', e => e.textContent);
-  T('Profil : état (données, connexion, IA) et consentements séparés', pf.includes('Tes données') && pf.includes('Connexion') && pf.includes('Coach · données du corps') && pf.includes('IA · photos de plats') && pf.includes('Photos de progression'));
+  T('Profil sans IA disponible : état (données, connexion), photos privées, aucune ligne IA', pf.includes('Tes données') && pf.includes('Connexion') && pf.includes('Photos de progression') && !pf.includes('Coach · données du corps') && !pf.includes('IA · photos de plats'), pf.slice(0, 400));
   await pg.click('button[role=switch]:has-text("Réduire les animations")'); await pg.waitForTimeout(200);
   T('réglage interne « Réduire les animations » appliqué', await pg.evaluate(() => document.documentElement.classList.contains('anim-reduites')));
-  await pg.click('main button[aria-label="Partager mes données corps avec le coach"]'); await pg.waitForTimeout(300);
-  T('consentement coach corps activable depuis Profil', await pg.evaluate(() => JSON.parse(localStorage.getItem('cap-local')).prefs.main.coachCorps === true));
+  await aller(pg, 'Aujourd’hui'); await pg.click('button[aria-label="Ouvrir le coach"]'); await pg.waitForTimeout(300);
+  await pg.click('.sheet .coach-sw:has-text("Corps")'); await pg.waitForTimeout(300);
+  await pg.click('.sheet .close, .sheet button[aria-label="Fermer"]').catch(() => {}); await pg.waitForTimeout(250);
+  T('consentement coach corps activable depuis le coach', await pg.evaluate(() => JSON.parse(localStorage.getItem('cap-local')).prefs.main.coachCorps === true));
 
   // ---------- Questionnaire : pourquoi cette question ----------
   pg = await ouvrir(b, {});

@@ -31,14 +31,15 @@
     if (choisi) out.push(...planView(d));
     else {
       const K = window.CapKit;
-      out.push(h('p', { class: 'pj-intro v2' }, tag('calcul'), h('span', { 'aria-hidden': 'true' }, ' Classé par les règles de Cap'), h('span', { class: 'sr' }, ' Classement calculé par les règles de Cap à partir de tes réponses.'), K ? K.info('Origine du classement', ['Classement calculé par les règles de Cap à partir de tes réponses.', 'Prix, demande et temps de prospection sont des hypothèses de départ, pas une étude de ton marché.']) : null));
+      const infoClass = K ? K.info('Origine du classement', ['Classement calculé par les règles de Cap à partir de tes réponses.', 'Prix, demande et temps de prospection sont des hypothèses de départ, pas une étude de ton marché.']) : null;
       out.push(contraintes(d));
       if (PB) out.push(h('button', { class: 'pj-exist v2', type: 'button', onclick: () => PB.declarerExistant(d) }, U().icon('building'), h('span', null, 'J’ai déjà une activité'), U().icon('chev', 'chev')));
       r.notes.forEach(n => out.push(h('div', { class: 'alert info' }, U().icon('info'), h('div', null, h('p', null, n)))));
       if (!r.top.length) out.push(h('div', { class: 'vide' }, h('p', null, 'Aucune activité du catalogue n’est compatible avec ton capital, ton temps et ton âge. Les raisons sont détaillées plus bas : souvent, quelques dizaines d’euros ou une heure de plus par semaine suffisent.')));
-      else out.push(h('section', { class: 'pj-opts', 'aria-labelledby': 'pj-opts-t' }, h('h2', { id: 'pj-opts-t', class: 'td-h' }, 'Tes 3 options'), r.top.map((x, i) => carte(x, d, i === 0))));
+      else out.push(h('section', { class: 'pj-opts', 'aria-labelledby': 'pj-opts-t' }, h('div', { class: 'kt' }, h('h2', { id: 'pj-opts-t', class: 'td-h' }, 'Tes 3 options'), infoClass), h('p', { class: 'sr' }, 'Classement calculé par les règles de Cap à partir de tes réponses.'), r.top.map((x, i) => carte(x, d, i === 0))));
     }
     if (window.CapIAUI) out.push(...window.CapIAUI.businessPanel(d));
+    const i0 = out.length;
     if (choisi && r.top.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Autres options du classement'), r.top.map((x, i) => carte(x, d, false))));
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Comment le classement est calculé'), h('ol', { class: 'calc' }, [
       'Filtres : âge légal, diplôme obligatoire, budget de départ (matériel manquant et 2 mois de charges compris), heures minimales.',
@@ -49,6 +50,7 @@
     if (r.ecartes.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Activités écartées (' + r.ecartes.length + ')'), h('p', { class: 'foot muted' }, 'Avec la raison exacte. Si tes réponses changent, le classement est recalculé.'),
       h('ul', { class: 'td-liste' }, r.ecartes.map(x => h('li', { class: 'pj-ecart' }, h('b', null, x.nom), h('small', null, STATUT[x.statut] + ' · ' + x.raisons.join(' '))))),
       h('div', { class: 'ia-actions' }, h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('capital') }, 'Modifier mon capital'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('heuresProjet') }, 'Modifier mes heures'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => editStep('competences') }, 'Modifier mes compétences'))));
+    out.push(U().plus(out.splice(i0)));
     return out;
   }
 
@@ -59,8 +61,8 @@
       h('div', { class: 'pj-opt-h' }, K ? K.anneau({ valeur: x.score, max: 100, label: 'Score', texte: String(x.score), centre: String(x.score), couleur: fort ? 'var(--projet, #5B4BDB)' : 'var(--ink-2)', taille: 48, epaisseur: 5, cls: 'pj-an' }) : null,
         h('div', { class: 'pj-opt-t' }, h('h3', null, x.rang + '. ' + x.nom), h('p', { class: 'pj-cible' }, m.client))),
       h('div', { class: 'pj-kpi' },
-        h('div', null, h('small', null, 'Départ ', tag('calcul')), h('b', { class: 'num' }, eur(x.budget))),
-        h('div', null, h('small', null, x.preparation ? 'Ventes' : '6e mois ', x.preparation ? null : tag('prevision')), h('b', { class: 'num', 'aria-label': x.preparation ? null : eur(x.net6) + ' net au 6e mois, scénario médian' }, x.preparation ? 'Pas avant 16 ans' : eur(x.net6) + ' net'))),
+        h('div', null, h('small', null, 'Départ'), h('b', { class: 'num' }, eur(x.budget))),
+        h('div', null, h('small', null, x.preparation ? 'Ventes' : 'Prévu au 6e mois'), h('b', { class: 'num', 'aria-label': x.preparation ? null : eur(x.net6) + ' net au 6e mois, scénario médian' }, x.preparation ? 'Pas avant 16 ans' : eur(x.net6) + ' net'))),
       h('details', { class: 'pj-pq' }, h('summary', null, 'Détails'), h('p', { class: 'foot' }, m.probleme), h('p', { class: 'foot' }, h('b', null, 'Offre : '), m.offre), x.preparation ? null : h('p', { class: 'foot muted' }, 'Net au 6e mois : scénario médian, avant impôt.'), h('p', { class: 'foot muted' }, h('b', null, 'Pourquoi ce rang : '), x.explication)),
       h('button', { class: 'btn ' + (choisi ? 'secondary' : fort ? 'pj-go' : 'secondary'), type: 'button', disabled: choisi ? true : null, onclick: () => choisir(x.id, d) }, choisi ? 'Activité choisie' : 'Choisir cette activité'));
   }
@@ -90,8 +92,8 @@
     // 2. Première vente
     const pv = A && A.ok ? A.taches.find(t => t.id === 'premiere_vente') : null;
     out.push(h('section', { class: 'pj-vente', 'aria-labelledby': 'pj-v' }, h('h2', { id: 'pj-v', class: 'td-h' }, 'Première vente'),
-      ventes.length ? h('p', null, tag('observe'), ' ' + eur(ventes[ventes.length - 1].montant) + ' encaissés le ' + fmtD(ventes[ventes.length - 1].date) + '. ' + ventes.length + ' vente' + (ventes.length > 1 ? 's' : '') + ' au total.')
-        : h('p', null, tag('prevision'), pv ? ' Visée : jour ' + pv.jourFin + ' du plan · rien encaissé' : ' Rien n’est encore encaissé.', pv ? h('span', { class: 'sr' }, ' (si les tâches avancent au rythme de ' + A.heuresSemaine + ' h par semaine)') : null),
+      ventes.length ? h('p', null, eur(ventes[ventes.length - 1].montant) + ' encaissés le ' + fmtD(ventes[ventes.length - 1].date) + '. ' + ventes.length + ' vente' + (ventes.length > 1 ? 's' : '') + ' au total.')
+        : h('p', null, pv ? 'Visée : jour ' + pv.jourFin + ' du plan · rien encaissé' : 'Rien n’est encore encaissé.', pv ? h('span', { class: 'sr' }, ' (si les tâches avancent au rythme de ' + A.heuresSemaine + ' h par semaine)') : null),
       h('button', { class: 'btn secondary', type: 'button', onclick: () => vente() }, 'Enregistrer une vente')));
     if (PB) out.push(PB.panneau(d));
     // 3. Plan d'action
@@ -104,7 +106,8 @@
         phases.map(ph => { const ts = A.taches.filter(t => t.phase === ph[0]); if (!ts.length) return null; return h('details', { class: 'pg-det', open: ph[0] === '30' ? true : null }, h('summary', null, ph[1] + ' (' + ts.length + ')'), h('ul', { class: 'td-liste' }, ts.map(t => h('li', { class: 'pj-tl' + (t.fait ? ' fait' : '') }, h('button', { class: 'pj-cb', type: 'button', role: 'checkbox', 'aria-checked': String(t.fait), 'aria-label': (t.fait ? 'Rouvrir : ' : 'Terminer : ') + t.titre, disabled: !t.fait && !finOk(t) ? true : null, onclick: () => cocher(t) }, h('span', { class: 'pj-coche', 'aria-hidden': 'true' })), h('button', { class: 'pj-tache' + (t.fait ? ' fait' : ''), type: 'button', onclick: () => detail(t) }, h('span', { class: 'td-l' }, h('b', null, t.titre), h('small', null, (t.fait ? 'Fait' + (t.faitLe ? ' le ' + fmtD(t.faitLe) : '') : 'Jours ' + t.jourDebut + ' à ' + t.jourFin + ' · ' + t.heures + ' h') + ' · Réussi si : ' + t.critere + (t.deps.length && !t.fait ? ' · Après : ' + t.deps.map(nomDe).join(', ') : '')))))))); })));
     }
     if (PB) { out.push(PB.journal(d)); out.push(h('button', { class: 'btn secondary', type: 'button', onclick: () => PB.comparateur(d) }, 'Comparer des fournisseurs')); }
-    // 4. Chiffres (repliés), chacun avec son statut
+    // 4. Chiffres et compléments, regroupés sous une seule ligne
+    const i0 = out.length;
     const mois = [1, 3, 6, 12];
     const ligne = (nom, sc) => h('li', { class: 'pr-jalon' }, h('span', null, nom, h('small', { class: 'muted' }, ' · 12 mois : ' + eur(sc.total12))), h('span', { class: 'num pj-mois' }, mois.map(i => { const x = sc.mois[i - 1]; return 'M' + i + ' ' + eur(x.net) + (x.type === 'observe' ? '*' : ''); }).join(' · ')));
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Chiffres de l’activité'),
@@ -116,6 +119,7 @@
       ventes.length ? h('ul', { class: 'td-liste' }, ventes.map(v => h('li', { class: 'pr-jalon' }, h('span', null, fmtD(v.date) + (v.note ? ' · ' + v.note : '')), h('b', { class: 'num pos' }, eur(v.montant))))) : null));
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Légalité et formalités'), P.formalites.map(f => h('p', { class: 'sub' }, f))));
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Risques et validation de la demande'), P.risques.map(f => h('p', { class: 'sub' }, f)), h('p', { class: 'sub' }, h('b', null, 'Avant d’investir : '), P.validation)));
+    out.push(U().plus(out.splice(i0)));
     return out;
   }
   async function cocher(t) {
