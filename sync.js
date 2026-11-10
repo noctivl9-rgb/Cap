@@ -8,10 +8,10 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const FORMAT = 1;
-  const COLLS = ['profil', 'pesees', 'repas', 'epargne', 'seances', 'actions', 'prefs', 'aliments', 'recettes', 'photos', 'historique', 'taches', 'ventes', 'programmes', 'opportunites', 'depenses', 'fournisseurs', 'decisions', 'operations'];
+  const COLLS = ['profil', 'pesees', 'repas', 'epargne', 'seances', 'actions', 'prefs', 'aliments', 'recettes', 'photos', 'historique', 'taches', 'ventes', 'programmes', 'opportunites', 'depenses', 'fournisseurs', 'decisions', 'operations', 'conversations'];
   // Photos : fichiers stockés dans l'espace Claude, non transférables ; seules leurs fiches voyagent.
   const NON_TRANSFERABLES = ['photos'];
-  const NOMS = { profil: 'profil', pesees: 'pesées', repas: 'jours de journal', epargne: 'mouvements d’épargne', seances: 'séances', actions: 'semaines d’actions', prefs: 'préférences', aliments: 'aliments perso', recettes: 'recettes', photos: 'photos', historique: 'anciennes versions du profil', taches: 'tâches du plan d’action', ventes: 'ventes', programmes: 'programmes générés par IA', opportunites: 'recherches d’activités par IA', depenses: 'dépenses du projet', fournisseurs: 'comparaisons de fournisseurs', decisions: 'décisions et blocages du projet', operations: 'opérations de budget personnel' };
+  const NOMS = { profil: 'profil', pesees: 'pesées', repas: 'jours de journal', epargne: 'mouvements d’épargne', seances: 'séances', actions: 'semaines d’actions', prefs: 'préférences', aliments: 'aliments perso', recettes: 'recettes', photos: 'photos', historique: 'anciennes versions du profil', taches: 'tâches du plan d’action', ventes: 'ventes', programmes: 'programmes générés par IA', opportunites: 'recherches d’activités par IA', depenses: 'dépenses du projet', fournisseurs: 'comparaisons de fournisseurs', decisions: 'décisions et blocages du projet', operations: 'opérations de budget personnel', conversations: 'conversation avec le coach' };
 
   const NOMS1 = { profil: 'profil', pesees: 'pesée', repas: 'jour de journal', epargne: 'mouvement d’épargne', seances: 'séance', actions: 'semaine d’actions', prefs: 'préférences', aliments: 'aliment perso', recettes: 'recette', photos: 'photo', historique: 'ancienne version du profil', taches: 'tâche du plan d’action', ventes: 'vente', programmes: 'programme généré par IA', opportunites: 'recherche d’activités par IA' };
   const libelle = (c, n) => n + ' ' + (n === 1 ? NOMS1[c] : NOMS[c]);

@@ -51,8 +51,8 @@
 
   // ================================================================ Données (db ou mémoire)
   let db = null;
-  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [], taches: {}, ventes: [], programmes: [], opportunites: [], depenses: [], fournisseurs: [], decisions: [], operations: [] };
-  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {}, taches: {}, ventes: {}, programmes: {}, opportunites: {}, depenses: {}, fournisseurs: {}, decisions: {}, operations: {} };
+  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [], taches: {}, ventes: [], programmes: [], opportunites: [], depenses: [], fournisseurs: [], decisions: [], operations: [], conversations: [] };
+  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {}, taches: {}, ventes: {}, programmes: {}, opportunites: {}, depenses: {}, fournisseurs: {}, decisions: {}, operations: {}, conversations: {} };
   async function put(coll, id, data) {
     if (db) return db.collection(coll).doc(id).set(data);
     mem[coll][id] = data; store.set('cap-local', mem); syncMem(); return Promise.resolve();
@@ -75,7 +75,7 @@
     S.ventes = Object.keys(mem.ventes).map(id => Object.assign({ id }, mem.ventes[id]));
     S.programmes = Object.keys(mem.programmes).map(id => Object.assign({ id }, mem.programmes[id]));
     S.opportunites = Object.keys(mem.opportunites).map(id => Object.assign({ id }, mem.opportunites[id]));
-    ['depenses', 'fournisseurs', 'decisions', 'operations'].forEach(c => { S[c] = Object.keys(mem[c]).map(id => Object.assign({ id }, mem[c][id])); });
+    ['depenses', 'fournisseurs', 'decisions', 'operations', 'conversations'].forEach(c => { S[c] = Object.keys(mem[c]).map(id => Object.assign({ id }, mem[c][id])); });
     refresh();
   }
   // Adaptation sans perte : chaque version remplacée du profil est gardée dans « historique »
@@ -1057,6 +1057,8 @@
       h('p', { class: 'ag-sous' }, mv.length ? 'Épargne de départ déclarée + ' + mv.length + ' mouvement' + (mv.length > 1 ? 's' : '') + ' noté' + (mv.length > 1 ? 's' : '') + '.' : 'Épargne de départ déclarée. Note chaque somme mise de côté pour suivre le réel.'),
       h('div', { class: 'ag-etape' }, h('div', { class: 'ag-etape-l' }, h('span', null, 'Étape en cours : ' + n.intermediaire.titre), h('b', { class: 'num' }, Math.round(pct * 100) + ' %')), h('div', { class: 'jr-jauge ag', role: 'img', 'aria-label': eur(Math.max(0, f.actuelle)) + ' sur ' + eur(n.intermediaire.montant) }, h('i', { style: 'width:' + pct * 100 + '%' })), h('small', null, eur(Math.max(0, f.actuelle)) + ' sur ' + eur(n.intermediaire.montant))),
       mv.length ? h('ul', { class: 'td-liste ag-mv' }, mv.slice(0, 3).map(m => h('li', { class: 'pr-jalon' }, h('span', null, m.note || (m.montant >= 0 ? 'Mis de côté' : 'Retiré'), h('small', { class: 'muted' }, ' · ' + fmtD(m.date))), h('b', { class: 'num ' + (m.montant >= 0 ? 'pos' : 'neg') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant)))))) : null));
+    // 2 bis. Ce mois-ci : opérations réelles saisies (aucune connexion bancaire)
+    if (window.CapFinances) out.push(sectionMois(d));
     // 3. Projection
     const fz = { atteint: 'Objectif atteint.', atteignable: 'Atteignable pour ' + p.reveAnnee + ' si ta capacité actuelle se maintient.', ecart: 'Il manquerait ' + eur(f.ecartMensuel) + ' par mois pour ' + p.reveAnnee + '.', impossible_en_l_etat: 'Aucune date calculable en l’état.' }[f.faisabilite];
     out.push(h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-proj' }, h('h2', { id: 'ag-proj', class: 'ag-h' }, h('span', { class: 'tag calc' }, 'Projection'), ' Si rien ne change'),
@@ -1083,6 +1085,54 @@
     if (imp.length) out.push(h('details', { class: 'pg-det', open: true }, h('summary', null, 'À vérifier'), imp.map(i => issueView(i, champ => editStep(STEP_BY_FIELD[champ] || champ)))));
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Historique des mouvements (' + mv.length + ')'), mv.length ? h('ul', { class: 'td-liste' }, mv.map(m => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, m.note || (m.montant >= 0 ? 'Mis de côté' : 'Retiré')), h('small', null, fmtD(m.date))), h('b', { class: 'num ' + (m.montant >= 0 ? 'pos' : 'neg') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer le mouvement du ' + fmtD(m.date), onclick: () => confirmDel(() => remove('epargne', m.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucun mouvement noté.')));
     return out;
+  }
+  // Montants réels : au centime près quand il y a des centimes
+  const ec = v => (Math.round(v * 100) % 100 ? (Math.round(v * 100) / 100).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €' : eur(v));
+  function sectionMois(d) {
+    const F = window.CapFinances, m0 = dayId().slice(0, 7), p = d.p;
+    const budget = (Number(p.fixes) || 0) + (Number(p.variables) || 0);
+    const m = F.mois(S.operations, m0, budget || undefined);
+    const nomMois = new Date(m0 + '-15T12:00').toLocaleDateString('fr-FR', { month: 'long' });
+    const ops = S.operations.filter(o => F.valider(o).length === 0).sort((a, b) => b.date.localeCompare(a.date));
+    return h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-mois' },
+      h('div', { class: 'bp-h' }, h('h2', { id: 'ag-mois', class: 'ag-h' }, h('span', { class: 'tag mesure' }, 'Réel'), ' ' + nomMois.charAt(0).toUpperCase() + nomMois.slice(1)), h('button', { class: 'btn small secondary', type: 'button', onclick: () => addOperation(d) }, icon('plus'), 'Opération')),
+      m.nb ? [
+        h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Dépensé'), h('span', { class: 'pr-v' }, h('b', { class: 'num' }, ec(m.depenses)), budget ? ' sur ' + ec(budget) + ' de budget déclaré' : '')),
+        m.revenus ? h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Reçu'), h('span', { class: 'pr-v' }, h('b', { class: 'num pos' }, ec(m.revenus)), ' · solde ' + (m.solde >= 0 ? '+' : '−') + ec(Math.abs(m.solde)))) : null,
+        m.top ? h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Plus gros poste'), h('span', { class: 'pr-v' }, m.top.nom + ' : ' + ec(m.top.montant) + (m.depenses ? ' (' + Math.round(m.top.montant / m.depenses * 100) + ' %)' : ''))) : null,
+        h('ul', { class: 'fi-cats' }, m.classement.map(c => h('li', null, h('span', null, c.nom), h('i', { class: 'jr-barre', 'aria-hidden': 'true' }, h('i', { style: 'width:' + (c.montant / m.classement[0].montant * 100) + '%' })), h('b', { class: 'num' }, ec(c.montant))))),
+        m.alertes.map(a => h('div', { class: 'ag-alerte', role: 'note' }, h('p', null, a)))]
+        : h('p', { class: 'foot muted' }, 'Aucune opération saisie ce mois-ci. Note tes dépenses au fil de l’eau : Cap te dira où part ton argent, sans connexion à ta banque.'),
+      ops.length ? h('details', { class: 'pg-det' }, h('summary', null, 'Historique des opérations (' + ops.length + ')'), h('ul', { class: 'td-liste' }, ops.slice(0, 60).map(o => h('li', { class: 'pg-log' },
+        h('button', { class: 'td-l fi-op', type: 'button', onclick: () => addOperation(d, o), 'aria-label': 'Modifier ' + (o.note || F.NOM[o.categorie]) + ' du ' + fmtD(o.date) }, h('b', null, o.note || F.NOM[o.categorie]), h('small', null, fmtD(o.date) + ' · ' + F.NOM[o.categorie])),
+        h('b', { class: 'num ' + (o.sens === 'revenu' ? 'pos' : '') }, (o.sens === 'revenu' ? '+' : '−') + ec(o.montant)),
+        h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer l’opération du ' + fmtD(o.date), onclick: () => confirmDel(() => remove('operations', o.id)) }, icon('trash')))))) : null);
+  }
+  function addOperation(d, ex) {
+    const F = window.CapFinances;
+    const A = { sens: ex ? ex.sens : 'depense', categorie: ex ? ex.categorie : null };
+    const mt = h('input', { id: 'op-m', type: 'number', inputmode: 'decimal', min: '0', step: '0.01', value: ex ? String(ex.montant) : '' });
+    const note = h('input', { id: 'op-n', maxlength: '60', value: ex && ex.note ? ex.note : '', placeholder: 'Facultatif' });
+    const dt = h('input', { id: 'op-d', type: 'date', value: ex ? ex.date : dayId(), max: dayId() });
+    const err = h('div', { class: 'err', role: 'alert' });
+    const catZone = h('div');
+    const ctx = { A, onChange: [], changed() { dessinerCats(); } };
+    let derSens = A.sens;
+    function dessinerCats() {
+      if (derSens !== A.sens) { A.categorie = null; derSens = A.sens; }
+      catZone.textContent = '';
+      catZone.appendChild(h('div', { class: 'field' }, 'Catégorie', choices({ A, onChange: [], changed() {} }, 'categorie', (A.sens === 'revenu' ? F.REVENUS : F.CATEGORIES).map(c => ({ v: c[0], t: c[1] })), { grid: true })));
+    }
+    let close;
+    const save = h('button', { class: 'btn', type: 'button', onclick: async () => {
+      const o = { date: dt.value, sens: A.sens, montant: Math.round(Number(mt.value) * 100) / 100, categorie: A.categorie };
+      if (note.value.trim()) o.note = note.value.trim().slice(0, 60);
+      const e = F.valider(o); if (e.length) { err.textContent = e.join(' '); return; }
+      save.disabled = true;
+      try { await put('operations', ex ? ex.id : uid(), o); close(); toast(ex ? 'Opération modifiée' : 'Opération enregistrée'); } catch (e2) { err.textContent = 'Échec, réessaie.'; save.disabled = false; }
+    } }, ex ? 'Enregistrer la modification' : 'Enregistrer');
+    close = sheet(ex ? 'Modifier l’opération' : 'Nouvelle opération', [h('div', { class: 'field' }, 'Type', choices(ctx, 'sens', [{ v: 'depense', t: 'Dépense' }, { v: 'revenu', t: 'Revenu' }], { grid: true })), h('label', { class: 'field', for: 'op-m' }, 'Montant (€)', mt), catZone, h('label', { class: 'field', for: 'op-n' }, 'Détail', note), h('label', { class: 'field', for: 'op-d' }, 'Date', dt), err, save], { focus: false });
+    dessinerCats();
   }
   function moneyChart(d) {
     const f = d.fin, p = d.p;
@@ -1246,7 +1296,7 @@
           const jobs = [];
           S.pesees.forEach(r => jobs.push(remove('pesees', r.id))); S.epargne.forEach(r => jobs.push(remove('epargne', r.id))); S.seances.forEach(r => jobs.push(remove('seances', r.id)));
           Object.keys(S.journaux).forEach(k => jobs.push(remove('repas', k))); jobs.push(remove('actions', weekKey())); jobs.push(remove('prefs', 'main'));
-          Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.programmes.forEach(x => jobs.push(remove('programmes', x.id))); S.opportunites.forEach(x => jobs.push(remove('opportunites', x.id))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id))); ['depenses', 'fournisseurs', 'decisions', 'operations'].forEach(c => S[c].forEach(x => jobs.push(remove(c, x.id))));
+          Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.programmes.forEach(x => jobs.push(remove('programmes', x.id))); S.opportunites.forEach(x => jobs.push(remove('opportunites', x.id))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id))); ['depenses', 'fournisseurs', 'decisions', 'operations', 'conversations'].forEach(c => S[c].forEach(x => jobs.push(remove(c, x.id))));
           S.perso.forEach(r => jobs.push(remove('aliments', r.id))); S.recettes.forEach(r => jobs.push(remove('recettes', r.id)));
           if (window.CapDonnees) jobs.push(window.CapUI.snapshotData().then(d => Promise.all(Object.keys(d.historique || {}).map(id => remove('historique', id)))));
           S.photos.forEach(r => { jobs.push(remove('photos', r.id)); if (window.CapPhotos) jobs.push(window.CapPhotos.supprimerFichier(r)); else if (window.CapJournal) jobs.push(window.CapJournal.supprimerAsset(r.assetId)); });
@@ -1258,7 +1308,7 @@
   // ================================================================ Démarrage
   let booted = false;
   const boot = () => { if (booted) return; booted = true; refresh(); };
-  window.CapUI = { derive: (...a) => derive(...a), viewProgRefresh: () => renderMain(), sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => aller(t), aller: (a, b, c) => aller(a, b, c), lancerSeance: se => lancerSeance(se), seanceDuJour: date => { const d2 = derive(); return d2.prog && d2.prog.ok ? seanceDu(d2.prog, date || dayId()) : null; }, logSeance: se => logSeance(se), cocherAction: async k => { const done = Object.assign({}, S.actions.done || {}); done[k] = !done[k]; try { await put('actions', weekKey(), { done }); S.actions = { done }; toast(done[k] ? 'Action notée comme faite' : 'Action rouverte'); window._keepScroll = true; refresh(); } catch (e) { toast('Échec, réessaie'); } }, segments: (...a) => segments(...a), addMouvement: d2 => addMouvement(d2), refresh: () => { window._keepScroll = true; refresh(); } };
+  window.CapUI = { derive: (...a) => derive(...a), viewProgRefresh: () => renderMain(), sparkle, nombre, derniers, h, add, icon, fr, eur, kg, wfmt, unite, LB, dayId, fmtD, weekKey, toast, sheet, Ruler, choices, money, cellKV, largeTitle: (...a) => largeTitle(...a), section: (...a) => section(...a), howBtn: (...a) => howBtn(...a), issueView, confirmDel, addPesee: () => addPesee(), editStep, startOnboarding, missingSteps, editerObjectifs, derive, put, remove, saveProfil, savePrefs, uid, S, STEP_BY_FIELD, has, reduced, vib, db: () => db, store, snapshotData: () => snapshotData(), modeDonnees: () => (db ? (db.cloud ? 'cloud' : 'claude') : 'local'), setTab: t => aller(t), aller: (a, b, c) => aller(a, b, c), lancerSeance: se => lancerSeance(se), reporter: se => reporterSeance(se), seanceDuJour: date => { const d2 = derive(); return d2.prog && d2.prog.ok ? seanceDu(d2.prog, date || dayId()) : null; }, logSeance: se => logSeance(se), cocherAction: async k => { const done = Object.assign({}, S.actions.done || {}); done[k] = !done[k]; try { await put('actions', weekKey(), { done }); S.actions = { done }; toast(done[k] ? 'Action notée comme faite' : 'Action rouverte'); window._keepScroll = true; refresh(); } catch (e) { toast('Échec, réessaie'); } }, segments: (...a) => segments(...a), addMouvement: d2 => addMouvement(d2), refresh: () => { window._keepScroll = true; refresh(); } };
   // Lecture de toutes les données, quel que soit le stockage (export, migration)
   async function snapshotData() {
     const colls = window.CapSync ? window.CapSync.COLLS : Object.keys(mem), out = {};
@@ -1305,7 +1355,7 @@
     live('ventes', v => { S.ventes = v.filter(x => x.date && typeof x.montant === 'number'); });
     live('programmes', v => { S.programmes = v.filter(x => x.date && x.brut); });
     live('opportunites', v => { S.opportunites = v.filter(x => x.date); });
-    ['depenses', 'fournisseurs', 'decisions', 'operations'].forEach(c => live(c, v => { S[c] = v.filter(x => x && x.date); }));
+    ['depenses', 'fournisseurs', 'decisions', 'operations', 'conversations'].forEach(c => live(c, v => { S[c] = v.filter(x => x && x.date); }));
     db.doc('prefs/main').onSnapshot(s => { S.prefs = Object.assign({ favoris: [] }, s.exists ? s.data() : {}); if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
     db.collection('actions').doc(weekKey()).onSnapshot(s => { S.actions = s.exists ? s.data() : { done: {} }; if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
   }

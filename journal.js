@@ -77,7 +77,7 @@
     const out = [], t = today();
     if (jour > t) jour = t;
     const S0 = S();
-    const right = h('button', { class: 'round press jr-coach', type: 'button', 'aria-label': 'Coach', onclick: () => J.coach(d) }, icon('chat'));
+    const right = null; // le coach est dans l'en-tête de Corps
     out.push(U.largeTitle(jour === t ? 'Journal' : (jour === shift(t, -1) ? 'Hier' : fr(new Date(jour + 'T12:00').getDate()) + ' ' + new Date(jour + 'T12:00').toLocaleDateString('fr-FR', { month: 'long' })), longDate(jour), right));
     out.push(h('h2', { class: 'jr-jour' }, jour === t ? 'Aujourd’hui' : jour === shift(t, -1) ? 'Hier' : longDate(jour)));
     if (d.corps) out.push(bandeSemaine(d));
@@ -694,6 +694,7 @@
     if (k === 'eau') { const j = journal(jour); j.eauMl += 250; return saveJournal(jour, j).then(() => U.toast('+250 ml'), () => U.toast('Échec, réessaie')); }
   };
   J.budgetDuJour = d => budget(d, today());
+  J.contexte = d => contexteCoach(d);
   J.poidsActuel = () => poidsActuel();
   window.CapJournal = J;
 })();

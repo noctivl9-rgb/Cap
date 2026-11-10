@@ -230,8 +230,10 @@ const out = __dirname + '/out/v3-';
   await shot('photos');
   // Coach
   await nav('Journal');
-  await pg.click('button[aria-label="Coach"]'); await pg.waitForTimeout(300);
-  await pg.click(lastSheet + ' button[role="switch"]:has-text("corps")'); await pg.waitForTimeout(300);
+  await pg.click('button[aria-label="Ouvrir le coach"]'); await pg.waitForTimeout(300);
+  await pg.click(lastSheet + ' .coach-sw:has-text("Corps")'); await pg.waitForTimeout(300);
+  await pg.click(lastSheet + ' .chip-btn:has-text("protéines")'); await pg.waitForTimeout(200);
+  T('coach : question rapide répondue par Cap à partir des données (protéines restantes)', /Il te reste [\d,]+ g de protéines/.test(await sheetTxt()) && (await sheetTxt()).includes('Calculé par Cap'));
   await pg.fill('#coach-q', 'Pourquoi 2 500 ?'); await pg.click(lastSheet + ' .btn:has-text("Envoyer")'); await pg.waitForTimeout(400);
   T('coach : réponse affichée', (await sheetTxt()).includes('Selon ton contexte'));
   await shot('coach');

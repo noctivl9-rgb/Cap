@@ -89,6 +89,26 @@
       const turns = [{ role: 'user', content: regles }, { role: 'assistant', content: 'Compris. Je m’appuie uniquement sur ce contexte.' }].concat(historique, [{ role: 'user', content: question }]);
       return sample(turns, { cache: false, onText: opts.onText, signal: opts.signal });
     },
+    // Outils disponibles ? (capacité sample avec « tools », dans l'appli Claude seulement)
+    outilsDispo() { return !!(sample && limits && limits.tools); },
+    // Coach avec outils : l'IA lit les données via les fonctions de coach.js (consentements appliqués dans chaque outil)
+    async coachOutils(question, historique, T, opts) {
+      opts = opts || {};
+      const tools = Object.keys(T).map(nom => ({ name: nom, description: T[nom].description, inputSchema: T[nom].schema || { type: 'object', properties: {} },
+        execute: async input => { if (opts.onOutil) opts.onOutil(nom); return T[nom].run(input || {}); } }));
+      const regles = ['Tu es le coach de l’application Cap. Réponds en français, en 2 à 6 phrases, avec des actions concrètes.',
+        'Règles absolues :',
+        '1. Utilise les outils pour lire les données. N’invente AUCUN chiffre, aucune donnée absente, aucune source : si un outil renvoie « refus » ou « erreur », dis-le simplement et explique comment l’autoriser ou compléter.',
+        '2. Les calculs viennent des outils (Cap) ; tu les expliques, tu ne les recalcules pas autrement.',
+        '3. Pour modifier un plan, utilise proposePlanAdjustment : rien n’est modifié sans l’accord de l’utilisateur. Dis-lui qu’une proposition l’attend.',
+        '4. Business : jamais de promesse de revenus ; ne conseille pas de dépenser davantage quand des dépenses n’ont rien rapporté ; identifie les informations manquantes.',
+        '5. Santé : douleur vive, thoracique, malaise ou trouble alimentaire → orienter vers un professionnel. Tu n’es ni médecin ni conseiller financier.',
+        '6. Sources : uniquement celles de searchVerifiedSources, avec leur date.'].join('\n');
+      const turns = [{ role: 'user', content: regles }, { role: 'assistant', content: 'Compris.' }].concat(historique.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })), [{ role: 'user', content: question }]);
+      // Tours alternés obligatoires : on fusionne deux messages consécutifs du même rôle
+      const fus = []; turns.forEach(t => { if (fus.length && fus[fus.length - 1].role === t.role) fus[fus.length - 1].content += '\n' + t.content; else fus.push(Object.assign({}, t)); });
+      return sample(fus, { tools, onText: opts.onText, signal: opts.signal, modelTier: 'default' });
+    },
     erreur(e) {
       const c = e && e.code;
       return ({
@@ -97,6 +117,8 @@
         cancelled: 'Analyse arrêtée.',
         images_unavailable: 'L’analyse photo n’est pas disponible ici.',
         image_rejected: 'Photo refusée (format ou taille). Essaie une autre photo.',
+        tools_unavailable: 'Le coach avec accès aux données n’est pas disponible ici.',
+        invalid_request: 'Demande refusée par le service. Réessaie.',
         invalid_json: 'Réponse illisible. Réessaie ou ajoute les aliments à la main.',
         quota_atteint: 'Limite du jour atteinte pour l’IA. Elle revient demain ; en attendant, ajoute à la main.',
         non_connecte: 'Connecte ton compte Cap (Réglages) pour utiliser l’IA.',

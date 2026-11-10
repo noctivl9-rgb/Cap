@@ -431,3 +431,19 @@ html.anim-reduites *,html.anim-reduites *::before,html.anim-reduites *::after{an
 .cf-f.meilleur{box-shadow:inset 0 0 0 1.5px var(--argent)}
 .cf-l{display:flex;justify-content:space-between;gap:12px}
 .cf-f small{color:var(--muted);line-height:1.4}
+.fi-cats{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.fi-cats li{display:grid;grid-template-columns:8.5em 1fr auto;gap:10px;align-items:center}
+.fi-cats li span{font-size:var(--t-sub);color:var(--ink-2);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fi-cats .jr-barre i{background:var(--ink-2)}
+.fi-op{border:0;background:none;text-align:left;font:inherit;color:inherit;padding:0;min-height:44px;justify-content:center}
+
+/* ---------- Coach ---------- */
+.coach-acc{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.coach-sw{display:inline-flex!important;gap:8px;align-items:center;padding:0 8px!important;font:inherit;color:var(--ink)}
+.coach-rap{display:flex;flex-wrap:wrap;gap:8px}
+.coach-rap p{width:100%;margin:0}
+.chip-btn{min-height:44px;padding:0 14px;border-radius:999px;border:.5px solid var(--hair);background:#fff;font:inherit;font-size:var(--t-sub);color:var(--ink);text-align:left}
+.bubble p{margin:4px 0 0;white-space:pre-line}
+.bubble .tag{font-size:11px}
+.coach-prop{padding:14px;border-radius:16px;background:rgba(232,85,58,.08);display:flex;flex-direction:column;gap:6px}
+.coach-prop p{margin:0;color:var(--ink-2)}
