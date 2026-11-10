@@ -598,52 +598,50 @@
     STEPS.forEach(s => s.init && s.init(OB.A));
     renderStep();
   }
-  // Écran d'accueil avant les questions : logo animé, promesse, trois fonctions réelles
-  // Écran d'accueil — la marque Cap : un « C » (le cadre) et un point corail (ton cap).
-  // Chorégraphie unique (~1,4 s) : la lentille de verre apparaît, l'arc se trace, le point orbite puis se pose au centre
-  // et s'y stabilise par oscillations amorties, la goutte ondule une fois. Toucher la lentille rejoue l'ondulation.
-  // Écran d'accueil : le monogramme Cap en grand (noir mat, chevron argent brossé), un reflet qui le parcourt une fois.
+  // Accueil cinématographique : scène d'obsidienne, le logo révélé par la lumière, une promesse, un seul geste.
+  // Aucune liste de fonctions : la page dit ce que Cap fait pour la personne, le reste se découvre en avançant.
+  function reflet(sheen) { if (reduced() || !sheen) return; sheen.classList.remove('run'); void sheen.offsetWidth; sheen.classList.add('run'); }
+  function sheenPour(L) { const s = h('span', { class: 'lg-sheen', 'aria-hidden': 'true' }); const m = L.masque(); s.style.webkitMaskImage = m; s.style.maskImage = m; return s; }
+  function scene(on) { document.body.classList.toggle('scene', !!on); }
   function renderWelcome() {
     const L = window.CapLogo;
-    const hero = h('button', { class: 'wl-hero-mark', type: 'button', 'aria-label': 'Cap', html: L.mark({ size: 168, cls: 'wl-big' }) });
-    const sheen = h('span', { class: 'lg-sheen', 'aria-hidden': 'true' }); hero.appendChild(sheen);
-    const reflet = () => { if (reduced()) return; sheen.classList.remove('run'); void sheen.offsetWidth; sheen.classList.add('run'); };
-    hero.addEventListener('click', () => { reflet(); if (window.CapSon) window.CapSon.jouer('selection'); });
-    const pilier = (ic, t, sub) => h('li', { class: 'wl-pil' }, h('span', { class: 'wl-pil-i' }, icon(ic)), h('span', { class: 'wl-pil-t' }, h('b', null, t), h('span', null, sub)));
-    const sk = sparkle('Commencer mon parcours', () => { if (window.CapSon) window.CapSon.jouer('ouverture'); OB.welcome = false; OB.dir = 1; renderStep(); });
+    scene(true);
+    const hero = h('button', { class: 'wl-hero-mark', type: 'button', 'aria-label': 'Cap', html: L.mark({ size: 168, mode: 'dark', cls: 'wl-big' }) });
+    const sheen = sheenPour(L); hero.appendChild(sheen);
+    hero.addEventListener('click', () => { reflet(sheen); if (window.CapSon) window.CapSon.jouer('selection'); });
+    const sk = sparkle('Commencer', () => { if (window.CapSon) window.CapSon.jouer('ouverture'); OB.welcome = false; OB.dir = 1; renderStep(); });
     $app.textContent = '';
     $app.append(h('div', { class: 'ob wl' },
-      h('div', { class: 'wl-brand', html: L.wordmark({ markSize: 24, color: 'var(--ink)' }) }),
-      h('div', { class: 'wl-stage' }, h('span', { class: 'wl-plinth', 'aria-hidden': 'true' }), hero),
-      h('h1', { class: 'wl-title' }, 'Garde le cap.'),
-      h('p', { class: 'wl-sub' }, 'Ton corps et ton argent, suivis avec des chiffres vrais.'),
-      h('ul', { class: 'wl-pils' },
-        pilier('camera', 'Repas', 'Recherche, recettes ou photo analysée'),
-        pilier('chart', 'Progrès', 'Pesées, calories et séances mesurées'),
-        pilier('wallet', 'Projet', 'Budget, épargne et coût réel'))),
-      h('div', { class: 'ob-bar' }, h('div', { class: 'in glass wl-cta' }, sk.el, h('p', { class: 'foot muted', style: 'text-align:center;margin:4px 0 2px' }, 'Environ 3 minutes. Tes réponses restent privées.'))));
+      h('div', { class: 'wl-brand', html: L.wordmark({ markSize: 22, mode: 'dark', color: 'var(--ink)' }) }),
+      h('div', { class: 'wl-stage' }, h('span', { class: 'wl-halo', 'aria-hidden': 'true' }), hero),
+      h('h1', { class: 'wl-title' }, 'Ta prochaine version commence ici.'),
+      h('p', { class: 'wl-sub' }, 'Un plan construit autour de toi. Pour ton corps, ton argent et tes ambitions.'),
+      h('div', { class: 'ob-bar' }, h('div', { class: 'in wl-cta' }, sk.el, h('p', { class: 'foot wl-foot' }, 'Environ 3 minutes. Tes réponses restent privées.')))));
     window.scrollTo(0, 0);
-    setTimeout(reflet, 700);
+    setTimeout(() => reflet(sheen), 650);
   }
-  // Introduction : le logo apparaît en noir mat, un reflet argent le parcourt, le métal se révèle, puis l'appli.
-  // Une fois toutes les 12 h au plus, 1,3 s, touchable pour passer, absente si « Réduire les animations ».
+  // Introduction : sur fond d'obsidienne, le logo est d'abord invisible (noir sur noir) ; une lumière le balaie,
+  // la matière apparaît (céramique et aluminium), le mot se pose, puis l'appli. Au plus toutes les 12 h, ~1,5 s,
+  // un toucher la passe, absente si « Réduire les animations ».
   function intro() {
     if (reduced()) return;
     const last = Number(store.get('cap-intro') || 0);
     if (Date.now() - last < 12 * 3600e3) return;
     store.set('cap-intro', Date.now());
     const L = window.CapLogo;
+    const sh = sheenPour(L); sh.classList.add('run');
     const ov = h('div', { class: 'intro', role: 'presentation', 'aria-hidden': 'true' },
-      h('div', { class: 'intro-mark' }, h('span', { class: 'intro-matte', html: L.mark({ size: 132, mode: 'mono', color: '#1A1A1C' }) }), h('span', { class: 'intro-metal', html: L.mark({ size: 132 }) }), h('span', { class: 'lg-sheen run' })),
-      h('div', { class: 'intro-word' }, 'CAP'));
+      h('div', { class: 'intro-mark' }, h('span', { class: 'intro-metal', html: L.mark({ size: 132, mode: 'dark' }) }), sh),
+      h('div', { class: 'intro-word' }, 'Cap'));
     let done = false;
-    const fin = () => { if (done) return; done = true; ov.classList.add('out'); setTimeout(() => ov.remove(), 320); };
+    const fin = () => { if (done) return; done = true; ov.classList.add('out'); setTimeout(() => ov.remove(), 360); };
     ov.addEventListener('click', fin);
     document.body.appendChild(ov);
-    setTimeout(fin, 1350);
+    setTimeout(fin, 1550);
   }
   function renderStep() {
     if (OB.welcome) { renderWelcome(); return; }
+    scene(false);
     const vs = visibleSteps(OB.A, OB.only);
     OB.idx = Math.max(0, Math.min(OB.idx, vs.length - 1));
     const s = vs[OB.idx];

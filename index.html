@@ -297,45 +297,37 @@ label.btn{cursor:pointer}
 /* Écran d'accueil — aligné à gauche, une seule pièce forte : le monogramme métal */
 .wl{gap:0;padding-top:4px}
 .wl-brand{display:flex;align-items:center;height:44px;animation:wlFade var(--m-reveal) var(--m-soft) both}
-.cap-word{display:inline-flex;align-items:center;gap:10px;font-size:17px;font-weight:600;letter-spacing:.32em}
-.wl-stage{position:relative;height:clamp(118px,21vh,230px);display:grid;place-items:center;margin:4px 0 10px}
-.wl-plinth{position:absolute;width:min(220px,62%);height:28px;left:50%;bottom:6%;translate:-50% 0;border-radius:50%;background:radial-gradient(closest-side,rgba(20,20,22,.22),rgba(20,20,22,0));filter:blur(4px)}
-.wl-hero-mark{position:relative;height:calc(100% - 20px);max-height:180px;aspect-ratio:1;border:0;padding:0;background:none;cursor:pointer;animation:wlLens var(--m-reveal) var(--m-soft) both;-webkit-tap-highlight-color:transparent}
+.cap-word{display:inline-flex;align-items:center;gap:9px;font-size:18px;font-weight:600;letter-spacing:.01em}
+.wl-stage{position:relative;height:clamp(150px,30vh,280px);display:grid;place-items:center;margin:2vh 0 3vh}
+.wl-halo{position:absolute;width:min(300px,80%);aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,rgba(214,218,224,.13),rgba(214,218,224,0));pointer-events:none}
+.wl-hero-mark{position:relative;height:calc(100% - 16px);max-height:200px;aspect-ratio:1;border:0;padding:0;background:none;cursor:pointer;animation:wlLens var(--m-reveal) var(--m-soft) both;-webkit-tap-highlight-color:transparent}
 .wl-hero-mark svg{width:100%;height:100%;display:block}
-.wl-hero-mark:focus-visible{outline:3px solid var(--accent);outline-offset:6px;border-radius:24px}
+.wl-hero-mark:focus-visible{outline:2px solid var(--ink);outline-offset:6px;border-radius:24px}
 .wl-hero-mark:active{transform:scale(.97);transition:transform var(--m-tap)}
-/* Reflet argent : une bande de lumière découpée à la forme du logo */
-.lg-sheen{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.0) 38%,rgba(255,255,255,.85) 50%,rgba(255,255,255,0) 62%,transparent 70%) no-repeat;background-size:250% 100%;background-position:120% 0;
-  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cmask id='m'%3E%3Crect width='128' height='128' fill='%23fff'/%3E%3Cpath d='M55 86L80 46L105 86' fill='none' stroke='%23000' stroke-width='23'/%3E%3C/mask%3E%3Cpath d='M100.2 41.5A41 41 0 1 0 100.2 86.5' fill='none' stroke='%23000' stroke-width='17' mask='url(%23m)'/%3E%3Cpath d='M55 86L80 46L105 86' fill='none' stroke='%23000' stroke-width='11'/%3E%3C/svg%3E") center/contain no-repeat;
-  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Cmask id='m'%3E%3Crect width='128' height='128' fill='%23fff'/%3E%3Cpath d='M55 86L80 46L105 86' fill='none' stroke='%23000' stroke-width='23'/%3E%3C/mask%3E%3Cpath d='M100.2 41.5A41 41 0 1 0 100.2 86.5' fill='none' stroke='%23000' stroke-width='17' mask='url(%23m)'/%3E%3Cpath d='M55 86L80 46L105 86' fill='none' stroke='%23000' stroke-width='11'/%3E%3C/svg%3E") center/contain no-repeat}
+/* Reflet : une bande de lumière découpée à la silhouette exacte du logo (masque fourni par CapLogo.masque()) */
+.lg-sheen{position:absolute;inset:0;pointer-events:none;opacity:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,0) 40%,rgba(255,255,255,.9) 50%,rgba(255,255,255,0) 60%,transparent 70%) no-repeat;background-size:250% 100%;background-position:120% 0;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center}
 .lg-sheen.run{animation:sheen .95s var(--m-soft) both}
 @keyframes sheen{0%{opacity:1;background-position:120% 0}100%{opacity:1;background-position:-20% 0}}
-.wl-title{font-size:clamp(38px,11vw,46px);font-weight:800;letter-spacing:-.045em;line-height:1.02;margin:0;text-wrap:balance;animation:wlRise var(--m-reveal) var(--m-soft) .25s both}
-.wl-sub{font-size:var(--t-call);color:var(--ink-2);line-height:1.4;margin:10px 0 0;max-width:32ch;animation:wlRise var(--m-reveal) var(--m-soft) .35s both}
-.wl-pils{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-direction:column}
-.wl-pil{display:grid;grid-template-columns:28px 1fr;gap:12px;align-items:start;padding:13px 0;border-top:.5px solid var(--line);animation:wlRise var(--m-reveal) var(--m-soft) both}
-.wl-pil:nth-child(1){animation-delay:.45s}.wl-pil:nth-child(2){animation-delay:.52s}.wl-pil:nth-child(3){animation-delay:.59s}
-.wl-pil-i{color:var(--ink)}
-.wl-pil-i svg.i{width:24px;height:24px;stroke-width:1.7}
-.wl-pil-t{display:flex;flex-direction:column;gap:1px;min-width:0}
-.wl-pil-t b{font-size:var(--t-head);font-weight:600}
-.wl-pil-t span{font-size:var(--t-sub);color:var(--muted)}
-.wl-cta{animation:wlRise var(--m-reveal) var(--m-soft) .7s both}
+.wl-title{font-size:clamp(36px,10.5vw,48px);font-weight:760;font-stretch:88%;letter-spacing:-.035em;line-height:1.02;margin:0;max-width:11ch;text-wrap:balance;animation:wlRise var(--m-reveal) var(--m-soft) .3s both}
+.wl-sub{font-size:var(--t-call);color:var(--ink-2);line-height:1.45;margin:14px 0 0;max-width:30ch;animation:wlRise var(--m-reveal) var(--m-soft) .42s both}
+.wl-cta{animation:wlRise var(--m-reveal) var(--m-soft) .6s both;background:none;border:0;box-shadow:none}
+.wl-foot{text-align:center;margin:6px 0 2px;font-size:var(--t-foot);color:var(--muted)}
+/* Scène d'obsidienne (accueil, révélation) : les jetons sont redéfinis localement, le reste de l'appli n'est pas touché */
+body.scene{--bg:#09090A;--surface:#141416;--ink:#F2F1EE;--ink-2:#B9BABE;--muted:#85868B;--faint:#4A4B4F;--line:rgba(255,255,255,.10);--fill:rgba(255,255,255,.07);--glass:rgba(20,20,22,.6);--glass-strong:rgba(20,20,22,.8);--glass-edge:rgba(255,255,255,.08);--glass-shadow:none;color-scheme:dark;background:radial-gradient(120% 70% at 50% 18%,#1B1B1E 0%,#09090A 60%) fixed,#09090A}
 @keyframes wlLens{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
 @keyframes wlFade{from{opacity:0}to{opacity:1}}
 @keyframes wlRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-/* Introduction */
-.intro{position:fixed;inset:0;z-index:100;background:#F5F5F7;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer;transition:opacity .3s var(--m-soft)}
+/* Introduction : obsidienne, la lumière révèle la matière */
+.intro{position:fixed;inset:0;z-index:100;background:radial-gradient(90% 60% at 50% 45%,#18181B,#060607 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;cursor:pointer;transition:opacity .36s var(--m-soft)}
 .intro.out{opacity:0}
-.intro-mark{position:relative;width:132px;height:132px;animation:introIn .45s var(--m-soft) both}
+.intro-mark{position:relative;width:132px;height:132px}
 .intro-mark>span{position:absolute;inset:0}
-.intro-metal{opacity:0;animation:introMetal .45s var(--m-soft) .55s forwards}
-.intro-mark .lg-sheen.run{animation:sheen .8s var(--m-soft) .3s both}
-.intro-word{font-size:15px;font-weight:600;letter-spacing:.5em;margin-right:-.5em;color:#3A3A3D;animation:wlFade .5s var(--m-soft) .7s both}
+.intro-metal{opacity:0;filter:brightness(.15);animation:introMetal .7s var(--m-soft) .35s forwards}
+.intro-mark .lg-sheen.run{animation:sheen .9s var(--m-soft) .15s both}
+.intro-word{font-size:15px;font-weight:600;letter-spacing:.32em;margin-right:-.32em;color:#C9CACE;animation:wlFade .5s var(--m-soft) .8s both}
 @keyframes introIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:none}}
-@keyframes introMetal{to{opacity:1}}
-@media (max-height:700px){.wl-pils{margin-top:14px}.wl-pil{padding:9px 0}}
-@media (max-height:600px){.wl-stage{height:104px;margin-bottom:4px}.wl-title{font-size:34px}.wl-sub{font-size:var(--t-sub);margin-top:6px}.wl-pil-t span{font-size:var(--t-foot)}.wl-pils{margin-top:10px}.wl-pil{padding:7px 0}}
+@keyframes introMetal{0%{opacity:0;filter:brightness(.15)}40%{opacity:1}100%{opacity:1;filter:none}}
+@media (max-height:620px){.wl-stage{height:120px;margin:4px 0 10px}.wl-title{font-size:32px}.wl-sub{font-size:var(--t-sub);margin-top:8px}}
 
 /* ================= Sparkle — d'après « Sparkle Button » de JkHuger (Uiverse.io), adapté et isolé (préfixe sk-) =================
    Corrections : variables par défaut, « runnin » → running, plus d'activation globale via body:has(),
@@ -389,7 +381,7 @@ label.btn{cursor:pointer}
 
 /* ================= Typographie Archivo ================= */
 body{font-stretch:100%;font-feature-settings:"kern" 1}
-.lt h1,.stage h1,.wl-title,.sec>h2,.sheet-h h2,.hero b,.stat b,.ruler-value .big,.money input,.calday,.daybtn b,.pct,.big,.tile b,.choice .ct,.btn,.sk-btn,.wl-pil-t b{font-stretch:112%}
+.lt h1,.stage h1,.sec>h2,.sheet-h h2,.hero b,.stat b,.ruler-value .big,.money input,.calday,.daybtn b,.pct,.big,.tile b,.choice .ct,.btn,.sk-btn{font-stretch:112%}
 .lt h1,.stage h1{font-weight:760;letter-spacing:-.025em}
 .wl-title{font-weight:800;letter-spacing:-.035em}
 .hero b{font-weight:720;letter-spacing:-.025em}

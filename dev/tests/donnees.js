@@ -133,7 +133,7 @@ async function serveur(op, a) {
   const ctx3 = await b.newContext({ viewport: { width: 390, height: 844 } }); await ctx3.exposeFunction('__srv', serveur); await ctx3.addInitScript(MOCK);
   await ctx3.addInitScript(() => localStorage.setItem('cap-intro', String(Date.now())));
   const bb = await nouvellePage(ctx3, 'http://localhost:8766/'); await bb.waitForTimeout(900);
-  await bb.click('.sk-btn').catch(() => {}); // accueil « Garde le cap » d'un appareil neuf
+  await bb.click('.sk-btn').catch(() => {}); // accueil d'un appareil neuf
   await bb.evaluate(() => localStorage.setItem('cap-auth-sim', JSON.stringify({ user: { id: 'u-1', email: 'elias@exemple.fr' } })));
   await bb.reload(); await bb.waitForTimeout(1200);
   await bb.click('.tabbar button:has-text("Argent")').catch(() => {}); await bb.waitForTimeout(300);
