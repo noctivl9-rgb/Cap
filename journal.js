@@ -133,15 +133,15 @@
       return h('div', { class: 'stat', style: 'gap:8px' }, h('span', { style: 'position:relative;display:grid;place-items:center;align-self:flex-start' }, ring(have / goal, 44, 5, col, Math.round(have) + ' g sur ' + goal + ' g', lbl + jour)), h('b', null, U.nombre('mac-' + lbl + jour, Math.abs(rest), v => Math.round(v) + ' g')), h('span', null, lbl + (rest >= 0 ? ' restants' : ' en trop')));
     };
     if (simple) return h('div', { class: 'grid2' }, card('Protéines', t.p, m.prot, 'var(--body)'), h('div', { class: 'stat' }, h('b', null, 'Mode simple'), h('span', null, 'Glucides et lipides masqués. Réglages › Nutrition pour les afficher.')));
-    return h('div', { class: 'stats' }, card('Protéines', t.p, m.prot, 'var(--body)'), card('Glucides', t.c, m.glu, '#FF9F0A'), card('Lipides', t.f, m.lip, 'var(--accent)'));
+    return h('div', { class: 'stats' }, card('Protéines', t.p, m.prot, 'var(--body)'), card('Glucides', t.c, m.glu, '#FF9F0A'), card('Lipides', t.f, m.lip, 'var(--steel)'));
   }
   function carteEau(j) {
     const goal = E.objectifEau(poidsActuel());
     const setE = async v => { const jj = journal(jour); const avant = jj.eauMl; jj.eauMl = Math.max(0, v); try { await saveJournal(jour, jj); if (avant < goal && jj.eauMl >= goal && window.CapSon) window.CapSon.jouer('objectif'); } catch (e) { U.toast('Échec, réessaie'); } };
     return h('div', { class: 'stat', style: 'gap:8px' },
-      h('div', { style: 'display:flex;align-items:center;gap:6px;color:var(--accent)' }, icon('drop'), h('span', { class: 'foot', style: 'color:var(--muted)' }, 'Eau')),
+      h('div', { style: 'display:flex;align-items:center;gap:6px;color:var(--steel)' }, icon('drop'), h('span', { class: 'foot', style: 'color:var(--muted)' }, 'Eau')),
       h('b', null, U.nombre('eau-' + jour, j.eauMl, v => fr(v) + ' ml')), h('span', null, 'sur ' + fr(goal) + ' ml'),
-      h('div', { class: 'bar' }, h('i', { style: 'width:' + Math.min(100, j.eauMl / goal * 100) + '%;background:var(--accent)' })),
+      h('div', { class: 'bar' }, h('i', { style: 'width:' + Math.min(100, j.eauMl / goal * 100) + '%;background:var(--steel)' })),
       h('div', { style: 'display:flex;gap:8px' }, h('button', { class: 'round press', type: 'button', style: 'width:36px;height:36px;background:var(--fill)', 'aria-label': 'Retirer 250 ml', disabled: !j.eauMl, onclick: () => setE(j.eauMl - 250) }, icon('minus')), h('button', { class: 'round press', type: 'button', style: 'width:36px;height:36px;background:var(--accent-soft);color:var(--accent);flex:1;border-radius:999px', 'aria-label': 'Ajouter 250 ml', onclick: () => setE(j.eauMl + 250) }, icon('plus'), h('span', { class: 'foot', style: 'font-weight:600;margin-left:2px' }, '250 ml'))));
   }
   function carteActivite(d, j) {

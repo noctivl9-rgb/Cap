@@ -43,7 +43,7 @@
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const vib = () => { try { if (navigator.vibrate) navigator.vibrate(4); } catch (e) {} };
   const reduced = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function toast(msg) { const t = h('div', { class: 'toast glass', role: 'status' }, msg); document.body.appendChild(t); setTimeout(() => t.remove(), 1900); }
+  function toast(msg) { if (/^Échec/.test(msg)) { if (window.CapSon) window.CapSon.jouer('erreur'); } const t = h('div', { class: 'toast glass', role: 'status' }, msg); document.body.appendChild(t); setTimeout(() => t.remove(), 1900); }
   const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }, del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
 
   // ================================================================ Données (db ou mémoire)
@@ -292,7 +292,7 @@
           ctx.A[field] = cur;
         } else ctx.A[field] = o.v;
         btns.forEach((x, i) => x.setAttribute('aria-checked', String(isOn(opts[i].v))));
-        vib(); if (cfg.onPick) cfg.onPick(o.v); ctx.changed();
+        vib(); if (window.CapSon) window.CapSon.jouer('selection'); if (cfg.onPick) cfg.onPick(o.v); ctx.changed();
       });
       return b;
     });
@@ -541,47 +541,45 @@
   // Écran d'accueil — la marque Cap : un « C » (le cadre) et un point corail (ton cap).
   // Chorégraphie unique (~1,4 s) : la lentille de verre apparaît, l'arc se trace, le point orbite puis se pose au centre
   // et s'y stabilise par oscillations amorties, la goutte ondule une fois. Toucher la lentille rejoue l'ondulation.
+  // Écran d'accueil : le monogramme Cap en grand (noir mat, chevron argent brossé), un reflet qui le parcourt une fois.
   function renderWelcome() {
-    const MARK = (size, cls) => '<svg class="' + cls + '" viewBox="0 0 120 120" width="' + size + '" height="' + size + '" aria-hidden="true"><path class="wl-arc" d="M90.4 38 A38 38 0 1 0 90.4 82" fill="none" stroke="var(--ink)" stroke-width="12" stroke-linecap="round"/><circle class="wl-dot" cx="60" cy="60" r="9" fill="var(--body)"/></svg>';
-    const ripple = h('span', { class: 'wl-ripple', 'aria-hidden': 'true' });
-    const lens = h('button', { class: 'wl-lens', type: 'button', 'aria-label': 'Logo Cap', html: MARK(150, 'wl-mark') });
-    lens.appendChild(ripple);
-    const onde = () => {
-      if (reduced()) return;
-      ripple.getAnimations().forEach(a => a.cancel());
-      ripple.animate([{ transform: 'scale(.35)', opacity: .9 }, { transform: 'scale(1.35)', opacity: 0 }], { duration: 900, easing: 'cubic-bezier(.2,.7,.3,1)' });
-      lens.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.035,.965)', offset: .25 }, { transform: 'scale(.985,1.015)', offset: .5 }, { transform: 'scale(1.006,.994)', offset: .75 }, { transform: 'scale(1)' }], { duration: 700, easing: 'ease-out' });
-      const dot = lens.querySelector('.wl-dot');
-      dot.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.3)', offset: .3 }, { transform: 'scale(.92)', offset: .6 }, { transform: 'scale(1.04)', offset: .82 }, { transform: 'scale(1)' }], { duration: 650, easing: 'ease-out' });
-    };
-    lens.addEventListener('click', () => { onde(); if (window.CapSon) window.CapSon.jouer('etape'); });
-    const pilier = (ic, col, t, sub) => h('li', { class: 'wl-pil' }, h('span', { class: 'wl-pil-i', style: 'color:' + col }, icon(ic)), h('span', { class: 'wl-pil-t' }, h('b', null, t), h('span', null, sub)));
+    const L = window.CapLogo;
+    const hero = h('button', { class: 'wl-hero-mark', type: 'button', 'aria-label': 'Cap', html: L.mark({ size: 168, cls: 'wl-big' }) });
+    const sheen = h('span', { class: 'lg-sheen', 'aria-hidden': 'true' }); hero.appendChild(sheen);
+    const reflet = () => { if (reduced()) return; sheen.classList.remove('run'); void sheen.offsetWidth; sheen.classList.add('run'); };
+    hero.addEventListener('click', () => { reflet(); if (window.CapSon) window.CapSon.jouer('selection'); });
+    const pilier = (ic, t, sub) => h('li', { class: 'wl-pil' }, h('span', { class: 'wl-pil-i' }, icon(ic)), h('span', { class: 'wl-pil-t' }, h('b', null, t), h('span', null, sub)));
     const sk = sparkle('Commencer mon parcours', () => { if (window.CapSon) window.CapSon.jouer('ouverture'); OB.welcome = false; OB.dir = 1; renderStep(); });
     $app.textContent = '';
     $app.append(h('div', { class: 'ob wl' },
-      h('div', { class: 'wl-brand', html: MARK(26, 'wl-brand-mark') + '<span>Cap</span>' }),
-      h('div', { class: 'wl-stage' }, h('span', { class: 'wl-caustic', 'aria-hidden': 'true' }), lens),
+      h('div', { class: 'wl-brand', html: L.wordmark({ markSize: 24, color: 'var(--ink)' }) }),
+      h('div', { class: 'wl-stage' }, h('span', { class: 'wl-plinth', 'aria-hidden': 'true' }), hero),
       h('h1', { class: 'wl-title' }, 'Garde le cap.'),
       h('p', { class: 'wl-sub' }, 'Ton corps et ton argent, suivis avec des chiffres vrais.'),
       h('ul', { class: 'wl-pils' },
-        pilier('camera', 'var(--body)', 'Repas', 'Recherche, recettes ou photo analysée'),
-        pilier('chart', 'var(--accent)', 'Progrès', 'Pesées, calories et séances mesurées'),
-        pilier('wallet', 'var(--money)', 'Projet', 'Budget, épargne et coût réel'))),
+        pilier('camera', 'Repas', 'Recherche, recettes ou photo analysée'),
+        pilier('chart', 'Progrès', 'Pesées, calories et séances mesurées'),
+        pilier('wallet', 'Projet', 'Budget, épargne et coût réel'))),
       h('div', { class: 'ob-bar' }, h('div', { class: 'in glass wl-cta' }, sk.el, h('p', { class: 'foot muted', style: 'text-align:center;margin:4px 0 2px' }, 'Environ 3 minutes. Tes réponses restent privées.'))));
     window.scrollTo(0, 0);
-    // Le point trouve son cap : orbite sur l'arc, rejoint le centre, se stabilise
-    if (!reduced()) {
-      const dot = lens.querySelector('.wl-dot');
-      dot.animate([
-        { transform: 'rotate(-250deg) translateX(38px) scale(.6)', opacity: 0 },
-        { transform: 'rotate(-120deg) translateX(38px) scale(.9)', opacity: 1, offset: .35 },
-        { transform: 'rotate(-20deg) translateX(14px) scale(1)', offset: .7 },
-        { transform: 'rotate(0deg) translateX(0px) scale(1.18)', offset: .84 },
-        { transform: 'rotate(0deg) translateX(0px) scale(.95)', offset: .93 },
-        { transform: 'rotate(0deg) translateX(0px) scale(1)' }
-      ], { duration: 1100, delay: 350, easing: 'cubic-bezier(.3,.1,.25,1)', fill: 'backwards' });
-      setTimeout(onde, 1300);
-    }
+    setTimeout(reflet, 700);
+  }
+  // Introduction : le logo apparaît en noir mat, un reflet argent le parcourt, le métal se révèle, puis l'appli.
+  // Une fois toutes les 12 h au plus, 1,3 s, touchable pour passer, absente si « Réduire les animations ».
+  function intro() {
+    if (reduced()) return;
+    const last = Number(store.get('cap-intro') || 0);
+    if (Date.now() - last < 12 * 3600e3) return;
+    store.set('cap-intro', Date.now());
+    const L = window.CapLogo;
+    const ov = h('div', { class: 'intro', role: 'presentation', 'aria-hidden': 'true' },
+      h('div', { class: 'intro-mark' }, h('span', { class: 'intro-matte', html: L.mark({ size: 132, mode: 'mono', color: '#1A1A1C' }) }), h('span', { class: 'intro-metal', html: L.mark({ size: 132 }) }), h('span', { class: 'lg-sheen run' })),
+      h('div', { class: 'intro-word' }, 'CAP'));
+    let done = false;
+    const fin = () => { if (done) return; done = true; ov.classList.add('out'); setTimeout(() => ov.remove(), 320); };
+    ov.addEventListener('click', fin);
+    document.body.appendChild(ov);
+    setTimeout(fin, 1350);
   }
   function renderStep() {
     if (OB.welcome) { renderWelcome(); return; }
@@ -642,7 +640,7 @@
     try {
       await put('profil', 'main', data);
       if (C(A) && has(A.poids) && !S.pesees.some(p => p.date === dayId())) await put('pesees', dayId(), Object.assign({ date: dayId(), poids: A.poids }, has(A.tour) ? { tour: A.tour } : {}));
-      S.profil = data; store.del('cap-draft'); OB = null; tab = 'today'; refresh(); toast('Plan enregistré'); if (window.CapSon) window.CapSon.jouer('valider');
+      S.profil = data; store.del('cap-draft'); OB = null; tab = 'today'; refresh(); toast('Plan enregistré'); if (window.CapSon) window.CapSon.jouer('programme');
     } catch (e) { toast('Échec de l’enregistrement. Vérifie ta connexion et réessaie.'); }
   }
 
@@ -921,7 +919,7 @@
     const sonOn = !!(window.CapSon && window.CapSon.actif());
     out.push(section(null, null, h('div', { class: 'cap' }, 'Préférences'), h('div', { class: 'panel flush' },
       h('button', { class: 'cell', type: 'button', role: 'switch', 'aria-checked': String(sonOn), onclick: () => { window.CapSon.regler(!sonOn); window._keepScroll = true; renderMain(); } },
-        h('span', { class: 'lbl' }, 'Sons de l’interface', h('small', null, 'Quatre sons discrets : étape, validation, objectif, ouverture. Désactivés par défaut. Sur iPhone, ils respectent le mode silencieux (iOS 17 et plus).')),
+        h('span', { class: 'lbl' }, 'Sons de l’interface', h('small', null, 'Sept sons feutrés : sélection, étape, validation, programme terminé, objectif, erreur, ouverture. Désactivés par défaut. Sur iPhone, ils respectent le mode silencieux (iOS 17 et plus).')),
         h('span', { class: 'switch' + (sonOn ? ' on' : '') }, h('i')))),
       h('p', { class: 'foot muted', style: 'margin:0 16px' }, 'Safari sur iPhone ne permet pas aux sites de faire vibrer le téléphone : pas de retour haptique ici.')));
     out.push(section(null, null, h('div', { class: 'cap' }, 'Sources et méthode'), h('div', { class: 'panel' },
@@ -976,6 +974,6 @@
     db.collection('actions').doc(weekKey()).onSnapshot(s => { S.actions = s.exists ? s.data() : { done: {} }; if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
   })();
   // Démarre après le chargement de tous les modules (journal.js, ai.js)
-  const go = () => { if (window.CapAI) window.CapAI.init().then(() => { if (booted && !OB) { window._keepScroll = true; refresh(); } }); if (window.CapJournal) window.CapJournal.init(); start(); };
+  const go = () => { intro(); if (window.CapAI) window.CapAI.init().then(() => { if (booted && !OB) { window._keepScroll = true; refresh(); } }); if (window.CapJournal) window.CapJournal.init(); start(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else setTimeout(go, 0);
 })();
