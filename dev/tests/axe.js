@@ -10,7 +10,7 @@ const PROFIL = { v: 2, domaines: ['corps', 'argent', 'entreprise'], sexe: 'H', a
   await pg.evaluate(p => { localStorage.setItem('cap-intro', Date.now()); localStorage.setItem('cap-local', JSON.stringify({ profil: { main: p }, pesees: { a: { date: '2026-11-01', poids: 77 }, b: { date: '2026-11-08', poids: 76.6 } } })); }, PROFIL);
   await pg.reload(); await pg.waitForTimeout(600);
   let total = 0;
-  for (const ec of ['Aujourd’hui', 'Séance', 'Progrès', 'Photos', 'Journal', 'Argent', 'Projet', 'Profil']) {
+  for (const ec of ['Aujourd’hui', 'Programme', 'Journal', 'Progrès', 'Photos', 'Finances', 'Business', 'Profil']) {
     await aller(pg, ec); await pg.waitForTimeout(250);
     await pg.addScriptTag({ content: AXE });
     const r = await pg.evaluate(async () => (await axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } })).violations.map(v => ({ id: v.id, impact: v.impact, n: v.nodes.length, ex: v.nodes.slice(0, 2).map(n => n.target.join(' ') + ' :: ' + (n.failureSummary || '').split('\n')[1]) })));

@@ -18,7 +18,7 @@ const MEM = { profil: { main: PROFIL }, pesees: { [J(42)]: { date: J(42), poids:
     await pg.goto('file://' + __dirname + '/out/page.html');
     await pg.evaluate(m => { localStorage.setItem('cap-intro', Date.now()); localStorage.setItem('cap-local', JSON.stringify(m)); }, MEM);
     await pg.reload(); await pg.waitForTimeout(600);
-    for (const ec of ['Aujourd’hui', 'Séance', 'Progrès', 'Photos', 'Journal', 'Argent', 'Projet', 'Profil']) {
+    for (const ec of ['Aujourd’hui', 'Programme', 'Journal', 'Progrès', 'Photos', 'Finances', 'Business', 'Profil']) {
       await aller(pg, ec); await pg.waitForTimeout(250);
       const ov = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       bilan.push(nom + ' ' + ec + ' : débordement ' + ov + ' px');

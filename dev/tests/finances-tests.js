@@ -1,0 +1,20 @@
+/* Tests des finances personnelles (node finances-tests.js). */
+const F = require('../../finances.js');
+const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c || i === undefined ? '' : ' → ' + JSON.stringify(i)));
+const O = (date, sens, montant, categorie) => ({ date, sens, montant, categorie });
+const ops = [O('2026-11-02', 'depense', 45.5, 'alimentation'), O('2026-11-05', 'depense', 120, 'loisirs'), O('2026-11-07', 'depense', 30.25, 'alimentation'), O('2026-11-01', 'revenu', 600, 'salaire'), O('2026-10-15', 'depense', 80, 'transport'), O('2026-11-08', 'depense', -5, 'autre'), O('2026-11-08', 'revenu', 10, 'loisirs')];
+let m = F.mois(ops, '2026-11', 300);
+T('dépenses du mois (invalides exclues) = 195,75 €', m.depenses === 195.75, m);
+T('revenus du mois = 600, solde = 404,25', m.revenus === 600 && m.solde === 404.25);
+T('« où ai-je le plus dépensé ? » → Loisirs (120 €)', m.top.categorie === 'loisirs' && m.top.montant === 120);
+T('alimentation cumulée = 75,75 € (arrondi au centime)', m.classement.find(c => c.categorie === 'alimentation').montant === 75.75);
+T('écart au budget déclaré (300 − 195,75 = 104,25)', m.ecartBudget === 104.25 && !m.alertes.length);
+m = F.mois(ops.concat([O('2026-11-09', 'depense', 200, 'shopping')]), '2026-11', 300);
+T('dépassement du budget signalé', m.alertes.some(a => /supérieures de 95,75|95.75/.test(a)), m.alertes);
+m = F.mois([O('2026-11-03', 'depense', 50, 'loisirs'), O('2026-11-03', 'revenu', 20, 'aide')], '2026-11');
+T('dépenses > revenus signalé', m.alertes.some(a => /plus que tes revenus/.test(a)));
+T('mois vide : aucun chiffre inventé', F.mois([], '2026-12').nb === 0 && F.mois([], '2026-12').top === null);
+const h = F.historique(ops);
+T('historique : mois triés du plus récent', h.length === 2 && h[0].mois === '2026-11' && h[1].mois === '2026-10');
+T('validation : revenu avec catégorie de dépense refusé', F.valider(O('2026-11-01', 'revenu', 10, 'loisirs')).length === 1);
+console.log(res.join('\n')); const f = res.filter(x => x.startsWith('FAIL')).length; console.log('\n' + (res.length - f) + ' réussis, ' + f + ' échoués');

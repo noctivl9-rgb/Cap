@@ -26,7 +26,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   T('bilan atteint sans question du module corps ni argent', /Vérification/.test(await titre()), await titre());
   await cont(); await pg.waitForTimeout(300);
   await pg.waitForSelector('.rv'); await pg.click('.rv'); await pg.click('.rv-go'); await pg.waitForTimeout(350); await pg.click('.ob-bar .btn:not(.text), .ob-bar .sk-btn, .stage .sk-btn'); await pg.waitForTimeout(700);
-  T('onglet Projet présent (dans Parcours)', await pg.$('.tabbar .nav-d:has-text("Parcours")') !== null);
+  T('onglet Projet présent (Avenir › Business)', await pg.$('.tabbar .nav-d:has-text("Avenir")') !== null);
   await aller(pg, 'Projet'); await pg.waitForTimeout(400);
   let m = await main();
   T('origine honnête : calculé par les règles, IA indisponible', /Classement calculé par les règles de Cap/.test(m) && /indisponible/.test(m));
