@@ -137,7 +137,7 @@
   }
   function carteEau(j) {
     const goal = E.objectifEau(poidsActuel());
-    const setE = async v => { const jj = journal(jour); jj.eauMl = Math.max(0, v); try { await saveJournal(jour, jj); } catch (e) { U.toast('Échec, réessaie'); } };
+    const setE = async v => { const jj = journal(jour); const avant = jj.eauMl; jj.eauMl = Math.max(0, v); try { await saveJournal(jour, jj); if (avant < goal && jj.eauMl >= goal && window.CapSon) window.CapSon.jouer('objectif'); } catch (e) { U.toast('Échec, réessaie'); } };
     return h('div', { class: 'stat', style: 'gap:8px' },
       h('div', { style: 'display:flex;align-items:center;gap:6px;color:var(--accent)' }, icon('drop'), h('span', { class: 'foot', style: 'color:var(--muted)' }, 'Eau')),
       h('b', null, U.nombre('eau-' + jour, j.eauMl, v => fr(v) + ' ml')), h('span', null, 'sur ' + fr(goal) + ' ml'),
@@ -374,7 +374,7 @@
       return h('label', { class: 'btn ' + (cls || ''), for: inp.id, role: 'button', tabindex: '0', onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inp.click(); } } }, icon('camera'), label, inp);
     };
     const etapeChoix = () => { body.textContent = ''; U.add(body, h('p', { class: 'muted sub' }, 'Photographie ton assiette de haut, en entier, avec une bonne lumière. L’IA estime les aliments et les quantités ; tu corriges avant d’enregistrer.'), fileBtn('Prendre une photo', true), fileBtn('Choisir dans la galerie', false, 'secondary')); };
-    const etapeApercu = () => { body.textContent = ''; U.add(body, h('img', { src: st.apercu, alt: 'Photo du repas', class: 'scan-img' }), U.sparkle('Découvrir mon analyse', analyser).el, h('button', { class: 'btn secondary', type: 'button', onclick: etapeChoix }, 'Changer de photo'), h('p', { class: 'foot muted' }, 'La photo est envoyée à Claude, sur ton compte, uniquement pour cette analyse.')); };
+    const etapeApercu = () => { body.textContent = ''; U.add(body, h('img', { src: st.apercu, alt: 'Photo du repas', class: 'scan-img' }), U.sparkle('Découvrir mon analyse', () => { if (window.CapSon) window.CapSon.jouer('ouverture'); analyser(); }).el, h('button', { class: 'btn secondary', type: 'button', onclick: etapeChoix }, 'Changer de photo'), h('p', { class: 'foot muted' }, 'La photo est envoyée à Claude, sur ton compte, uniquement pour cette analyse.')); };
     async function analyser() {
       st.ctl = new AbortController();
       const t0 = Date.now(); const tick = h('span', null, '0 s');
@@ -420,7 +420,7 @@
       save.addEventListener('click', async () => {
         const j = journal(jour);
         st.rows.forEach(r => { const e = E.entreeDepuisAliment(r.par100, r.grammes, r.cuisson); j.items.push(Object.assign(e, { id: U.uid(), slot: st.slot, src: 'scan', conf: r.confiance, ts: new Date().toISOString() })); });
-        try { await saveJournal(jour, j); close(); U.toast('Repas enregistré'); } catch (e) { U.toast('Échec, réessaie'); }
+        try { await saveJournal(jour, j); close(); U.toast('Repas enregistré'); if (window.CapSon) window.CapSon.jouer('valider'); } catch (e) { U.toast('Échec, réessaie'); }
       });
       U.add(body, h('img', { src: st.apercu, alt: 'Photo analysée', class: 'scan-img', style: 'max-height:160px' }),
         st.remarque ? h('div', { class: 'note' }, h('b', null, 'Remarque de l’IA : '), st.remarque) : null,

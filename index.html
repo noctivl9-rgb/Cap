@@ -282,24 +282,44 @@ details.session[open] summary .chev{transform:rotate(90deg)}
 .field textarea{resize:vertical;min-height:64px}
 label.btn{cursor:pointer}
 
-/* Écran d'accueil */
-.wl{justify-content:center;gap:22px;padding-top:8px}
-.wl-hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
-.wl-list{animation:wlRise .5s var(--ease) .85s both}
-.wl-logo{animation:wlPop .6s var(--spring) both}
-.wl-arc{stroke-dasharray:190;stroke-dashoffset:190;animation:wlDraw .9s var(--ease) .15s forwards}
-.wl-dot{transform-origin:60px 60px;transform:scale(0);animation:wlDot .45s var(--spring) .85s forwards}
-.wl-title{font-size:44px;font-weight:800;letter-spacing:-.04em;margin:0;animation:wlRise .5s var(--ease) .55s both}
-.wl-sub{font-size:var(--t-call);color:var(--muted);max-width:30ch;line-height:1.4;margin:0;animation:wlRise .5s var(--ease) .7s both}
-.wl-feat{display:flex;align-items:center;gap:12px;padding:14px 16px;position:relative;animation:wlRise .5s var(--ease) both}
-.wl-feat+.wl-feat::before{content:"";position:absolute;left:58px;right:0;top:0;height:.5px;background:var(--line)}
-.wl-feat .lbl{flex:1;min-width:0;font-weight:600;font-size:var(--t-call)}
-.wl-feat .lbl small{display:block;font-weight:400;color:var(--muted);font-size:var(--t-foot);margin-top:2px}
-.wl-cta{animation:wlRise .5s var(--ease) 1.3s both}
+/* Mouvement de Cap : tap 120 ms · état 220 ms · panneau 380 ms · révélation 600 ms ; ressort pour les contrôles */
+:root{--m-tap:120ms;--m-state:220ms;--m-panel:380ms;--m-reveal:600ms;--m-soft:cubic-bezier(.2,.8,.2,1);--m-spring:cubic-bezier(.34,1.4,.64,1)}
+
+/* Écran d'accueil — mise en page éditoriale alignée à gauche, une seule pièce forte : la lentille */
+.wl{gap:0;padding-top:4px}
+.wl-brand{display:flex;align-items:center;gap:8px;font-size:20px;font-weight:700;letter-spacing:-.02em;height:44px;animation:wlFade var(--m-reveal) var(--m-soft) both}
+.wl-brand .wl-arc{stroke-dasharray:none}
+.wl-stage{position:relative;height:clamp(118px,21vh,230px);display:grid;place-items:center;margin:4px 0 10px}
+.wl-caustic{position:absolute;width:min(260px,70%);height:45%;left:50%;top:62%;translate:-50% 0;border-radius:50%;background:radial-gradient(closest-side,rgba(232,85,58,.20),rgba(232,85,58,0));filter:blur(6px);animation:wlFade 1.2s var(--m-soft) .5s both}
+.wl-lens{position:relative;height:calc(100% - 26px);max-height:210px;aspect-ratio:1;border-radius:50%;border:0;padding:0;display:grid;place-items:center;cursor:pointer;
+  background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.96),rgba(255,255,255,.55) 34%,rgba(255,255,255,.22) 68%,rgba(255,255,255,.4) 100%);
+  -webkit-backdrop-filter:blur(8px) saturate(170%);backdrop-filter:blur(8px) saturate(170%);
+  box-shadow:inset 0 2px 1px rgba(255,255,255,.95),inset 0 -22px 34px rgba(30,30,40,.07),inset 0 0 0 1px rgba(255,255,255,.7),
+    -1.5px 0 0 rgba(255,70,100,.16),1.5px 0 0 rgba(40,140,255,.16),0 28px 50px -12px rgba(30,30,40,.18),0 2px 6px rgba(30,30,40,.06);
+  animation:wlLens var(--m-reveal) var(--m-soft) both}
+.wl-lens::before{content:"";position:absolute;top:9%;left:17%;width:38%;height:16%;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.95),rgba(255,255,255,0));transform:rotate(-24deg);filter:blur(1px);pointer-events:none}
+.wl-lens::after{content:"";position:absolute;inset:7%;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.55),inset 0 10px 18px rgba(255,255,255,.35);pointer-events:none}
+.wl-lens:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
+.wl-mark{width:62%;height:62%;overflow:visible}
+.wl-mark .wl-arc{stroke-dasharray:200;stroke-dashoffset:200;animation:wlDraw .8s var(--m-soft) .2s forwards}
+.wl-dot{transform-box:view-box;transform-origin:60px 60px}
+.wl-ripple{position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 1.5px rgba(255,255,255,.9),0 0 0 6px rgba(232,85,58,.10);opacity:0;pointer-events:none}
+.wl-title{font-size:clamp(38px,11vw,46px);font-weight:800;letter-spacing:-.045em;line-height:1.02;margin:0;text-wrap:balance;animation:wlRise var(--m-reveal) var(--m-soft) .55s both}
+.wl-sub{font-size:var(--t-call);color:var(--ink-2);line-height:1.4;margin:10px 0 0;max-width:32ch;animation:wlRise var(--m-reveal) var(--m-soft) .65s both}
+.wl-pils{list-style:none;margin:22px 0 0;padding:0;display:flex;flex-direction:column}
+.wl-pil{display:grid;grid-template-columns:28px 1fr;gap:12px;align-items:start;padding:13px 0;border-top:.5px solid var(--line);animation:wlRise var(--m-reveal) var(--m-soft) both}
+.wl-pil:nth-child(1){animation-delay:.8s}.wl-pil:nth-child(2){animation-delay:.88s}.wl-pil:nth-child(3){animation-delay:.96s}
+.wl-pil-i svg.i{width:24px;height:24px;stroke-width:1.9}
+.wl-pil-t{display:flex;flex-direction:column;gap:1px;min-width:0}
+.wl-pil-t b{font-size:var(--t-head);font-weight:600}
+.wl-pil-t span{font-size:var(--t-sub);color:var(--muted)}
+.wl-cta{animation:wlRise var(--m-reveal) var(--m-soft) 1.1s both}
 @keyframes wlDraw{to{stroke-dashoffset:0}}
-@keyframes wlDot{to{transform:scale(1)}}
-@keyframes wlPop{from{transform:scale(.85);opacity:0}to{transform:none;opacity:1}}
-@keyframes wlRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes wlLens{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+@keyframes wlFade{from{opacity:0}to{opacity:1}}
+@keyframes wlRise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (max-height:700px){.wl-pils{margin-top:14px}.wl-pil{padding:9px 0}}
+@media (max-height:600px){.wl-stage{height:104px;margin-bottom:4px}.wl-title{font-size:34px}.wl-sub{font-size:var(--t-sub);margin-top:6px}.wl-pil-t span{font-size:var(--t-foot)}.wl-pils{margin-top:10px}.wl-pil{padding:7px 0}}
 
 /* ================= Sparkle — d'après « Sparkle Button » de JkHuger (Uiverse.io), adapté et isolé (préfixe sk-) =================
    Corrections : variables par défaut, « runnin » → running, plus d'activation globale via body:has(),
@@ -350,6 +370,7 @@ label.btn{cursor:pointer}
 @keyframes sk-float{to{rotate:360deg}}
 .sk-text{translate:2% -6%;letter-spacing:.01ch;background:linear-gradient(90deg,hsl(0 0% calc((var(--active) * 100%) + 96%)),hsl(0 0% calc((var(--active) * 100%) + 78%)));-webkit-background-clip:text;background-clip:text;color:transparent;transition:background var(--transition)}
 .sk.loading .sk-btn{cursor:progress}
+@media (max-width:340px){.sk-btn{font-size:16px}}
 @media (prefers-reduced-motion:reduce){.sk-spark,.sk-spark::before,.sk-p,.sk-icon path{animation:none!important}.sk-pen{display:none}.sk-btn{scale:1}}
 
 /* ================= Hiérarchie des boutons ================= */
@@ -396,7 +417,7 @@ label.btn{cursor:pointer}
 .switch i{transition:transform .35s var(--spring),width .2s}
 .cell[role="switch"]:active .switch i{width:33px}
 .cell[role="switch"]:active .switch.on i{transform:translateX(14px)}
-@media (prefers-reduced-motion:reduce){.wl-arc{stroke-dashoffset:0}.wl-dot{transform:none}}
+@media (prefers-reduced-motion:reduce){.wl-mark .wl-arc{stroke-dashoffset:0}}
 @media (prefers-reduced-motion:reduce){*,*::before{animation:none!important;transition:none!important}}
 @media (max-width:360px){:root{--t-large:30px;--t-1:25px}.ruler-value .big{font-size:44px}.stats{grid-template-columns:1fr 1fr}}
 </style>
@@ -404,6 +425,7 @@ label.btn{cursor:pointer}
 <div class="app" id="app" aria-live="polite"><div class="screen"><p class="muted" style="text-align:center;margin-top:40vh">Chargement…</p></div></div>
 
 <script src="engine.js"></script>
+<script src="sound.js"></script>
 <script src="foods.js"></script>
 <script src="ai.js"></script>
 <script src="app.js"></script>

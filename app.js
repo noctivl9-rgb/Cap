@@ -538,19 +538,50 @@
     renderStep();
   }
   // Écran d'accueil avant les questions : logo animé, promesse, trois fonctions réelles
+  // Écran d'accueil — la marque Cap : un « C » (le cadre) et un point corail (ton cap).
+  // Chorégraphie unique (~1,4 s) : la lentille de verre apparaît, l'arc se trace, le point orbite puis se pose au centre
+  // et s'y stabilise par oscillations amorties, la goutte ondule une fois. Toucher la lentille rejoue l'ondulation.
   function renderWelcome() {
-    const logo = h('div', { class: 'wl-logo', html: '<svg viewBox="0 0 120 120" width="88" height="88" aria-hidden="true"><path class="wl-arc" d="M88 34 A38 38 0 1 0 88 86" fill="none" stroke="var(--ink)" stroke-width="13" stroke-linecap="round"/><circle class="wl-dot" cx="60" cy="60" r="9" fill="var(--body)"/></svg>' });
-    const feat = (ic, col, t, sub, i) => h('div', { class: 'wl-feat', style: 'animation-delay:' + (1000 + i * 140) + 'ms' }, h('span', { class: 'ico', style: 'background:' + col }, icon(ic)), h('span', { class: 'lbl' }, t, h('small', null, sub)));
-    const btn = sparkle('Commencer mon parcours', () => { OB.welcome = false; OB.dir = 1; renderStep(); }).el;
+    const MARK = (size, cls) => '<svg class="' + cls + '" viewBox="0 0 120 120" width="' + size + '" height="' + size + '" aria-hidden="true"><path class="wl-arc" d="M90.4 38 A38 38 0 1 0 90.4 82" fill="none" stroke="var(--ink)" stroke-width="12" stroke-linecap="round"/><circle class="wl-dot" cx="60" cy="60" r="9" fill="var(--body)"/></svg>';
+    const ripple = h('span', { class: 'wl-ripple', 'aria-hidden': 'true' });
+    const lens = h('button', { class: 'wl-lens', type: 'button', 'aria-label': 'Logo Cap', html: MARK(150, 'wl-mark') });
+    lens.appendChild(ripple);
+    const onde = () => {
+      if (reduced()) return;
+      ripple.getAnimations().forEach(a => a.cancel());
+      ripple.animate([{ transform: 'scale(.35)', opacity: .9 }, { transform: 'scale(1.35)', opacity: 0 }], { duration: 900, easing: 'cubic-bezier(.2,.7,.3,1)' });
+      lens.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.035,.965)', offset: .25 }, { transform: 'scale(.985,1.015)', offset: .5 }, { transform: 'scale(1.006,.994)', offset: .75 }, { transform: 'scale(1)' }], { duration: 700, easing: 'ease-out' });
+      const dot = lens.querySelector('.wl-dot');
+      dot.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.3)', offset: .3 }, { transform: 'scale(.92)', offset: .6 }, { transform: 'scale(1.04)', offset: .82 }, { transform: 'scale(1)' }], { duration: 650, easing: 'ease-out' });
+    };
+    lens.addEventListener('click', () => { onde(); if (window.CapSon) window.CapSon.jouer('etape'); });
+    const pilier = (ic, col, t, sub) => h('li', { class: 'wl-pil' }, h('span', { class: 'wl-pil-i', style: 'color:' + col }, icon(ic)), h('span', { class: 'wl-pil-t' }, h('b', null, t), h('span', null, sub)));
+    const sk = sparkle('Commencer mon parcours', () => { if (window.CapSon) window.CapSon.jouer('ouverture'); OB.welcome = false; OB.dir = 1; renderStep(); });
     $app.textContent = '';
     $app.append(h('div', { class: 'ob wl' },
-      h('div', { class: 'wl-hero' }, logo, h('h1', { class: 'wl-title' }, 'Cap'), h('p', { class: 'wl-sub' }, 'Ton corps et ton argent, avec un plan clair et des chiffres vrais.')),
-      h('div', { class: 'panel flush wl-list' },
-        feat('camera', 'var(--body)', 'Note tes repas en un geste', 'Recherche, recettes ou photo analysée par l’IA', 0),
-        feat('chart', 'var(--accent)', 'Suis ta progression réelle', 'Pesées, calories, séances : jamais de résultat inventé', 1),
-        feat('wallet', 'var(--money)', 'Planifie ton grand projet', 'Budget, épargne, coût réel et étapes', 2))),
-      h('div', { class: 'ob-bar' }, h('div', { class: 'in glass wl-cta' }, btn, h('p', { class: 'foot muted', style: 'text-align:center;margin:4px 0 2px' }, 'Environ 3 minutes. Tes réponses restent privées.'))));
+      h('div', { class: 'wl-brand', html: MARK(26, 'wl-brand-mark') + '<span>Cap</span>' }),
+      h('div', { class: 'wl-stage' }, h('span', { class: 'wl-caustic', 'aria-hidden': 'true' }), lens),
+      h('h1', { class: 'wl-title' }, 'Garde le cap.'),
+      h('p', { class: 'wl-sub' }, 'Ton corps et ton argent, suivis avec des chiffres vrais.'),
+      h('ul', { class: 'wl-pils' },
+        pilier('camera', 'var(--body)', 'Repas', 'Recherche, recettes ou photo analysée'),
+        pilier('chart', 'var(--accent)', 'Progrès', 'Pesées, calories et séances mesurées'),
+        pilier('wallet', 'var(--money)', 'Projet', 'Budget, épargne et coût réel'))),
+      h('div', { class: 'ob-bar' }, h('div', { class: 'in glass wl-cta' }, sk.el, h('p', { class: 'foot muted', style: 'text-align:center;margin:4px 0 2px' }, 'Environ 3 minutes. Tes réponses restent privées.'))));
     window.scrollTo(0, 0);
+    // Le point trouve son cap : orbite sur l'arc, rejoint le centre, se stabilise
+    if (!reduced()) {
+      const dot = lens.querySelector('.wl-dot');
+      dot.animate([
+        { transform: 'rotate(-250deg) translateX(38px) scale(.6)', opacity: 0 },
+        { transform: 'rotate(-120deg) translateX(38px) scale(.9)', opacity: 1, offset: .35 },
+        { transform: 'rotate(-20deg) translateX(14px) scale(1)', offset: .7 },
+        { transform: 'rotate(0deg) translateX(0px) scale(1.18)', offset: .84 },
+        { transform: 'rotate(0deg) translateX(0px) scale(.95)', offset: .93 },
+        { transform: 'rotate(0deg) translateX(0px) scale(1)' }
+      ], { duration: 1100, delay: 350, easing: 'cubic-bezier(.3,.1,.25,1)', fill: 'backwards' });
+      setTimeout(onde, 1300);
+    }
   }
   function renderStep() {
     if (OB.welcome) { renderWelcome(); return; }
@@ -558,6 +589,8 @@
     OB.idx = Math.max(0, Math.min(OB.idx, vs.length - 1));
     const s = vs[OB.idx];
     if (s.init) s.init(OB.A);
+    if (OB.lastSec && OB.lastSec !== s.sec && OB.dir > 0) if (window.CapSon) window.CapSon.jouer('etape');
+    OB.lastSec = s.sec;
     store.set('cap-draft', { A: OB.A, idx: OB.idx });
     const ctx = makeCtx(s);
     const sk = s.id === 'plan' && !OB.returnTo ? sparkle(s.cta, () => ctx.next()) : null;
@@ -609,7 +642,7 @@
     try {
       await put('profil', 'main', data);
       if (C(A) && has(A.poids) && !S.pesees.some(p => p.date === dayId())) await put('pesees', dayId(), Object.assign({ date: dayId(), poids: A.poids }, has(A.tour) ? { tour: A.tour } : {}));
-      S.profil = data; store.del('cap-draft'); OB = null; tab = 'today'; refresh(); toast('Plan enregistré');
+      S.profil = data; store.del('cap-draft'); OB = null; tab = 'today'; refresh(); toast('Plan enregistré'); if (window.CapSon) window.CapSon.jouer('valider');
     } catch (e) { toast('Échec de l’enregistrement. Vérifie ta connexion et réessaie.'); }
   }
 
@@ -718,7 +751,12 @@
     const save = h('button', { class: 'btn', type: 'button', onclick: async () => {
       if (!r.isTouched() && !A.poids) { err.textContent = 'Indique ton poids.'; return; }
       A.poids = Math.round(r.value() / k * 100) / 100; const body = { date: dt.value || dayId(), poids: A.poids }; if (t.isTouched()) body.tour = t.value();
-      try { await put('pesees', body.date, body); close(); toast('Pesée enregistrée'); } catch (e) { err.textContent = 'Échec, réessaie.'; }
+      const avant = S.profil ? E.jalons(S.pesees, S.profil.poids, S.profil.cible || S.profil.poids, 0).length : 0;
+      try {
+        await put('pesees', body.date, body); close(); toast('Pesée enregistrée');
+        const apres = S.profil ? E.jalons(S.pesees.filter(x => x.date !== body.date).concat([body]), S.profil.poids, S.profil.cible || S.profil.poids, 0).length : 0;
+        if (window.CapSon) window.CapSon.jouer(apres > avant ? 'objectif' : 'valider');
+      } catch (e) { err.textContent = 'Échec, réessaie.'; }
     } }, 'Enregistrer');
     close = sheet('Nouvelle pesée', [h('p', { class: 'muted sub' }, 'Le matin, à jeun, après les toilettes, une fois par semaine.'), r.el, t.el, h('label', { class: 'field', for: 'p-date' }, 'Date', dt), err, save]);
   }
@@ -880,6 +918,12 @@
         row('Heures pour le projet', v(p.heuresProjet, 'h / sem'), 'heuresProjet', 'clock', 'var(--money)'),
         row('Revenu visé (hypothèse)', has(p.revenuVise) ? eur(p.revenuVise) : 'Aucun', 'revenuVise', 'chart', 'var(--money)'))));
     }
+    const sonOn = !!(window.CapSon && window.CapSon.actif());
+    out.push(section(null, null, h('div', { class: 'cap' }, 'Préférences'), h('div', { class: 'panel flush' },
+      h('button', { class: 'cell', type: 'button', role: 'switch', 'aria-checked': String(sonOn), onclick: () => { window.CapSon.regler(!sonOn); window._keepScroll = true; renderMain(); } },
+        h('span', { class: 'lbl' }, 'Sons de l’interface', h('small', null, 'Quatre sons discrets : étape, validation, objectif, ouverture. Désactivés par défaut. Sur iPhone, ils respectent le mode silencieux (iOS 17 et plus).')),
+        h('span', { class: 'switch' + (sonOn ? ' on' : '') }, h('i')))),
+      h('p', { class: 'foot muted', style: 'margin:0 16px' }, 'Safari sur iPhone ne permet pas aux sites de faire vibrer le téléphone : pas de retour haptique ici.')));
     out.push(section(null, null, h('div', { class: 'cap' }, 'Sources et méthode'), h('div', { class: 'panel' },
       h('p', { class: 'sub' }, 'Les calculs sont faits par des formules fixes, testées, jamais par une IA. Ce sont des estimations, pas des garanties. Cap ne remplace ni un médecin ni un conseiller financier.'),
       h('ul', { class: 'calc' }, Object.keys(E.REF.sources).map(k => h('li', { class: 'foot' }, E.REF.sources[k]))))));
