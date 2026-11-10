@@ -28,7 +28,7 @@ const OFF = { status: 1, product: { product_name: 'Pâte à tartiner', brands: '
   let it = await items();
   T('6. sauvegarde : aliment enregistré avec 150 g', it.length === 1 && it[0].q === 150, it);
   // 4. Total
-  const reste = await pg.$eval('.jr-reste b', e => e.textContent.replace(/\s/g, ''));
+  const reste = await pg.$eval('.jr-an .an-c b', e => e.textContent.replace(/\s/g, ''));
   T('4. total du jour recalculé (reste = objectif − noté)', parseInt(reste) > 0 && it[0].k > 0);
   // Correction d'une saisie
   await pg.click('.cell:has-text("' + it[0].n.slice(0, 10) + '")'); await pg.waitForTimeout(250);

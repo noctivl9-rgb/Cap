@@ -102,7 +102,11 @@
     const doc = (S.conversations || []).find(x => x.id === 'principal');
     conv = doc && Array.isArray(doc.messages) ? doc.messages.slice() : [];
     const msgs = h('div', { class: 'chat', 'aria-live': 'polite' });
-    const bulle = (role, text, origine) => { const b = h('div', { class: 'bubble ' + (role === 'user' ? 'me' : 'ai') }, origine ? h('span', { class: 'tag ' + (origine === 'cap' ? 'calc' : 'ia') }, origine === 'cap' ? 'Calculé par Cap' : 'Claude') : null, h('p', null, text)); msgs.appendChild(b); b.scrollIntoView({ block: 'end' }); return b; };
+    // Réponse IA : phrases puis actions (« - … ») rendues en liste, par textContent uniquement
+    const rendre = (pEl, text) => { const lignes = String(text || '').split('\n').map(l => l.trim()).filter(Boolean), act = lignes.filter(l => /^[-•]\s+/.test(l)).map(l => l.replace(/^[-•]\s+/, '')), prose = lignes.filter(l => !/^[-•]\s+/.test(l)).join(' ');
+      pEl.textContent = prose; const old = pEl.parentNode && pEl.parentNode.querySelector('.coach-act'); if (old) old.remove();
+      if (act.length && pEl.parentNode) pEl.after(h('ul', { class: 'coach-act' }, act.map(a => h('li', null, U().icon('check'), h('span', null, a))))); };
+    const bulle = (role, text, origine) => { const pEl = h('p', null, text); const b = h('div', { class: 'bubble ' + (role === 'user' ? 'me' : 'ai') }, origine ? h('span', { class: 'tag ' + (origine === 'cap' ? 'calc' : 'ia') }, origine === 'cap' ? 'Calculé par Cap' : 'Claude') : null, pEl); msgs.appendChild(b); if (origine === 'ia' && text) rendre(pEl, text); b.scrollIntoView({ block: 'end' }); return b; };
     conv.forEach(m => bulle(m.role, m.content, m.origine));
     const accords = [];
     const sw = (k, label) => h('button', { class: 'pf-sw coach-sw', type: 'button', role: 'switch', 'aria-checked': String(!!prefs[k]), onclick: async e => { const v = !(U().S.prefs || {})[k]; try { await savePrefs({ [k]: v }); e.currentTarget.setAttribute('aria-checked', String(v)); e.currentTarget.querySelector('.switch').classList.toggle('on', v); } catch (x) { /* rien */ } } }, h('span', { class: 'switch' + (prefs[k] ? ' on' : '') }, h('i')), h('span', null, label));
@@ -123,30 +127,32 @@
       o.propositions.forEach(pr => propZone.appendChild(h('div', { class: 'coach-prop' }, h('b', null, pr.type === 'reporter_seance' ? 'Proposition : reporter la séance du jour à demain' : 'Proposition : objectif de ' + pr.valeur + ' kcal par jour'), h('p', null, pr.raison),
         h('div', { class: 'ia-actions' }, h('button', { class: 'btn small', type: 'button', onclick: async () => { await appliquer(pr, d); propZone.textContent = ''; } }, 'Accepter'), h('button', { class: 'btn small text', type: 'button', onclick: () => { propZone.textContent = ''; } }, 'Refuser')))));
     }
-    send.addEventListener('click', async () => {
-      const question = q.value.trim(); if (!question || send.disabled) return;
-      q.value = ''; err.textContent = '';
+    async function demander(question, approfondir) {
+      err.textContent = '';
       bulle('user', question); conv.push({ role: 'user', content: question });
       const out = bulle('assistant', 'Réflexion…', 'ia');
       const pOut = out.querySelector('p');
       ctl = new AbortController(); send.disabled = true; stop.hidden = false;
+      msgs.querySelectorAll('.coach-plus').forEach(x => x.remove());
       const o = outils(d);
       try {
         let r;
-        if (toolsOk()) r = await AI.coachOutils(question, conv.slice(-10, -1), o.T, { signal: ctl.signal, onText: ({ text }) => { pOut.textContent = text; }, onOutil: n => { pOut.textContent = 'Lecture : ' + n + '…'; } });
-        else r = await AI.coach(question, conv.slice(-10, -1), window.CapJournal.contexte ? window.CapJournal.contexte(d) : {}, { signal: ctl.signal, onText: ({ text }) => { pOut.textContent = text; } });
-        pOut.textContent = r.text; conv.push({ role: 'assistant', content: r.text, origine: 'ia' });
+        if (toolsOk()) r = await AI.coachOutils(question, conv.slice(-10, -1), o.T, { approfondir, signal: ctl.signal, onText: ({ text }) => { pOut.textContent = text; }, onOutil: n => { pOut.textContent = 'Lecture : ' + n + '…'; } });
+        else r = await AI.coach(question, conv.slice(-10, -1), window.CapJournal.contexte ? window.CapJournal.contexte(d) : {}, { approfondir, signal: ctl.signal, onText: ({ text }) => { pOut.textContent = text; } });
+        rendre(pOut, r.text); conv.push({ role: 'assistant', content: r.text, origine: 'ia' });
+        if (!approfondir) out.appendChild(h('button', { class: 'chip-btn coach-plus', type: 'button', onclick: () => { if (!send.disabled) demander('Approfondis ta réponse : le pourquoi et les étapes.', true); } }, 'Approfondir'));
         if (o.propositions.length) afficherPropositions(o);
         sauver(conv);
       } catch (e) { pOut.textContent = e.text || ''; if (!e.text) out.remove(); err.textContent = AI.erreur(e); conv.pop(); }
       finally { send.disabled = false; stop.hidden = true; }
-    });
+    }
+    send.addEventListener('click', () => { const question = q.value.trim(); if (!question || send.disabled) return; q.value = ''; demander(question, false); });
     sheet('Coach', [
-      h('p', { class: 'foot muted' }, 'Le coach lit seulement les données que tu autorises, et ne les modifie jamais sans ton accord. Il n’est ni médecin ni conseiller financier.'),
+      h('div', { class: 'coach-ent' }, h('p', { class: 'foot muted' }, 'Lit ce que tu autorises · ne modifie rien sans toi'), window.CapKit ? window.CapKit.info('Le coach', ['Le coach lit seulement les données que tu autorises, et ne les modifie jamais sans ton accord.', 'Réponses courtes avec des actions ; « Approfondir » donne le détail.', 'Il n’est ni médecin ni conseiller financier.']) : null),
       accords.length ? h('div', { class: 'coach-acc', role: 'group', 'aria-label': 'Données que le coach peut lire' }, h('span', { class: 'foot muted' }, 'Données lisibles :'), accords) : null,
-      rapides.length ? h('div', { class: 'coach-rap' }, h('p', { class: 'foot muted' }, 'Questions rapides (répondues par Cap, sans IA) :'), rapides.map(r => h('button', { class: 'chip-btn', type: 'button', onclick: () => { const o = outils(d); const rep = r.rep(o); bulle('user', r.q); bulle('assistant', rep, 'cap'); conv.push({ role: 'user', content: r.q }, { role: 'assistant', content: rep, origine: 'cap' }); sauver(conv); } }, r.q))) : null,
+      rapides.length ? h('div', { class: 'coach-rap' }, h('p', { class: 'foot muted' }, 'Réponses rapides · calculées par Cap'), rapides.map(r => h('button', { class: 'chip-btn', type: 'button', onclick: () => { const o = outils(d); const rep = r.rep(o); bulle('user', r.q); bulle('assistant', rep, 'cap'); conv.push({ role: 'user', content: r.q }, { role: 'assistant', content: rep, origine: 'cap' }); sauver(conv); } }, r.q))) : null,
       msgs, propZone,
-      iaOk ? null : h('div', { class: 'note', role: 'status' }, 'Questions libres indisponibles ici : l’IA fonctionne quand Cap est ouvert dans l’appli Claude. Les questions rapides ci-dessus restent disponibles.'),
+      iaOk ? null : h('div', { class: 'note', role: 'status' }, 'Questions libres indisponibles ici : dans l’appli Claude seulement.'),
       h('label', { class: 'field', for: 'coach-q' }, 'Ta question', q), err, h('div', { class: 'ia-actions' }, send, stop),
       conv.length ? h('button', { class: 'btn text', type: 'button', onclick: async () => { conv = []; msgs.textContent = ''; try { await U().remove('conversations', 'principal'); } catch (e) { /* déjà vide */ } } }, 'Effacer la conversation') : null], { focus: false });
   }

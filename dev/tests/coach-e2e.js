@@ -44,6 +44,17 @@ const P = { v: 2, domaines: ['corps', 'argent', 'entreprise'], sexe: 'H', age: 2
   await pg.waitForTimeout(300);
   const conv = await pg.evaluate(() => JSON.parse(localStorage.getItem('cap-local')).conversations.principal.messages.length);
   T('conversation conservée (4 messages)', conv === 4, conv);
+  // Réponse IA simulée DANS LE TEST uniquement (aucun faux en production) : rendu court + actions + Approfondir
+  await pg.click(sh + ' .close, ' + sh + ' button[aria-label="Fermer"]').catch(() => {}); await pg.waitForTimeout(250);
+  await pg.evaluate(() => { const A = window.CapAI; A.texteDispo = () => true; A.outilsDispo = () => false; window.__appels = []; A.coach = async (q, hist, ctx, o) => { window.__appels.push({ q, appro: !!o.approfondir }); return { text: o.approfondir ? 'Détail : <b>pas de HTML</b>.' : 'Tu as dépensé surtout en loisirs.\n- Fixe un plafond loisirs\n- Note chaque sortie' }; }; });
+  await pg.click('.td-head button[aria-label="Ouvrir le coach"]'); await pg.waitForTimeout(300);
+  await pg.fill('#coach-q', 'Comment réduire mes dépenses ?'); await pg.click(sh + ' .btn:has-text("Envoyer")'); await pg.waitForTimeout(300);
+  const acts = await pg.$$eval(sh + ' .coach-act li', l => l.map(x => x.textContent));
+  T('coach IA : réponse courte + actions rendues en liste', acts.length === 2 && acts[0] === 'Fixe un plafond loisirs', acts);
+  await pg.click(sh + ' .coach-plus'); await pg.waitForTimeout(300);
+  const ap = await pg.evaluate(() => window.__appels);
+  T('« Approfondir » renvoie la question en mode détaillé', ap.length === 2 && ap[1].appro === true && !ap[0].appro, ap);
+  T('texte IA inséré sans HTML interprété', !(await pg.$(sh + ' .bubble b')) && (await pg.$eval(sh, e => e.textContent)).includes('<b>pas de HTML</b>'));
   T('aucune erreur JavaScript', errs.length === 0, errs);
   console.log(res.join('\n')); const f = res.filter(x => x.startsWith('FAIL')).length; console.log('\n' + (res.length - f) + ' réussis, ' + f + ' échoués'); await b.close();
 })();

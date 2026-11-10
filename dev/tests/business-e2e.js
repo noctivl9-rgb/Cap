@@ -15,7 +15,7 @@ const lire = (pg, c) => pg.evaluate(c => Object.values(JSON.parse(localStorage.g
   // 1-2. Budget de 250 € et options
   await aller(pg, 'Business');
   let m = await pg.$eval('main', e => e.textContent);
-  T('1. contraintes affichées (capital 250 €, 8 h par semaine)', /250\s€/.test(m.replace(/ /g, ' ')) && m.includes('8 h par semaine'));
+  T('1. contraintes affichées (capital 250 €, 8 h par semaine)', /250\s€/.test(m.replace(/ /g, ' ')) && m.includes('8 h/sem'));
   const opts = await pg.$$eval('.pj-opt h3', l => l.map(e => e.textContent));
   T('2. options compatibles classées par les règles (2 à 3 selon le budget et le matériel)', opts.length >= 2 && opts.length <= 3, opts);
   // 3-4. Choix et plan

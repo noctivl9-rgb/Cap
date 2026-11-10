@@ -37,14 +37,14 @@ async function ouvrir(b, mem, opts) {
   pg = await ouvrir(b, { profil: { main: Object.assign({}, BASE, { domaines: ['corps', 'argent'], revenus: 1000, fixes: 900, variables: 400, remboursements: 0, epargne: 0, reve: 'appart', reveAnnee: 2032, reveMontant: 200000 }) } });
   let prio = await pg.$eval('.td-prio-t', e => e.textContent);
   T('Aujourd’hui : budget en déficit = priorité, factuelle', /déficit|Dépenses supérieures aux revenus/.test(prio) && /300/.test(await pg.$eval('.td-prio-x', e => e.textContent)), [prio, await pg.$eval('.td-prio-x', e => e.textContent)]);
-  T('Aujourd’hui : une seule priorité, une seule action', (await pg.$$('.td-prio')).length === 1 && (await pg.$$('.td-prio button')).length === 1);
+  T('Aujourd’hui : une seule priorité, une seule action', (await pg.$$('.td-prio')).length === 1 && (await pg.$$('.td-prio-go')).length === 1);
   T('Aujourd’hui : aucune flamme, série ni score', !(await pg.evaluate(() => /série|score|\/100/i.test(document.querySelector('main').textContent))) && !(await pg.$('main svg.i.flame')));
 
   // ---------- Séance guidée : lundi = séance prévue ----------
   pg = await ouvrir(b, { profil: { main: Object.assign({}, BASE, { domaines: ['corps'] }) } });
-  prio = await pg.$eval('.td-prio button', e => e.textContent);
+  prio = await pg.$eval('.td-prio-go', e => e.textContent);
   T('Aujourd’hui : séance du jour proposée en priorité', prio === 'Commencer la séance', prio);
-  await pg.click('.td-prio button'); await pg.waitForTimeout(400);
+  await pg.click('.td-prio-go'); await pg.waitForTimeout(400);
   T('séance guidée : plein écran, dialogue nommé', await pg.$eval('.sg', e => e.getAttribute('role') === 'dialog' && /Séance/.test(e.getAttribute('aria-label'))));
   await pg.click('.sg-go'); await pg.waitForTimeout(200);
   const cible = await pg.$eval('.sg-cible', e => e.textContent);
@@ -70,7 +70,7 @@ async function ouvrir(b, mem, opts) {
   // ---------- Séance : pause, alternative, gêne signalée, report ----------
   {
     const p2 = await ouvrir(b, { profil: { main: Object.assign({}, BASE, { domaines: ['corps'] }) } });
-    await p2.click('.td-prio button'); await p2.waitForTimeout(300); await p2.click('.sg-go'); await p2.waitForTimeout(200);
+    await p2.click('.td-prio-go'); await p2.waitForTimeout(300); await p2.click('.sg-go'); await p2.waitForTimeout(200);
     await p2.clock.setFixedTime(new Date('2026-11-09T09:31:05')); await p2.waitForTimeout(700);
     const t1 = await p2.$eval('.sg-temps', e => e.textContent);
     await p2.click('.sg-pause'); await p2.waitForTimeout(100);

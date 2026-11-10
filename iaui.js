@@ -127,7 +127,7 @@
       pi && pi.valide ? h('button', { class: 'btn small secondary', type: 'button', onclick: () => revenir(pi) }, 'Revenir au programme calculé') : null,
       dispo ? h('button', { class: 'btn small secondary', type: 'button', onclick: () => demanderQuestions(d) }, 'L’IA a-t-elle des questions ?') : null);
     out.push(rang);
-    if (!dispo) out.push(h('p', { class: 'ia-off' }, h('span', { class: 'tag hypo' }, 'IA'), ' ', etat().texte));
+    if (!dispo) out.push(h('p', { class: 'ia-off' }, h('span', { class: 'tag hypo' }, 'IA'), ' Indisponible ici · calculé par Cap', h('span', { class: 'sr' }, ' ' + etat().texte)));
     const n = (U().S.programmes || []).length;
     if (n) out.push(h('p', { class: 'foot muted', style: 'margin:0 4px' }, n + ' version(s) générée(s) conservée(s) dans l’historique.'));
     return out;
@@ -216,7 +216,7 @@
     const { h, section, eur, saveProfil, toast, dayId } = U(), B = window.CapBusiness, out = [];
     const dispo = IA() && IA().dispo(), op = d.opIA;
     const btn = h('button', { class: 'btn small', type: 'button', disabled: dispo ? null : true, onclick: () => chercherBusiness(d) }, op ? 'Relancer la recherche IA' : 'Chercher 3 activités avec l’IA');
-    if (!op && !dispo) { out.push(h('p', { class: 'ia-off' }, h('span', { class: 'tag hypo' }, 'IA'), ' Recherche de marché : ' + etat().texte.charAt(0).toLowerCase() + etat().texte.slice(1))); return out; }
+    if (!op && !dispo) { out.push(h('p', { class: 'ia-off' }, h('span', { class: 'tag hypo' }, 'IA'), ' Recherche de marché indisponible ici', h('span', { class: 'sr' }, ' ' + etat().texte))); return out; }
     if (!op) { out.push(section('Recherche par IA', 'L’IA peut proposer des activités hors du catalogue de Cap. Les chiffres (budget, scénarios, plan) restent calculés par Cap.', btn)); return out; }
     const ch = K().changements(op.entrees, K().entrees(d.p, CHAMPS_BUSINESS));
     const modeTxt = op.mode === 'web' ? 'avec recherche web : faits sourcés' : 'sans recherche web : prix, demande et concurrence sont des estimations du modèle, non vérifiées';

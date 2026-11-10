@@ -117,11 +117,14 @@
       b.report ? 'Report de la veille : +' + b.report + ' kcal (200 maximum).' : 'Report de la veille : ' + (S().prefs.report ? 'rien à reporter.' : 'option désactivée.'),
       'Noté : ' + fr(b.mange) + ' kcal. Reste = ' + fr(b.total) + ' − ' + fr(b.mange) + ' = ' + fr(reste) + ' kcal.'].concat(b.perso ? [] : d.phys.calcul);
     const mac = (lbl, have, goal) => h('div', { class: 'jr-mac' }, h('span', null, lbl), h('b', { class: 'num' }, fr(have) + ' / ' + goal + ' g'), h('i', { class: 'jr-barre', 'aria-hidden': 'true' }, h('i', { style: 'width:' + Math.min(100, have / goal * 100) + '%' })));
-    return h('section', { class: 'jr-resume', 'aria-label': 'Résumé du jour' },
-      h('p', { class: 'jr-reste' }, h('b', { class: 'num' }, U.nombre('kcal-reste-' + jour, Math.abs(reste), v => fr(v))), h('span', null, reste >= 0 ? ' kcal restantes' : ' kcal au-dessus de l’objectif')),
-      h('div', { class: 'jr-jauge' + (reste < 0 ? ' over' : ''), role: 'img', 'aria-label': Math.round(pct * 100) + ' % de l’objectif du jour' }, h('i', { style: 'width:' + pct * 100 + '%' })),
+    const K = window.CapKit;
+    const mac2 = (lbl, have, goal, coul) => h('div', { class: 'jr-m' }, h('div', { class: 'jr-m-h' }, h('span', null, lbl), h('b', { class: 'num' }, fr(have) + h2s(goal))), h('i', { class: 'jr-barre', 'aria-hidden': 'true' }, h('i', { style: 'width:' + Math.min(100, have / goal * 100) + '%;background:' + coul })));
+    function h2s(g) { return ' / ' + g + ' g'; }
+    return h('section', { class: 'jr-resume v2', 'aria-label': 'Résumé du jour' },
+      h('div', { class: 'jr-haut' },
+        K ? K.anneau({ valeur: b.mange, max: b.total, label: 'Calories du jour', centre: U.nombre('kcal-reste-' + jour, Math.abs(reste), v => fr(v)), sousCentre: reste >= 0 ? 'kcal restantes' : 'kcal au-dessus de l’objectif', couleur: 'var(--corps)', taille: 132, epaisseur: 12, cls: 'jr-an' }) : null,
+        h('div', { class: 'jr-macs2' }, mac2('Protéines', t.p, m.prot, 'var(--corps)'), simple ? h('p', { class: 'foot muted jr-simple' }, 'Mode simple : glucides et lipides masqués.') : [mac2('Glucides', t.c, m.glu, 'var(--ink-2)'), mac2('Lipides', t.f, m.lip, 'var(--faint)')])),
       h('p', { class: 'jr-detail' }, 'Objectif ' + fr(b.base) + (b.bonus ? ' · +' + b.bonus + ' activité' : '') + (b.report ? ' · +' + b.report + ' report' : '') + ' · noté ' + fr(b.mange)),
-      h('div', { class: 'jr-macs' }, mac('Protéines', t.p, m.prot), simple ? h('p', { class: 'foot muted jr-simple' }, 'Mode simple : glucides et lipides masqués (Profil › Nutrition).') : [mac('Glucides', t.c, m.glu), mac('Lipides', t.f, m.lip)]),
       extras(), U.howBtn('Calories du jour', lines));
   }
   // Fibres, sucres, sel : seulement pour les aliments dont la source les fournit (jamais estimés)
@@ -594,7 +597,7 @@
       out.push(h('section', { class: 'pr-hero', 'aria-labelledby': 'pr-h' },
         h('p', { class: 'pr-k' }, h('span', { class: 'tag mesure' }, 'Mesuré'), ' le ' + U.fmtD(last.date)),
         h('h2', { id: 'pr-h', class: 'pr-poids num' }, U.wfmt(last.poids)),
-        h('p', { class: 'pr-sous' }, all.length + ' pesée' + (all.length > 1 ? 's' : '') + ' depuis le ' + U.fmtD(all[0].date) + (ecart !== null ? ' · ' + (ecart > 0 ? '+' : ecart < 0 ? '−' : '') + U.wfmt(Math.abs(ecart)).replace(/^0,0 /, '0 ') + ' au total' : ''))));
+        h('p', { class: 'pr-sous' }, (ecart !== null ? h('b', { class: 'pr-ecart ' + (ecart < 0 ? 'bas' : ecart > 0 ? 'haut' : '') }, (ecart > 0 ? '+' : ecart < 0 ? '−' : '') + U.wfmt(Math.abs(ecart)).replace(/^0,0 /, '0 ')) : null), ' ' + all.length + ' pesée' + (all.length > 1 ? 's' : '') + ' depuis le ' + U.fmtD(all[0].date))));
       // Tendance mesurée, puis lecture
       let lecture = null;
       if (tr.rythme !== null && ph.planPossible && p.objectif !== 'maintenir') {
@@ -602,13 +605,17 @@
         if (p.objectif === 'perdre') lecture = r < -ph.max - 0.1 ? ['Plus rapide que le maximum prudent. Ajoute environ 200 kcal par jour.', 'bad'] : r <= target * 0.5 ? ['Tu suis le rythme prévu.', 'good'] : ['Plus lent que prévu. Si ça dure 3 semaines, retire environ 150 kcal par jour.', 'warn'];
         else lecture = r > ph.max + 0.1 ? ['Prise plus rapide que prévu : retire environ 150 kcal par jour.', 'warn'] : r >= target * 0.5 ? ['Tu suis le rythme prévu.', 'good'] : ['Prise plus lente que prévu : ajoute environ 150 kcal par jour.', 'warn'];
       }
-      out.push(h('section', { class: 'pr-tend' },
-        h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Tendance'), tr.rythme === null ? h('span', { class: 'pr-v vide' }, 'Pas encore calculable : il faut deux pesées à au moins une semaine d’écart.') : h('span', { class: 'pr-v' }, h('b', { class: 'num' }, (tr.rythme > 0 ? '+' : '') + fr(U.unite() === 'lb' ? tr.rythme * U.LB : tr.rythme, 2) + ' ' + U.unite() + ' par semaine'), ' sur le dernier mois mesuré')),
-        lecture ? h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Lecture de Cap'), h('span', { class: 'pr-v lect ' + lecture[1] }, lecture[0])) : null,
-        h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Objectif'), h('span', { class: 'pr-v' }, p.objectif === 'maintenir' ? 'Maintenir ton poids en améliorant ta forme.' : ph.planPossible ? U.wfmt(ph.cible) + (ph.semaines ? ', ≈ ' + ph.semaines + ' semaines au rythme prévu (estimation)' : '') : 'Objectif à revoir avec un médecin.'))));
+      const K = window.CapKit;
+      const depart = all[0].poids, cibleOk = p.objectif !== 'maintenir' && ph.planPossible && ph.cible;
+      const parcouru = cibleOk && depart !== ph.cible ? Math.max(0, Math.min(1, (depart - last.poids) / (depart - ph.cible))) : null;
+      out.push(h('section', { class: 'pr-kpi', 'aria-label': 'Indicateurs mesurés' },
+        K.tuile({ mod: 'corps', icone: 'chart', titre: 'Tendance', valeur: tr.rythme === null ? '–' : (tr.rythme > 0 ? '+' : '') + fr(U.unite() === 'lb' ? tr.rythme * U.LB : tr.rythme, 2), sous: tr.rythme === null ? 'Pas encore calculable' : U.unite() + ' par semaine', vide: tr.rythme === null }),
+        K.tuile({ mod: 'corps', icone: 'target', titre: 'Objectif', valeur: p.objectif === 'maintenir' ? 'Maintien' : ph.planPossible ? U.wfmt(ph.cible) : 'À revoir', sous: parcouru !== null ? Math.round(parcouru * 100) + ' %' + (ph.semaines ? ' · plan ' + ph.semaines + ' sem.' : '') : '', visuel: parcouru !== null ? h('i', { class: 'jr-jauge', 'aria-hidden': 'true' }, h('i', { style: 'width:' + parcouru * 100 + '%;background:var(--corps)' })) : null })));
+      if (lecture) out.push(h('div', { class: 'pr-lecture ' + lecture[1], role: 'note' }, h('span', { class: 'tag calc' }, 'Lecture de Cap'), h('span', null, lecture[0])));
+      else if (tr.rythme === null) out.push(h('p', { class: 'sr' }, 'Tendance : pas encore calculable, il faut deux pesées à au moins une semaine d’écart.'));
       const range = U.segments([[30, '1 mois'], [90, '3 mois'], [3650, 'Tout']], plageProgres, v => { plageProgres = v; U.refresh(); }, 'Période de la courbe', 'per');
-      out.push(h('section', { class: 'pr-courbe', 'aria-labelledby': 'pr-c' }, h('div', { class: 'pr-courbe-h' }, h('h2', { id: 'pr-c', class: 'td-h' }, 'Courbe'), range), h('div', { class: 'chart' }, courbePoids(d)),
-        h('p', { class: 'foot muted' }, 'Trait plein : tes pesées. ' + (ph.planPossible && p.objectif !== 'maintenir' ? 'Pointillés : le plan, jamais un résultat. ' : '') + 'Le poids varie de 1 à 2 kg d’un jour à l’autre : seule la tendance compte.')));
+      out.push(h('section', { class: 'pr-courbe carte', 'aria-labelledby': 'pr-c' }, h('div', { class: 'pr-courbe-h' }, h('h2', { id: 'pr-c', class: 'kt-h' }, 'Courbe'), range), h('div', { class: 'chart' }, courbePoids(d)),
+        h('div', { class: 'pr-leg' }, h('span', null, h('i', { class: 'l-plein' }), 'Pesées'), ph.planPossible && p.objectif !== 'maintenir' ? h('span', null, h('i', { class: 'l-point' }), 'Plan') : null, K.info('Lire la courbe', ['Trait plein : tes pesées. Pointillés : le plan, jamais un résultat.', 'Le poids varie de 1 à 2 kg d’un jour à l’autre (eau, sel, repas) : seule la tendance sur plusieurs semaines compte.']))));
     }
     // Détails repliés
     const cj = E.cibleJour(ph, p.objectifsPerso);
@@ -678,13 +685,13 @@
     const p = d.p, prefs = S().prefs, ph = d.phys;
     const row = (t, val, fn) => h('button', { class: 'cell', type: 'button', onclick: fn }, h('span', { class: 'lbl' }, t), h('span', { class: 'val' }, val), icon('chev', 'chev'));
     const cj = ph && ph.ok ? E.cibleJour(ph, p.objectifsPerso) : null;
-    return [h('section', { class: 'sec' }, h('div', { class: 'cap' }, 'Nutrition'), h('div', { class: 'panel flush' },
+    return [h('details', { class: 'pf-rep' }, h('summary', null, 'Nutrition'), h('div', { class: 'panel flush' },
       cj ? row('Objectifs quotidiens', fr(cj.kcal) + ' kcal' + (cj.perso ? ' · perso' : ''), () => U.editerObjectifs(p, ph, null, v => U.saveProfil({ objectifsPerso: v }))) : null,
       row('Alimentation', (F.REGIMES[p.regime || 'omnivore'] || F.REGIMES.omnivore)[0], () => U.editStep('regime')),
       interrupteur('Mode simple', 'Accueil : calories et protéines seulement', !!p.modeSimple, v => U.saveProfil({ modeSimple: v })),
       interrupteur('Poids en livres (lb)', 'Les données restent enregistrées en kg', p.unites === 'lb', v => U.saveProfil({ unites: v ? 'lb' : 'kg' })),
-      interrupteur('Ajouter les calories d’activité', 'Seulement les activités en plus de ton programme, et 50 % de l’estimation, car elle peut être surestimée', !!prefs.bonusActivite, v => U.savePrefs({ bonusActivite: v })),
-      interrupteur('Reporter les calories non mangées', 'Jusqu’à 200 kcal de la veille, seulement si la veille est notée', !!prefs.report, v => U.savePrefs({ report: v })),
+      interrupteur('Ajouter les calories d’activité', 'Hors programme · 50 % de l’estimation', !!prefs.bonusActivite, v => U.savePrefs({ bonusActivite: v })),
+      interrupteur('Reporter les calories non mangées', 'Jusqu’à 200 kcal, si la veille est notée', !!prefs.report, v => U.savePrefs({ report: v })),
       U.cellKV('Objectif d’eau', fr(E.objectifEau(poidsActuel())) + ' ml (30 ml par kg)'),
       row('Mes aliments et recettes', (S().perso.length + S().recettes.length) + '', () => mesAliments())))];
   };

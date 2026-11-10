@@ -16,7 +16,7 @@
       const i = bloq[0], f = i.fixes[0];
       out.push({ id: 'bloquant', mod: i.domaine, titre: i.titre, texte: i.texte, cta: f ? f.label : 'Revoir mes réponses', go: () => U().editStep(U().STEP_BY_FIELD[f ? f.champ : i.champs[0]] || (f ? f.champ : i.champs[0])) });
     }
-    if (d.argent && d.fin && d.fin.ok && d.fin.capacite < 0) out.push({ id: 'deficit', mod: 'argent', titre: 'Ton budget est en déficit', texte: 'Tu dépenses ' + eur(-d.fin.capacite) + ' de plus que tu ne gagnes chaque mois, d’après tes réponses.', cta: 'Voir mon budget', go: () => U().aller('parcours', 'argent') });
+    if (d.argent && d.fin && d.fin.ok && d.fin.capacite < 0) out.push({ id: 'deficit', mod: 'argent', titre: 'Ton budget est en déficit', texte: 'Tu dépenses ' + eur(-d.fin.capacite) + ' de plus que tu ne gagnes chaque mois, d’après tes réponses.', court: '−' + eur(-d.fin.capacite) + ' par mois, d’après tes réponses.', cta: 'Voir mon budget', go: () => U().aller('parcours', 'argent') });
     if (d.corps && d.prog && d.prog.ok) {
       const x = U().seanceDuJour(t), se = x && x.se;
       const faite = S0.seances.some(l => l.date === t);
@@ -109,9 +109,40 @@
     ], { focus: false });
   }
 
+  // Aujourd'hui : un coup d'œil (anneaux du jour, données réelles), une priorité, les actions suivantes, les modules.
+  function anneauxJour(d) {
+    const { h, S, dayId } = U(), K = window.CapKit, t = dayId(), out = [];
+    if (!d.corps || !d.phys || !d.phys.ok) return null;
+    const b = window.CapJournal.budgetDuJour(d), j = S.journaux[t] || {}, items = j.items || [];
+    const tot = window.CapEngine.totaux(items), eauObj = window.CapEngine.objectifEau(window.CapJournal.poidsActuel() || d.p.poids);
+    const vers = sous => () => U().aller('corps', null, sous);
+    out.push(K.anneau({ valeur: b.mange, max: b.total, label: 'Calories', centre: U().fr(Math.max(0, Math.round(b.restant))), sousCentre: b.restant >= 0 ? 'restantes' : 'au-dessus', legende: 'Calories', couleur: 'var(--corps)', taille: 88, epaisseur: 9, onclick: vers('journal') }));
+    out.push(K.anneau({ valeur: tot.p, max: b.macros.prot, label: 'Protéines', unite: 'g', centre: Math.round(tot.p) + '', sousCentre: '/ ' + b.macros.prot + ' g', legende: 'Protéines', couleur: 'var(--corps-texte)', onclick: vers('journal') }));
+    out.push(K.anneau({ valeur: j.eauMl || 0, max: eauObj, label: 'Eau', unite: 'ml', centre: U().fr((j.eauMl || 0) / 1000, 1), sousCentre: 'litre' + ((j.eauMl || 0) >= 2000 ? 's' : ''), legende: 'Eau', couleur: '#3C6E91', onclick: vers('journal') }));
+    const x = U().seanceDuJour(t), faite = S.seances.some(l => l.date === t);
+    out.push(x && x.se ? K.anneau({ valeur: faite ? 1 : 0, max: 1, label: 'Séance du jour', texte: faite ? 'faite' : 'à faire', centre: faite ? '✓' : (x.se.duree + "'"), sousCentre: faite ? 'faite' : 'à faire', legende: 'Séance', couleur: 'var(--ink)', onclick: vers('programme') })
+      : h('button', { class: 'an repos', type: 'button', onclick: vers('programme'), 'aria-label': 'Séance : jour de repos' }, h('span', { class: 'an-c an-repos' }, h('b', null, 'Repos'), h('small', null, 'récupère')), h('span', { class: 'an-l' }, 'Séance')));
+    return h('section', { class: 'td-anneaux', 'aria-label': 'Ton jour en un coup d’œil' }, out);
+  }
+  function tuilesModules(d) {
+    const { h, S, eur, wfmt, fr } = U(), K = window.CapKit, out = [];
+    if (d.corps) {
+      const pes = S.pesees.filter(r => typeof r.poids === 'number').sort((a, b) => a.date.localeCompare(b.date)), last = pes[pes.length - 1];
+      out.push(K.tuile({ mod: 'corps', icone: 'scale', titre: 'Poids', valeur: last ? wfmt(last.poids) : '–', sous: last ? (d.p.cible && d.p.objectif !== 'maintenir' ? 'objectif ' + wfmt(d.p.cible) : U().fmtD(last.date)) : 'aucune pesée', vide: !last, visuel: K.courbe(pes.slice(-12).map(r => ({ x: r.date, y: r.poids })), { l: 132, h: 34 }), onclick: () => U().aller('corps', null, 'evolution'), aria: 'Poids : ' + (last ? wfmt(last.poids) : 'aucune pesée') }));
+    }
+    if (d.argent && d.fin && d.fin.ok) {
+      const n = d.fin.niveaux, pct = n.intermediaire.montant > 0 ? Math.max(0, Math.min(1, d.fin.actuelle / n.intermediaire.montant)) : 0;
+      out.push(K.tuile({ mod: 'argent', icone: 'wallet', titre: 'Épargne', valeur: eur(Math.max(0, d.fin.actuelle)), sous: Math.round(pct * 100) + ' % de l’étape', visuel: h('i', { class: 'jr-jauge ag', 'aria-hidden': 'true' }, h('i', { style: 'width:' + pct * 100 + '%' })), onclick: () => U().aller('avenir', null, 'finances'), aria: 'Épargne réelle ' + eur(Math.max(0, d.fin.actuelle)) }));
+    }
+    if (d.entreprise) {
+      const A = d.baction, v = S.ventes || [], tv = v.reduce((s2, x) => s2 + (x.montant || 0), 0);
+      out.push(K.tuile({ mod: 'projet', icone: 'building', titre: 'Business', valeur: A && A.ok ? A.faites + '/' + A.total : (v.length ? eur(tv) : '–'), sous: A && A.ok ? 'tâches · ' + (v.length ? eur(tv) + ' vendus' : '0 vente') : (d.p.activiteExistante ? 'ventes réelles' : 'activité à choisir'), visuel: A && A.ok ? h('i', { class: 'jr-jauge', 'aria-hidden': 'true' }, h('i', { style: 'width:' + (A.total ? A.faites / A.total * 100 : 0) + '%' })) : null, onclick: () => U().aller('avenir', null, 'business'), aria: 'Business' }));
+    }
+    return out.length ? h('section', { class: 'td-tuiles n' + out.length, 'aria-label': 'Tes modules' }, out) : null;
+  }
   function view(d) {
-    const { h, icon, dayId } = U();
-    const c = candidats(d), prio = c[0], suite = c.slice(1, 4), out = [];
+    const { h, icon } = U(), K = window.CapKit;
+    const c = candidats(d), prio = c[0], suite = c.slice(1, 5), out = [];
     const date = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     let fl = null;
     try { fl = window.CapFlammes ? window.CapFlammes.calculer(entreeFlamme(d)) : null; } catch (e) { fl = null; }
@@ -119,24 +150,22 @@
     out.push(h('header', { class: 'td-head' }, h('div', { class: 'td-head-l' }, h('p', { class: 'td-date' }, date), h('h1', { class: 'td-titre' }, prenom ? 'Bonjour ' + prenom : 'Aujourd’hui')),
       h('div', { class: 'pc-acts' },
         fl ? h('button', { class: 'td-flamme' + (fl.aujourdhui === 'actif' ? ' allumee' : ''), type: 'button', 'aria-label': 'Flamme de régularité : ' + fl.serie + ' jour' + (fl.serie > 1 ? 's' : '') + (fl.aujourdhui === 'actif' ? ', aujourd’hui compté' : ', aujourd’hui pas encore compté'), onclick: () => feuilleFlamme(fl) }, h('span', { class: 'td-flamme-i', html: flammeSVG(fl.serie) }), h('b', { class: 'num' }, String(fl.serie))) : null,
-        h('button', { class: 'round press pc-coach', type: 'button', 'aria-label': 'Ouvrir le coach', onclick: () => (window.CapCoach ? window.CapCoach.ouvrir(d) : window.CapJournal.coach(d)) }, U().icon('chat')))));
+        h('button', { class: 'round press pc-coach', type: 'button', 'aria-label': 'Ouvrir le coach', onclick: () => (window.CapCoach ? window.CapCoach.ouvrir(d) : window.CapJournal.coach(d)) }, icon('chat')))));
+    if (K) { const a = anneauxJour(d); if (a) out.push(a); }
     if (prio) {
+      const phrase1 = prio.texte ? (prio.texte.match(/^.+?[.!?](?=\s|$)/) || [prio.texte])[0] : '';
+      const ct = prio.court || (prio.texte && prio.texte.length <= 70 ? prio.texte : phrase1 && phrase1.length <= 80 ? phrase1 : null), court = !!ct;
       out.push(h('section', { class: 'td-prio mod-' + prio.mod, 'aria-labelledby': 'td-prio-t' },
-        h('p', { class: 'td-prio-k' }, 'Priorité'),
+        h('div', { class: 'td-prio-k' }, h('span', null, 'Priorité'), prio.texte && prio.texte !== ct && K ? K.info(prio.titre, prio.texte, 'Pourquoi cette priorité') : null),
         h('h2', { id: 'td-prio-t', class: 'td-prio-t' }, prio.titre),
-        h('p', { class: 'td-prio-x' }, prio.texte),
+        court ? h('p', { class: 'td-prio-x' }, ct) : null,
         h('button', { class: 'btn td-prio-go', type: 'button', onclick: prio.go }, prio.cta)));
-    } else {
-      out.push(h('section', { class: 'td-prio calme' }, h('p', { class: 'td-prio-k' }, 'Priorité'), h('h2', { class: 'td-prio-t' }, 'Rien d’urgent aujourd’hui.'), h('p', { class: 'td-prio-x' }, 'Tout ce qui était prévu est fait ou noté. Tu peux relire ta progression dans Parcours.')));
-    }
-    if (suite.length) out.push(h('section', { class: 'td-bloc', 'aria-labelledby': 'td-suite' }, h('h2', { id: 'td-suite', class: 'td-h' }, 'Ensuite'),
-      h('ul', { class: 'td-liste' }, suite.map(x => h('li', null, h('button', { class: 'td-ligne mod-' + x.mod, type: 'button', onclick: x.go }, h('span', { class: 'td-pastille', 'aria-hidden': 'true' }), h('span', { class: 'td-l' }, h('b', null, x.titre), h('small', null, x.cta)), icon('chev', 'chev')))))));
-    const et = etats(d);
-    if (et.length) out.push(h('section', { class: 'td-bloc', 'aria-labelledby': 'td-etat' }, h('h2', { id: 'td-etat', class: 'td-h' }, 'Où tu en es'),
-      h('div', { class: 'td-etats' }, et.map(e => h('button', { class: 'td-etat mod-' + e.mod, type: 'button', onclick: () => U().aller('parcours', e.mod), 'aria-label': e.nom + ' : ' + (e.fait || 'pas encore mesuré') + '. ' + e.detail },
-        h('span', { class: 'td-etat-n' }, e.nom), h('b', { class: 'td-etat-v' + (e.fait ? '' : ' vide') }, e.fait || 'Pas encore mesuré'), h('small', null, e.detail))))));
+    } else out.push(h('section', { class: 'td-prio calme' }, h('div', { class: 'td-prio-k' }, h('span', null, 'Priorité')), h('h2', { class: 'td-prio-t' }, 'Tout est fait pour aujourd’hui.')));
+    if (suite.length) out.push(h('section', { class: 'td-suite', 'aria-label': 'Ensuite' }, h('h2', { class: 'kt-h' }, 'Ensuite'),
+      h('div', { class: 'td-chips' }, suite.map(x => h('button', { class: 'td-chip mod-' + x.mod, type: 'button', onclick: x.go }, h('span', { class: 'td-pastille', 'aria-hidden': 'true' }), h('span', null, x.titre))))));
+    if (K) { const tm = tuilesModules(d); if (tm) out.push(tm); }
     const imp = d.issues.filter(i => i.niveau !== 'info' && i.niveau !== 'bloquant');
-    if (imp.length) out.push(h('details', { class: 'td-verif' }, h('summary', null, imp.length + ' point' + (imp.length > 1 ? 's' : '') + ' à vérifier'), imp.map(i => U().issueView(i, ch => U().editStep(U().STEP_BY_FIELD[ch] || ch)))));
+    if (imp.length) out.push(h('button', { class: 'td-verif-b', type: 'button', onclick: () => U().sheet('À vérifier', imp.map(i => U().issueView(i, ch => { document.querySelectorAll('.scrim').forEach(x => x.remove()); U().editStep(U().STEP_BY_FIELD[ch] || ch); })), { focus: false }) }, U().icon('alert'), imp.length + ' point' + (imp.length > 1 ? 's' : '') + ' à vérifier'));
     return out;
   }
   const API = { view, candidats, etats, entreeFlamme };
