@@ -225,6 +225,8 @@
 
   // ---------------------------------------------------------------- Plan d'action 30 / 60 / 90 jours
   function taches(m, p) {
+    // Activité proposée par l'IA : ses propres tâches, déjà vérifiées par CapContrats.lireTaches
+    if (Array.isArray(m.tachesIA) && m.tachesIA.length) return m.tachesIA.map(t => Object.assign({}, t, { deps: t.deps.slice() }));
     const age = num(p.age) || 0;
     const T = (id, titre, h, prio, deps, critere) => ({ id, titre, heures: h, priorite: prio, deps, critere });
     const portfolio = { web: 10, contenu: 8, service: 2, commerce: 1 }[m.cat] || 4;

@@ -23,7 +23,7 @@ globalThis.fetch = async (entree: RequestInfo | URL, init?: RequestInit) => {
       if (pause) { pause = false; return Response.json({ model: corps.model, stop_reason: 'pause_turn', content: [{ type: 'server_tool_use', id: 's1', name: 'web_search', input: { query: 'prix site vitrine' } }, { type: 'web_search_tool_result', tool_use_id: 's1', content: [{ type: 'web_search_result', url: 'https://exemple.fr/prix', title: 'Prix', page_age: '2026-10-01' }] }] }); }
       return Response.json({ model: corps.model, stop_reason: 'end_turn', content: [{ type: 'text', text: 'Voici : {"opportunites":[{"nom":"Test"}]}', citations: [{ url: 'https://exemple.fr/cite' }] }] });
     }
-    if (/TÂCHE : construire un programme/.test(txt)) return Response.json({ model: corps.model, content: [{ type: 'text', text: '{"resume":"ok","seances":[]}' }] });
+    if (/TÂCHE : étudier la situation de la personne puis construire/.test(txt)) return Response.json({ model: corps.model, content: [{ type: 'text', text: '{"resume":"ok","seances":[]}' }] });
     const scan = Array.isArray(corps.messages[0].content);
     return Response.json({ content: [{ type: 'text', text: scan ? 'Voici : {"aliments":[{"nom":"Riz blanc (cuit)","grammes":150}],"remarque":"ok"}' : 'Garde ton rythme.' }] });
   }

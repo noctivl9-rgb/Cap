@@ -1,0 +1,363 @@
+{
+ "progression": {
+  "regle": "Quand tu atteins le haut de la fourchette de répétitions sur toutes les séries avec une technique propre, augmente un peu la charge ou la tension de l'élastique, ou ajoute 5 secondes aux exercices de maintien.",
+  "semaines": [
+   {
+    "consigne": "Apprends les mouvements avec des charges légères, garde 2-3 répétitions en réserve.",
+    "semaine": 1
+   },
+   {
+    "consigne": "Monte vers le haut des fourchettes de répétitions, même charge.",
+    "semaine": 2
+   },
+   {
+    "consigne": "Augmente légèrement la charge sur les exercices où tu atteins le haut de la fourchette.",
+    "semaine": 3
+   },
+   {
+    "consigne": "Garde les charges et recherche la régularité : 3 séances sur 3. Allège si tu es fatigué.",
+    "semaine": 4
+   }
+  ]
+ },
+ "recuperation": "Séances lundi, mercredi et vendredi, avec repos complet le samedi et le dimanche. Place ta séance de l'autre sport un jour sans renforcement, par exemple le mardi ou le samedi, et évite qu'elle soit trop intense la veille d'une séance. Dors suffisamment, marche un peu chaque jour pour compenser la position assise. Ce programme n'est pas un avis médical : fais-le valider par un kiné ou un médecin, notamment à cause de ta contrainte au genou.",
+ "resume": "Trois séances corps complet de 40 minutes environ, avec répétitions modérées à nombreuses et repos courts, pour dépenser davantage et construire de la régularité. Les séances sont espacées d'au moins un jour, avec un jour de repos complet, et la séance de l'autre sport est placée à distance du renforcement. Aucun exercice sollicitant fortement le genou n'est retenu.",
+ "seances": [
+  {
+   "cle": "S1",
+   "echauffement": "5 min : marche sur place ou marche rapide, rotations des épaules et des hanches, 10 ponts fessiers sans charge, 10 rotations de bras.",
+   "exercices": [
+    {
+     "alternative": "Pont fessier si tu ressens une gêne.",
+     "consigne": "Dos plaqué au mur, cuisses à peu près parallèles au sol si c'est confortable. Respire normalement.",
+     "id": "chaise",
+     "materiel": "aucun",
+     "nom": "Chaise contre un mur",
+     "pattern": "squat",
+     "raison": "Travaille cuisses et fessiers sans mouvement du genou.",
+     "repos": 75,
+     "reps": "30-45 s",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Pompes mains surélevées.",
+     "consigne": "Descends jusqu'à ce que les coudes touchent le sol, puis pousse sans à-coup.",
+     "id": "dc_sol",
+     "materiel": "halteres",
+     "nom": "Développé haltères au sol",
+     "pattern": "push_h",
+     "raison": "Pousser pour pectoraux et triceps, avec une charge facile à régler.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Rowing élastique.",
+     "consigne": "Dos plat, tire le coude vers la hanche, contrôle la descente.",
+     "id": "rowing_halteres",
+     "materiel": "halteres",
+     "nom": "Rowing haltère un bras",
+     "pattern": "pull_h",
+     "raison": "Compense la position assise en renforçant le haut du dos.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Élévations latérales avec bouteilles.",
+     "consigne": "Pousse au-dessus de la tête sans cambrer le dos.",
+     "id": "dm_elastique",
+     "materiel": "elastique",
+     "nom": "Développé épaules élastique",
+     "pattern": "push_v",
+     "raison": "Renforce les épaules avec une résistance progressive et douce.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": [
+      "epaule"
+     ]
+    },
+    {
+     "alternative": "Dead bug.",
+     "consigne": "Corps aligné, ventre serré, sans creuser le dos.",
+     "id": "gainage",
+     "materiel": "aucun",
+     "nom": "Gainage ventral",
+     "pattern": "core",
+     "raison": "Stabilise le tronc et protège le dos.",
+     "repos": 30,
+     "reps": "30-45 s",
+     "series": 3,
+     "zones": []
+    }
+   ],
+   "jour": "1",
+   "justification": "Tu es débutant (charges modérées, 10-15 répétitions), ton objectif est de perdre du poids avec la priorité « forme » (repos courts), et ton frein est la régularité : 3 séances courtes et fixes, dans les 6,5 h dont tu disposes. Tu es assis la plupart de la journée, d'où le travail du dos et des fessiers. Le genou est exclu.",
+   "nom": "Corps complet A",
+   "objectif": "Travailler jambes (sans sollicitation du genou), poussée, tirage et gainage avec des mouvements simples à apprendre.",
+   "progression": null
+  },
+  {
+   "cle": "S2",
+   "echauffement": "5 min : marche rapide sur place, cercles d'épaules, 10 ponts fessiers, 10 élévations en Y sans charge.",
+   "exercices": [
+    {
+     "alternative": "Pont fessier une jambe.",
+     "consigne": "Pousse par les talons, serre les fessiers en haut une seconde.",
+     "id": "pont_fessier",
+     "materiel": "aucun",
+     "nom": "Pont fessier",
+     "pattern": "hinge",
+     "raison": "Active les fessiers, souvent peu sollicités quand on est assis.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Tirage vertical élastique.",
+     "consigne": "Allongé sur le ventre, lève les bras en Y lentement.",
+     "id": "y_raise",
+     "materiel": "aucun",
+     "nom": "Élévations en Y allongé",
+     "pattern": "pull_v",
+     "raison": "Renforce le haut du dos et la posture.",
+     "repos": 45,
+     "reps": "12-15",
+     "series": 2,
+     "zones": []
+    },
+    {
+     "alternative": "Pompes mains surélevées.",
+     "consigne": "Mouvement contrôlé, poignets alignés.",
+     "id": "dc_sol",
+     "materiel": "halteres",
+     "nom": "Développé haltères au sol",
+     "pattern": "push_h",
+     "raison": "Deuxième passage hebdomadaire pour progresser sur la poussée.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Pont fessier.",
+     "consigne": "Même position que S1, tente d'ajouter quelques secondes.",
+     "id": "chaise",
+     "materiel": "aucun",
+     "nom": "Chaise contre un mur",
+     "pattern": "squat",
+     "raison": "Maintient le travail des jambes sans mouvement du genou.",
+     "repos": 75,
+     "reps": "30-45 s",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Élévations latérales avec bouteilles.",
+     "consigne": "Haltères légers, coudes légèrement fléchis, monte jusqu'à l'épaule.",
+     "id": "elev_lat",
+     "materiel": "halteres",
+     "nom": "Élévations latérales haltères",
+     "pattern": "epaules_lat",
+     "raison": "Épaules plus larges et plus stables.",
+     "repos": 45,
+     "reps": "12-15",
+     "series": 2,
+     "zones": [
+      "epaule"
+     ]
+    },
+    {
+     "alternative": "Extension triceps élastique.",
+     "consigne": "Coudes près de la tête, descends lentement.",
+     "id": "ext_halteres",
+     "materiel": "halteres",
+     "nom": "Extension triceps haltère au-dessus de la tête",
+     "pattern": "bras_ext",
+     "raison": "Complète le travail des triceps, limité par le nombre de séances.",
+     "repos": 45,
+     "reps": "12-15",
+     "series": 2,
+     "zones": [
+      "epaule"
+     ]
+    }
+   ],
+   "jour": "3",
+   "justification": "Ton objectif de perte de poids et ta priorité « forme » demandent des répétitions nombreuses et des repos courts. Comme tu es débutant, on reste sur 10-15 répétitions, loin des charges lourdes. Placée au milieu de la semaine, cette séance est espacée des deux autres, ce qui aide la régularité.",
+   "nom": "Corps complet B",
+   "objectif": "Chaîne arrière (fessiers), épaules et bras, avec un volume un peu plus léger.",
+   "progression": null
+  },
+  {
+   "cle": "S3",
+   "echauffement": "5 min : marche rapide, rotations de hanches et d'épaules, 10 good mornings sans charge, 10 tirages élastique légers.",
+   "exercices": [
+    {
+     "alternative": "Pont fessier.",
+     "consigne": "Reste stable, respire.",
+     "id": "chaise",
+     "materiel": "aucun",
+     "nom": "Chaise contre un mur",
+     "pattern": "squat",
+     "raison": "Entretient la force des jambes.",
+     "repos": 75,
+     "reps": "30-45 s",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Développé haltères au sol.",
+     "consigne": "Mains sur une table solide ou un plan de travail, corps aligné.",
+     "id": "pompes_inclinees",
+     "materiel": "aucun",
+     "nom": "Pompes mains surélevées",
+     "pattern": "push_h",
+     "raison": "Poussée au poids du corps, adaptée au débutant.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": [
+      "poignet"
+     ]
+    },
+    {
+     "alternative": "Rowing élastique.",
+     "consigne": "Tire vers la poitrine, omoplates vers le bas.",
+     "id": "tirage_el",
+     "materiel": "elastique",
+     "nom": "Tirage vertical élastique",
+     "pattern": "pull_v",
+     "raison": "Tirage vertical pour le dos.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": []
+    },
+    {
+     "alternative": "Pont fessier.",
+     "consigne": "Dos plat, hanches vers l'arrière, genoux à peine fléchis.",
+     "id": "rdl_halteres",
+     "materiel": "halteres",
+     "nom": "Soulevé de terre roumain haltères",
+     "pattern": "hinge",
+     "raison": "Renforce fessiers et ischios sans solliciter le genou.",
+     "repos": 75,
+     "reps": "10-15",
+     "series": 3,
+     "zones": [
+      "dos"
+     ]
+    },
+    {
+     "alternative": "Élévations latérales élastique.",
+     "consigne": "Bouteilles remplies, mouvement lent.",
+     "id": "elev_lat_bouteilles",
+     "materiel": "aucun",
+     "nom": "Élévations latérales avec bouteilles",
+     "pattern": "epaules_lat",
+     "raison": "Option simple si tes haltères sont trop lourds.",
+     "repos": 45,
+     "reps": "12-15",
+     "series": 2,
+     "zones": [
+      "epaule"
+     ]
+    },
+    {
+     "alternative": "Curl haltères.",
+     "consigne": "Coudes collés au corps, sans balancer.",
+     "id": "curl_sac",
+     "materiel": "aucun",
+     "nom": "Curl sac à dos",
+     "pattern": "bras_flex",
+     "raison": "Travaille les biceps, limités par le nombre de séances.",
+     "repos": 45,
+     "reps": "12-15",
+     "series": 2,
+     "zones": []
+    }
+   ],
+   "jour": "5",
+   "justification": "Ton frein est la régularité : une 3e séance variée évite la monotonie. Tu es débutant, donc 10-15 répétitions. Le soulevé roumain léger est retenu pour le dos et les fessiers, sans solliciter le genou.",
+   "nom": "Corps complet C",
+   "objectif": "Tirage, chaîne arrière et bras, avec poussée inclinée.",
+   "progression": null
+  }
+ ],
+ "_note": "Séances : réponse réelle du modèle (essai A1, 10/11/2026). Champs d'analyse, objectifs, calendrier, adaptations : écrits à la main pour tester l'interface au nouveau format. Ce n'est pas une sortie de modèle.",
+ "pret": true,
+ "analyse": {
+  "situation": "Karim, 34 ans, débutant, 96 kg pour 181 cm, veut perdre du gras avec 8 h libres par semaine, un genou douloureux et la régularité comme frein principal.",
+  "liens": [
+   {
+    "entre": [
+     "zonesDouleur",
+     "objectif"
+    ],
+    "consequence": "La perte de gras passera par le haut du corps, la chaîne arrière et la marche, sans charge sur le genou."
+   },
+   {
+    "entre": [
+     "obstacle",
+     "tempsLibre"
+    ],
+    "consequence": "3 séances courtes à jours fixes plutôt que 4 longues."
+   }
+  ],
+  "manques": []
+ },
+ "objectifs": [
+  {
+   "objectif": "Tenir 3 séances par semaine pendant 6 semaines",
+   "type": "regularite",
+   "valeur": 18,
+   "unite": "séances",
+   "echeanceSemaines": 6,
+   "mesure": "Séances enregistrées dans Cap",
+   "pourquoiRealiste": "Séances de 40 min à jours fixes"
+  },
+  {
+   "objectif": "Passer de 96 à 92 kg",
+   "type": "poids",
+   "valeur": 92,
+   "unite": "kg",
+   "echeanceSemaines": 10,
+   "mesure": "Moyenne des pesées",
+   "pourquoiRealiste": "0,4 kg par semaine"
+  }
+ ],
+ "calendrier": [
+  {
+   "semaines": "1-3",
+   "focus": "Technique et habitude",
+   "actions": [
+    "3 séances à jours fixes",
+    "2 séries par exercice"
+   ]
+  },
+  {
+   "semaines": "4-8",
+   "focus": "Progression",
+   "actions": [
+    "Passer à 3 séries",
+    "Ajouter 2 kg quand le haut de fourchette est atteint"
+   ]
+  }
+ ],
+ "adaptations": [
+  {
+   "si": "le genou fait mal le lendemain",
+   "alors": "retirer la chaise contre un mur et la remplacer par le pont fessier"
+  },
+  {
+   "si": "moins de 2 séances par semaine pendant 2 semaines",
+   "alors": "passer à 2 séances de 40 min"
+  }
+ ]
+}

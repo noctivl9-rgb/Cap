@@ -69,3 +69,13 @@ Non testé : génération réelle par IA (programme, marché, questions) — non
 - `ia-ui.js` (11 / 11, stable sur 5 passages) : parcours IA dans l’interface en rejouant la vraie réponse A1 ; persistance, « Pourquoi ? », changement de temps libre détecté, panne annoncée, historique conservé.
 - Faux positif corrigé : une perte de programme intermittente venait du script de test (réinitialisation du profil à chaque rechargement), pas de l’appli.
 - Défaut corrigé : boutons IA écrasés sur iPhone → grille de 2 colonnes.
+
+## Mise à jour du 10/11/2026 (fin de matinée) — personnalisation au cas par cas
+
+| Suite | Résultat | Remarque |
+|---|---|---|
+| `ia-tests.js` | 41 / 41 | + 16 tests : plus de programme modèle envoyé, contenu individuel obligatoire, objectif de poids trop rapide refusé, questions bloquantes, réponse complémentaire ignorée refusée, adaptation sans ajustement refusée, tâches business (boucles, première vente, démarches ajoutées) |
+| `ia-ui.js` | 17 / 17 | questions → réponse → programme qui l’utilise → réouverture → « Pourquoi ? » → ajustements proposés → appliqués → panne. Réponses du modèle **scriptées** pour l’interface |
+| `cap-ai-test.ts` | 19 / 19 | consignes v2 construites côté serveur |
+| autres suites | inchangées, réussies | tests A à J compris |
+| **Vrais appels (banc v2)** | **0 exécuté** | 8 profils, 10 essais prêts ; nécessitent un clic sur « Tout lancer » dans l’artefact (compte Claude de l’utilisateur). Les résultats v1 sont classés « anciennes consignes, à relancer ». |

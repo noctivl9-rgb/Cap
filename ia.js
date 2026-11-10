@@ -43,16 +43,16 @@
   function programme(p, ctx, opts) {
     const demande = K.demandeProgramme(p, ctx.prog, ctx.seances, ctx);
     return appeler('programme', demande, data => {
-      const v = K.validerProgrammeIA(data, p, ctx.prog);
-      v.questions = K.validerQuestionsIA(data && data.questions, ctx.registre, p).questions;
+      const v = K.validerPlanIndividuel(data, p, ctx.prog, { physique: ctx.physique, changements: ctx.changements, precedent: ctx.precedent, registre: ctx.registre, questionsDejaPosees: demande.questionsDejaPosees });
+      if (!v.attente) v.questions = K.validerQuestionsIA(data && data.questions, ctx.registre, p).questions.filter(q => !q.bloquante);
       return v;
     }, opts);
   }
   function business(p, ctx, opts) {
     const demande = K.demandeMarche(p, ctx.reco);
     return appeler('business', demande, (data, sources) => {
-      const v = K.validerBusinessIA(data, p, sources || null);
-      v.questions = K.validerQuestionsIA(data && data.questions, ctx.registre, p).questions;
+      const v = K.validerBusinessIA(data, p, sources || null, { registre: ctx.registre });
+      if (!v.attente) v.questions = K.validerQuestionsIA(data && data.questions, ctx.registre, p).questions;
       return v;
     }, opts);
   }

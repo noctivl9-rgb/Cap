@@ -38,18 +38,59 @@
     if (w.signal.aborted) return;
     w.close();
     if (!r.ok) { echec(r, 'Ton programme actuel reste affiché.'); return; }
+    // Information décisive manquante : l'IA pose ses questions AVANT de créer quoi que ce soit
+    if (r.attente) { avantDeCreer(r, 'Avant de créer ton programme'); return; }
     const id = 'ia' + Date.now().toString(36);
+    const base = { date: new Date().toISOString(), origine: 'ia', modele: r.modele, transport: r.transport, entrees: K().entrees(p, K().CHAMPS_PROGRAMME.concat(['complements'])), brut: r.brut, corrections: r.corrections || [], essais: r.essais, questions: r.questions || [], adaptationDe: doc ? doc.id : null };
     try {
-      for (const x of S.programmes.filter(x => x.actif)) await put('programmes', x.id, Object.assign(sansId(x), { actif: false, remplacePar: id }));
-      await put('programmes', id, { date: new Date().toISOString(), origine: 'ia', modele: r.modele, transport: r.transport, entrees: K().entrees(p, K().CHAMPS_PROGRAMME.concat(['complements'])), brut: r.brut, corrections: r.corrections || [], essais: r.essais, questions: r.questions || [], actif: true, adaptationDe: doc ? doc.id : null });
+      // Adaptation d'un programme existant : proposée, jamais imposée ; le programme actuel reste actif jusqu'à l'accord
+      if (doc) await put('programmes', id, Object.assign(base, { actif: false, statut: 'propose' }));
+      else await put('programmes', id, Object.assign(base, { actif: true, statut: 'accepte' }));
     } catch (e) { toast('Échec de l’enregistrement, réessaie'); return; }
     if (window.CapSon) window.CapSon.jouer('programme');
-    resultat(r);
+    resultat(r, !!doc);
   }
-  function resultat(r) {
+  function avantDeCreer(r, titre) {
+    const { h, sheet } = U();
+    sheet(titre, [
+      r.analyse || r.analyseProfil ? h('p', { class: 'sub' }, (r.analyse && r.analyse.situation) || r.analyseProfil) : null,
+      h('p', { class: 'foot muted' }, 'L’IA estime qu’il lui manque une information qui changerait vraiment sa proposition. Réponds, puis relance : ta réponse sera utilisée et Cap vérifiera qu’elle l’a été.'),
+      questionsBloc(r.questions)
+    ], { focus: false });
+  }
+  async function decider(pp, accepter) {
+    const { put, toast, S } = U();
+    try {
+      if (accepter) {
+        for (const x of S.programmes.filter(x => x.actif)) await put('programmes', x.id, Object.assign(sansId(x), { actif: false, remplacePar: pp.doc.id }));
+        await put('programmes', pp.doc.id, Object.assign(sansId(pp.doc), { actif: true, statut: 'accepte', decideLe: new Date().toISOString() }));
+        toast('Ajustements appliqués. L’ancienne version reste dans l’historique.');
+      } else {
+        await put('programmes', pp.doc.id, Object.assign(sansId(pp.doc), { actif: false, statut: 'refuse', decideLe: new Date().toISOString() }));
+        toast('Proposition refusée. Ton programme actuel est conservé.');
+      }
+    } catch (e) { toast('Échec, réessaie'); }
+  }
+  // Analyse, objectifs, calendrier et adaptations prévues : ce que l'IA a compris de la personne
+  function detailsIndividuels(pg, ouvert) {
+    const { h } = U();
+    if (!pg.analyse) return null;
+    return h('details', { class: 'panel', open: ouvert ? true : null },
+      h('summary', { class: 'sub', style: 'font-weight:600' }, 'Analyse de ta situation et objectifs'),
+      h('p', { class: 'sub' }, pg.analyse.situation),
+      pg.analyse.liens.length ? h('ul', { class: 'calc' }, pg.analyse.liens.map(l => h('li', { class: 'foot' }, (l.entre.length ? l.entre.map(c => LIB[c] || c).join(' + ') + ' : ' : '') + l.consequence))) : null,
+      pg.objectifs && pg.objectifs.length ? [h('div', { class: 'cap' }, 'Objectifs'), h('ul', { class: 'calc' }, pg.objectifs.map(o => h('li', { class: 'foot' }, h('b', null, o.objectif), ' · ' + o.echeanceSemaines + ' semaines · mesure : ' + o.mesure + (o.pourquoiRealiste ? ' · ' + o.pourquoiRealiste : ''))))] : null,
+      pg.calendrier && pg.calendrier.length ? [h('div', { class: 'cap' }, 'Calendrier'), h('ul', { class: 'calc' }, pg.calendrier.map(c => h('li', { class: 'foot' }, h('b', null, 'Semaines ' + c.semaines + ' : ' + c.focus), ' — ' + c.actions.join(' ; '))))] : null,
+      pg.adaptations && pg.adaptations.length ? [h('div', { class: 'cap' }, 'Si tes résultats changent'), h('ul', { class: 'calc' }, pg.adaptations.map(a => h('li', { class: 'foot' }, 'Si ' + a.si + ' : ' + a.alors)))] : null,
+      pg.complementsUtilises && pg.complementsUtilises.length ? [h('div', { class: 'cap' }, 'Tes réponses complémentaires'), h('ul', { class: 'calc' }, pg.complementsUtilises.map(c => h('li', { class: 'foot' }, c.effet)))] : null,
+      pg.analyse.manques.length ? h('p', { class: 'foot muted' }, 'Limites signalées par l’IA : ' + pg.analyse.manques.join(' ; ')) : null,
+      h('p', { class: 'foot muted' }, 'Vérifié par Cap : séances, durée, jours de repos, matériel, zones douloureuses, niveau et rythme des objectifs. Une vérification automatique ne garantit pas l’absence de risque : arrête un exercice qui fait mal.'));
+  }
+  function resultat(r, propose) {
     const { h, sheet } = U();
     const pg = r.programme;
-    sheet('Programme généré et vérifié', [
+    sheet(propose ? 'Ajustements proposés et vérifiés' : 'Programme généré et vérifié', [
+      propose ? h('p', { class: 'foot' }, 'Ton programme actuel reste actif. Compare et décide dans l’onglet Programme.') : null,
       h('p', { class: 'sub' }, pg.resume || ''),
       h('p', { class: 'foot muted' }, 'Modèle : ' + (r.modele || 'non communiqué') + ' · ' + r.essais.length + ' essai(s) · ' + pg.seances.length + ' séance(s), ' + pg.minutesSemaine + ' min par semaine estimées par Cap.'),
       r.corrections && r.corrections.length ? h('div', { class: 'note' }, h('b', null, 'Corrigé par Cap : '), r.corrections.join(' ')) : null,
@@ -64,10 +105,22 @@
     if (pi && pi.valide) {
       const pg = pi.programme;
       out.push(h('div', { class: 'note tint' }, h('b', null, 'Programme généré par IA et vérifié par Cap'), ' le ' + fmtDate(pg.date) + (pg.modele ? ' (' + pg.modele + ')' : '') + '. ', pg.resume || ''));
+      const di = detailsIndividuels(pg, false); if (di) out.push(di);
+      if (pi.ancienFormat) out.push(h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Programme créé avant l’analyse individuelle : il ne contient ni objectifs datés ni calendrier. « Adapter avec l’IA » produit la version complète.'));
       if (pi.changements.length) out.push(h('div', { class: 'alert warn' }, U().icon('alert'), h('div', null, h('h3', null, 'Tes réponses ont changé depuis ce programme'), h('p', null, pi.changements.map(c => (LIB[c.champ] || c.champ) + ' : ' + val(c.avant) + ' → ' + val(c.apres)).join(' · ')), h('p', { class: 'foot muted' }, 'Le programme respecte encore tes contraintes de sécurité actuelles. L’IA peut l’adapter en gardant ce qui fonctionne.'))));
     } else if (pi && !pi.valide) {
       out.push(h('div', { class: 'alert warn' }, U().icon('alert'), h('div', null, h('h3', null, 'Programme IA suspendu'), h('p', null, 'Le programme généré le ' + fmtDate(pi.doc.date) + ' ne respecte plus tes contraintes actuelles : ' + pi.erreurs.slice(0, 2).join(' ') + ' Le programme calculé par les règles est affiché à la place.'))));
     }
+    const pp = d.progIAPropose;
+    if (pp && pp.valide) {
+      const pg = pp.programme;
+      out.push(h('div', { class: 'alert info' }, U().icon('info'), h('div', null, h('h3', null, 'Ajustements proposés par l’IA'),
+        pg.ajustements.length ? h('ul', { class: 'calc' }, pg.ajustements.map(a => h('li', { class: 'foot' }, h('b', null, a.changement), ' → ' + a.consequence + ' → ' + a.ajustement))) : null,
+        pg.progresConserves && pg.progresConserves.length ? h('p', { class: 'foot' }, 'Progrès conservés : ' + pg.progresConserves.join(' ; ')) : null,
+        h('p', { class: 'foot muted' }, pg.seances.length + ' séance(s), ' + pg.minutesSemaine + ' min par semaine estimées par Cap.'),
+        h('div', { class: 'ia-actions' }, h('button', { class: 'btn small', type: 'button', onclick: () => decider(pp, true) }, 'Appliquer les ajustements'), h('button', { class: 'btn small secondary', type: 'button', onclick: () => decider(pp, false) }, 'Garder mon programme')))));
+      const di = detailsIndividuels(pg, true); if (di) out.push(di);
+    } else if (pp && !pp.valide) out.push(h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Une proposition d’ajustement ne respecte plus tes contraintes actuelles : elle n’est pas proposée.'));
     const rang = h('div', { class: 'ia-actions' },
       btn(pi ? 'Adapter avec l’IA' : 'Générer mon programme avec l’IA', () => genererProgramme(d), pi && pi.valide && !pi.changements.length ? 'secondary' : ''),
       h('button', { class: 'btn small secondary', type: 'button', onclick: () => pourquoi(d) }, 'Pourquoi ce programme ?'),
@@ -153,7 +206,8 @@
     if (w.signal.aborted) return;
     w.close();
     if (!r.ok) { echec(r, 'Le classement calculé par Cap reste disponible.'); return; }
-    try { await put('opportunites', 'op' + Date.now().toString(36), { date: new Date().toISOString(), modele: r.modele, transport: r.transport, mode: r.mode, entrees: K().entrees(p, CHAMPS_BUSINESS), opportunites: r.opportunites, erreurs: r.erreurs || [], essais: r.essais, questions: r.questions || [] }); }
+    if (r.attente) { avantDeCreer(r, 'Avant de te proposer des activités'); return; }
+    try { await put('opportunites', 'op' + Date.now().toString(36), { date: new Date().toISOString(), modele: r.modele, transport: r.transport, mode: r.mode, entrees: K().entrees(p, CHAMPS_BUSINESS), opportunites: r.opportunites, erreurs: r.erreurs || [], essais: r.essais, questions: r.questions || [], analyseProfil: r.analyseProfil || null }); }
     catch (e) { toast('Échec de l’enregistrement, réessaie'); return; }
     if (window.CapSon) window.CapSon.jouer('valider');
     if (r.questions && r.questions.length) U().sheet('L’IA aimerait savoir', [questionsBloc(r.questions)], { focus: false });
@@ -166,6 +220,7 @@
     const ch = K().changements(op.entrees, K().entrees(d.p, CHAMPS_BUSINESS));
     const modeTxt = op.mode === 'web' ? 'avec recherche web : faits sourcés' : 'sans recherche web : prix, demande et concurrence sont des estimations du modèle, non vérifiées';
     out.push(section('Propositions de l’IA', 'Générées le ' + fmtDate(op.date) + (op.modele ? ' (' + op.modele + ')' : '') + ', ' + modeTxt + '. Statut et budget recalculés par Cap avec tes réponses actuelles.',
+      op.analyseProfil ? h('div', { class: 'note' }, h('b', null, 'Analyse de ton profil : '), op.analyseProfil) : null,
       ch.length ? h('div', { class: 'alert warn' }, U().icon('alert'), h('div', null, h('p', null, 'Tes réponses ont changé depuis cette recherche : ' + ch.map(c => (LIB[c.champ] || c.champ) + ' ' + val(c.avant) + ' → ' + val(c.apres)).join(' · ') + '.'))) : null,
       op.opportunites.map(m0 => {
         const ev = B.evaluer(m0, d.p), choisi = d.p.businessChoisi === 'ia' && d.p.businessIA && d.p.businessIA.id === m0.id;
@@ -174,6 +229,7 @@
           h('div', { style: 'display:flex;justify-content:space-between;gap:10px;align-items:baseline' }, h('h3', { style: 'margin:0;font-size:17px' }, m0.nom), h('span', { class: 'chip ' + (ev.statut === 'compatible' ? 'good' : 'warn') }, { compatible: 'Compatible', non_financable: 'Non finançable', rejete: 'Écartée' }[ev.statut])),
           h('p', { class: 'sub', style: 'margin:0' }, m0.client + '. ' + m0.probleme), h('p', { class: 'foot', style: 'margin:0' }, 'Offre : ' + m0.offre),
           m0.pourquoiToi ? h('p', { class: 'foot muted', style: 'margin:0' }, 'Pourquoi toi : ' + m0.pourquoiToi) : null,
+          m0.tachesIA ? h('p', { class: 'foot muted', style: 'margin:0' }, m0.tachesIA.length + ' tâches de lancement propres à cette activité, placées par Cap dans ton calendrier selon tes ' + (d.p.heuresProjet || 0) + ' h par semaine.') : null,
           ev.raisons.length ? h('p', { class: 'foot', style: 'margin:0;color:var(--warn,#B25000)' }, ev.raisons.join(' ')) : null,
           h('div', { class: 'stats' }, h('div', { class: 'stat' }, h('b', null, eur(ev.budget)), h('span', null, 'Budget de départ (calcul Cap)')), h('div', { class: 'stat' }, h('b', null, pl ? eur(pl.scenarios.median.mois[5].net) : '—'), h('span', null, 'Net au 6e mois, scénario médian (calcul Cap)'))),
           m0.faits.length ? h('details', null, h('summary', { class: 'foot' }, m0.faits.length + ' fait(s) sourcé(s)'), h('ul', { class: 'calc' }, m0.faits.map(f => h('li', { class: 'foot' }, f.texte + ' — ', h('a', { href: f.source.url, target: '_blank', rel: 'noopener' }, f.source.titre || f.source.url), f.source.date ? ' (' + f.source.date + ')' : '')))) : null,

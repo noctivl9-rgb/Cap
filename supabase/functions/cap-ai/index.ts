@@ -17,7 +17,7 @@ const GENERATIONS_JOUR = Number(Deno.env.get('CAP_GENERATIONS_JOUR') ?? '10');
 const MODELE_BUSINESS = Deno.env.get('CAP_MODELE_BUSINESS') ?? 'claude-sonnet-5-5';
 const WEB = Deno.env.get('CAP_WEB') === '1'; // recherche web réelle pour les activités (10 $ / 1 000 recherches)
 const WEB_MAX = Number(Deno.env.get('CAP_WEB_MAX') ?? '5');
-const TACHES: Record<string, { max: number }> = { programme: { max: 6000 }, business: { max: 6000 }, questions: { max: 1200 }, pourquoi: { max: 1200 } };
+const TACHES: Record<string, { max: number }> = { programme: { max: 9000 }, business: { max: 12000 }, questions: { max: 1200 }, pourquoi: { max: 1200 } };
 const ORIGINE = Deno.env.get('CAP_ORIGINE') ?? 'https://noctivl9-rgb.github.io';
 const TYPES_IMAGE = ['image/jpeg', 'image/png', 'image/webp'];
 

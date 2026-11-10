@@ -92,3 +92,37 @@ Un programme refusé n’est jamais affiché ; Cap garde le programme calculé.
 ### Tests
 - `dev/tests/ia-tests.js` (25) : mécanique avec un transport scripté.
 - `dev/essais-ia/` + `dev/tests/reel-verif.js` : **vrais appels au modèle** sur profils fictifs, résultats bruts revalidés hors navigateur.
+
+## V2 — personnalisation au cas par cas (10/11/2026, consignes `cap-prompts-2.0`)
+
+Correction d’un défaut de la V1 : la demande envoyée au modèle contenait le programme calculé par les règles
+(`programmeReferenceCap`), ce qui poussait le modèle à le recopier en changeant quelques valeurs. **Supprimé.**
+Le modèle reçoit seulement : les réponses de la personne, les chiffres des moteurs (métabolisme, dépense, rythme maximal),
+les **limites** de sécurité et de faisabilité (temps, récupération, matériel, douleurs, priorité refusée), sa progression
+(séances, ressentis, tendance de poids) et ses réponses complémentaires.
+
+Cycle (un seul appel, pour ménager les limites d’usage) :
+1. **Analyse** obligatoire : situation propre à la personne, liens entre ses réponses, manques.
+2. **Décision** : si une information absente changerait fortement le résultat, `pret: false` et 1 à 3 questions bloquantes
+   (avec la conséquence de la réponse), sans programme. Après 3 réponses, plus de question bloquante.
+3. **Construction de zéro** : séances justifiées, exercices de la bibliothèque ou hors bibliothèque (contrôlés),
+   objectifs datés et mesurables, calendrier par phases, adaptations prévues selon les résultats.
+4. **Adaptation** (programme existant) : chaque changement → conséquence → ajustement ; progrès conservés.
+   L’adaptation est **proposée** : le programme actuel reste actif jusqu’à « Appliquer les ajustements ».
+
+Validation individuelle (`CapContrats.validerPlanIndividuel`), en plus des règles de sécurité de la V1 :
+analyse avec liens ; au moins un objectif daté ; **objectif de poids refusé s’il dépasse le rythme maximal calculé par Cap**
+(ou s’il va vers une perte alors que Cap demande un avis médical) ; calendrier ; adaptations ; **chaque réponse
+complémentaire doit être utilisée et son effet expliqué**, sinon refus ; adaptation sans ajustements expliqués refusée.
+Le programme affiché est revérifié à chaque ouverture : si le poids ou le temps change, un objectif devenu trop rapide
+ou une séance trop longue suspend le programme IA. Avertissement affiché : une vérification automatique ne garantit pas
+l’absence de risque.
+
+Business : `analyseProfil`, questions bloquantes possibles, activités hors catalogue, et **6 à 14 tâches propres à chaque
+activité** (heures, dépendances, critère, première vente). Cap vérifie les tâches (identifiants, heures 0,5-60,
+dépendances sans boucle, une seule première vente), ajoute les démarches légales si elles manquent, puis les place
+dans le calendrier selon les heures disponibles. Budget, statut, scénarios et seuil restent calculés par Cap.
+
+Différences artificielles : la consigne interdit d’en créer ; le banc réel compare des profils très différents et vérifie
+que les différences des programmes correspondent aux différences des personnes (zone douloureuse, lieu, priorité,
+compétences, ville, capital).

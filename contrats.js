@@ -21,6 +21,13 @@
 
   // ---------------------------------------------------------------- Demandes structurées (ce que l'IA reçoit)
   const CHAMPS_PROGRAMME = ['age', 'sexe', 'taille', 'poids', 'objectif', 'cible', 'niveau', 'jours', 'minutes', 'lieu', 'materielSport', 'prioriteSport', 'contraintes', 'zonesDouleur', 'tempsLibre', 'heuresProjet', 'autreSport', 'obstacle', 'activite'];
+  const SUJETS_LIMITES = ['temps', 'recuperation', 'regularite', 'duree', 'cardio', 'materiel', 'douleur', 'priorite'];
+  // Réponses aux questions complémentaires de l'IA, avec leur raison (pour qu'elles pèsent sur le résultat)
+  function complementsDe(p, module) {
+    const c = (p && p.complements) || {}, o = {};
+    Object.keys(c).forEach(id => { if (!module || !c[id].module || c[id].module === module) o[id] = { question: c[id].question, reponse: c[id].reponse, raison: c[id].raison }; });
+    return o;
+  }
   function entrees(p, champs) { const o = {}; champs.forEach(k => { if (p[k] !== undefined) o[k] = p[k]; }); return o; }
   function changements(avant, apres) {
     if (!avant) return [];
@@ -29,20 +36,22 @@
   function demandeProgramme(profil, prog, journalSeances, extra) {
     extra = extra || {};
     const par = prog && prog.parametres ? prog.parametres : null;
-    const ref = prog && prog.ok ? prog.seances.map(s => ({ cle: s.cle, nom: s.nom, exercices: s.exercices.map(e => ({ id: e.id, series: e.series, reps: e.reps, repos: e.repos })) })) : [];
     return {
       tache: 'programme',
-      profil: { age: profil.age, sexeFormule: profil.sexe || null, taille: profil.taille, poids: profil.poids, objectif: profil.objectif, cible: profil.cible || null, niveau: profil.niveau, priorite: par ? par.priorite : profil.prioriteSport, frein: profil.obstacle || null, autreSportSeances: profil.autreSport || 0, activiteQuotidienne: profil.activite },
+      profil: { age: profil.age, sexeFormule: profil.sexe || null, taille: profil.taille, poids: profil.poids, objectif: profil.objectif, cible: profil.cible || null, niveau: profil.niveau, priorite: par ? par.priorite : profil.prioriteSport, frein: profil.obstacle || null, autreSportSeances: profil.autreSport || 0, activiteQuotidienne: profil.activite, lieu: profil.lieu || null, materielDeclare: Array.isArray(profil.materielSport) ? profil.materielSport : 'non renseigné (Cap suppose « aucun »)', seancesSouhaitees: profil.jours, minutesSouhaitees: profil.minutes, contraintes: profil.contraintes || [], zonesDouleur: profil.zonesDouleur || [], modules: profil.domaines || [] },
       donnees: {
         energie: extra.energie && extra.energie.ok ? { metabolismeBase: extra.energie.bmr, depense: extra.energie.tdee, plage: extra.energie.plage, methode: extra.energie.bmrMethode } : null,
         objectifCalorique: extra.physique && extra.physique.ok ? { kcal: extra.physique.kcal, rythmeKgSemaine: extra.physique.rythme, statut: extra.physique.statut } : null,
         tendancePoids: extra.tendance || null,
-        decisionsDeSecuriteCap: prog && prog.decisions ? prog.decisions.map(d => d.raison) : []
+        // Seules les limites de sécurité et de faisabilité sont transmises, jamais les choix du programme par règles
+        limitesCap: prog && prog.decisions ? prog.decisions.filter(d => SUJETS_LIMITES.indexOf(d.sujet) >= 0).map(d => d.raison) : [],
+        rythmeMaxKgSemaine: extra.physique && extra.physique.ok ? extra.physique.max : null
       },
+      progression: { seancesEnregistrees: (journalSeances || []).length, ressentisRecents: (journalSeances || []).slice(-6).map(l => l.ressenti || null), tendancePoids: extra.tendance || null },
       contraintes: par ? { seancesMax: par.joursRetenus, minutesMax: par.minutesRetenues, materiel: par.materiel, zonesExclues: par.zones, tempsDisponibleH: par.tempsLibre === undefined || par.tempsLibre === null ? null : Math.max(0, par.tempsLibre - par.heuresProjet - (par.autreSport || 0) * 1.5) } : null,
       historique: (journalSeances || []).slice(-12).map(l => ({ date: l.date, seance: l.nom || l.cle, ressenti: l.ressenti || null })),
-      complements: profil.complements || {},
-      programmeReferenceCap: ref,
+      complements: complementsDe(profil, 'corps'),
+      questionsDejaPosees: Object.keys(complementsDe(profil, 'corps')).length,
       programmePrecedent: extra.precedent ? extra.precedent.seances.map(s => ({ cle: s.cle, nom: s.nom, jour: s.jour, exercices: s.exercices.map(e => e.nom + ' ' + e.series + '×' + e.reps) })) : null,
       changements: extra.changements || [],
       bibliotheque: T.LIB.filter(e => par && par.materiel.indexOf(e.mat) >= 0 && (e.requiert || []).every(r => par.materiel.indexOf(r) >= 0)).map(e => ({ id: e.id, nom: e.nom, pattern: e.pattern, niveauMin: e.niv, zones: e.zones }))
@@ -52,7 +61,8 @@
     return {
       tache: 'business',
       profil: entrees(profil, ['age', 'pays', 'ville', 'capital', 'competences', 'materielPro', 'heuresProjet', 'experience', 'aisanceVente', 'risque', 'formatPref', 'revenuVise']),
-      complements: profil.complements || {},
+      complements: complementsDe(profil, 'entreprise'),
+      questionsDejaPosees: Object.keys(complementsDe(profil, 'entreprise')).length,
       referenceCap: reco && reco.ok ? { top: reco.top.map(x => ({ nom: x.nom, score: x.score, explication: x.explication })), ecartes: reco.ecartes.map(x => ({ nom: x.nom, statut: x.statut, raisons: x.raisons })), notesLegales: reco.notes } : null,
       fiscalite: Object.keys(B.REGIMES).map(k => ({ regime: k, nom: B.REGIMES[k].nom, cotisations: B.REGIMES[k].taux })),
       budgetDeDepartMax: profil.capital
@@ -131,6 +141,86 @@
     };
   }
 
+  // ---------------------------------------------------------------- Validation individuelle (programme IA complet)
+  const txt = (v, n) => String(v === undefined || v === null ? '' : v).trim().slice(0, n);
+  function lireAnalyse(a) {
+    if (!a || txt(a.situation, 800).length < 30) return null;
+    return { situation: txt(a.situation, 800), liens: (Array.isArray(a.liens) ? a.liens : []).slice(0, 8).map(l => ({ entre: (Array.isArray(l.entre) ? l.entre : []).slice(0, 5).map(x => txt(x, 40)), consequence: txt(l.consequence, 240) })).filter(l => l.consequence.length >= 10), manques: (Array.isArray(a.manques) ? a.manques : []).slice(0, 6).map(x => txt(x, 200)).filter(Boolean) };
+  }
+  // ctx : { physique, changements, precedent, registre, questionsDejaPosees }
+  function validerPlanIndividuel(rep, profil, prog, ctx) {
+    ctx = ctx || {};
+    const analyse = lireAnalyse(rep && rep.analyse);
+    if (rep && rep.pret === false) {
+      const q = validerQuestionsIA(rep.questions, ctx.registre || [], profil);
+      const bl = q.questions.filter(x => x.bloquante), erreurs = [];
+      if (!analyse) erreurs.push('« analyse » absente ou trop courte (situation de la personne, liens entre ses réponses).');
+      if (!bl.length) erreurs.push('« pret »: false sans question bloquante valable' + (q.refus.length ? ' (' + q.refus.map(r => r.raison).join(' ') + ')' : '') + '.');
+      if ((ctx.questionsDejaPosees || 0) >= 3) erreurs.push('La personne a déjà répondu à 3 questions : construis le programme avec ces informations.');
+      return { ok: !erreurs.length, attente: true, erreurs, corrections: [], analyse, questions: bl, programme: null };
+    }
+    const v = validerProgrammeIA(rep, profil, prog);
+    const E2 = v.erreurs;
+    if (!analyse || !analyse.liens.length) E2.push('« analyse » absente ou sans lien entre les réponses de la personne.');
+    const ph = ctx.physique && ctx.physique.ok ? ctx.physique : null;
+    const objectifs = (Array.isArray(rep && rep.objectifs) ? rep.objectifs : []).slice(0, 6).map(o => ({ objectif: txt(o.objectif, 200), type: txt(o.type, 20) || 'autre', valeur: num(Number(o.valeur)), unite: txt(o.unite, 20), echeanceSemaines: num(Number(o.echeanceSemaines)), mesure: txt(o.mesure, 200), pourquoiRealiste: txt(o.pourquoiRealiste, 300) }));
+    if (!objectifs.length) E2.push('Aucun objectif daté (« objectifs »).');
+    objectifs.forEach(o => {
+      if (o.objectif.length < 5 || !o.echeanceSemaines || o.echeanceSemaines < 1 || o.echeanceSemaines > 104) E2.push('Objectif « ' + o.objectif + ' » : échéance en semaines manquante ou hors 1-104.');
+      if (o.type === 'poids' && o.valeur !== null && num(profil.poids)) {
+        if (o.valeur < 30 || o.valeur > 300) { E2.push('Objectif de poids invalide (' + o.valeur + ' kg).'); return; }
+        const rythme = Math.abs(o.valeur - profil.poids) / Math.max(1, o.echeanceSemaines || 1);
+        if (ph && !ph.planPossible && o.valeur < profil.poids) E2.push('Objectif de poids à la baisse refusé : Cap demande un avis médical pour ce profil.');
+        else if (ph && ph.max && rythme > ph.max + 0.01) E2.push('Objectif « ' + o.objectif + ' » trop rapide : ' + Math.round(rythme * 100) / 100 + ' kg/semaine pour un maximum prudent de ' + ph.max + ' kg/semaine calculé par Cap.');
+      }
+    });
+    const calendrier = (Array.isArray(rep && rep.calendrier) ? rep.calendrier : []).slice(0, 8).map(c => ({ semaines: txt(c.semaines, 20), focus: txt(c.focus, 200), actions: (Array.isArray(c.actions) ? c.actions : []).slice(0, 6).map(x => txt(x, 200)).filter(Boolean) })).filter(c => c.focus && c.actions.length);
+    if (!calendrier.length) E2.push('Calendrier par phases absent (« calendrier » avec des actions).');
+    const adaptations = (Array.isArray(rep && rep.adaptations) ? rep.adaptations : []).slice(0, 8).map(a => ({ si: txt(a.si, 200), alors: txt(a.alors, 240) })).filter(a => a.si && a.alors);
+    if (!adaptations.length) E2.push('Aucune adaptation prévue selon les résultats (« adaptations » : si … alors …).');
+    const comps = complementsDe(profil, 'corps');
+    const utilises = (Array.isArray(rep && rep.complementsUtilises) ? rep.complementsUtilises : []).map(c => ({ id: txt(c.id, 40), effet: txt(c.effet, 240) }));
+    Object.keys(comps).forEach(id => { const u = utilises.find(x => x.id === id); if (!u || u.effet.length < 10) E2.push('La réponse complémentaire « ' + comps[id].question + ' » n’a pas été utilisée : dis comment elle change le programme.'); });
+    const ajustements = (Array.isArray(rep && rep.ajustements) ? rep.ajustements : []).slice(0, 10).map(a => ({ changement: txt(a.changement, 200), consequence: txt(a.consequence, 240), ajustement: txt(a.ajustement, 240) })).filter(a => a.changement && a.ajustement);
+    if (((ctx.changements || []).length || ctx.precedent) && !ajustements.length) E2.push('Adaptation sans « ajustements » : explique ce qui a changé, ses conséquences et ce que tu modifies.');
+    const ok = E2.length === 0;
+    if (ok) Object.assign(v.programme, { analyse, objectifs, calendrier, adaptations, complementsUtilises: utilises.filter(u => comps[u.id]), ajustements, progresConserves: (Array.isArray(rep.progresConserves) ? rep.progresConserves : []).slice(0, 8).map(x => txt(x, 200)).filter(Boolean) });
+    return { ok, erreurs: E2, corrections: v.corrections, analyse, programme: ok ? v.programme : null };
+  }
+  // Tâches de lancement proposées par l'IA → vérifiées (ids, heures, dépendances sans boucle, première vente, démarches)
+  function lireTaches(liste, profil) {
+    const err = [];
+    if (!Array.isArray(liste) || liste.length < 5 || liste.length > 15) return { err: ['entre 5 et 15 tâches attendues'], taches: null };
+    const ids = {}, ts = liste.map((t, i) => {
+      let id = txt(t.id, 30).toLowerCase().replace(/[^a-z0-9_]/g, '_') || 't' + i;
+      if (ids[id]) id = id + '_' + i; ids[id] = 1;
+      return { id0: txt(t.id, 30), id, titre: txt(t.titre, 160), heures: num(Number(t.heures)), deps: Array.isArray(t.deps) ? t.deps.map(x => txt(x, 30)) : [], critere: txt(t.critere, 200), priorite: Number(t.priorite) === 2 ? 2 : 1, premiereVente: t.premiereVente === true };
+    });
+    const map = {}; ts.forEach(t => { map[t.id0] = t.id; map[t.id] = t.id; });
+    ts.forEach(t => {
+      if (t.titre.length < 5 || !t.critere) err.push('tâche « ' + (t.titre || t.id) + ' » sans titre ou sans critère de réussite');
+      if (t.heures === null || t.heures < 0.5 || t.heures > 60) err.push('tâche « ' + t.titre + ' » : heures hors 0,5-60');
+      t.deps = t.deps.map(dp => map[dp]).filter(Boolean).filter(dp => dp !== t.id);
+    });
+    const pv = ts.filter(t => t.premiereVente);
+    if (pv.length !== 1) err.push('exactement une tâche « premiereVente » attendue (' + pv.length + ' trouvée(s))');
+    // Boucles de dépendances
+    const fait = {}; let reste = ts.slice(), tours = 0;
+    while (reste.length && tours++ < 40) { const pr = reste.filter(t => t.deps.every(dp => fait[dp])); if (!pr.length) break; pr.forEach(t => { fait[t.id] = 1; }); reste = reste.filter(t => !fait[t.id]); }
+    if (reste.length) err.push('dépendances en boucle entre les tâches');
+    if (err.length) return { err, taches: null };
+    // La première vente prend l'identifiant attendu par la projection financière de Cap
+    const ancien = pv[0].id;
+    ts.forEach(t => { if (t.id === ancien) t.id = 'premiere_vente'; t.deps = t.deps.map(dp => dp === ancien ? 'premiere_vente' : dp); });
+    // Démarches légales : ajoutées par Cap si l'IA les a oubliées (règle, pas génération)
+    if (!ts.some(t => /siret|immatricul|micro-entreprise|déclar|autorisation|statut/i.test(t.titre + ' ' + t.critere))) {
+      const age = num(profil.age) || 30;
+      ts.unshift({ id: 'formalites', titre: age < 18 ? 'Obtenir l’accord écrit de tes parents et déclarer la micro-entreprise' : 'Déclarer la micro-entreprise (guichet unique)', heures: 2, deps: [], critere: 'Numéro SIRET reçu', priorite: 1, ajouteParCap: true });
+      const p0 = ts.find(t => t.id === 'premiere_vente'); p0.deps = p0.deps.concat(['formalites']);
+    }
+    return { err: [], taches: ts.map(t => ({ id: t.id, titre: t.titre, heures: t.heures, deps: t.deps, critere: t.critere, priorite: t.priorite, ajouteParCap: !!t.ajouteParCap })) };
+  }
+
   // Recherche de marché sur les activités du catalogue (format V5 phase 1, conservé)
   function validerMarcheIA(rep) {
     const erreurs = [], retenus = [];
@@ -153,6 +243,10 @@
   const bornes = (v, a, b) => { const n = num(Number(v)); return n === null ? null : Math.min(b, Math.max(a, n)); };
   function validerBusinessIA(rep, profil, sourcesAutorisees) {
     const erreurs = [], retenues = [];
+    if (rep && rep.pret === false) {
+      const q = validerQuestionsIA(rep.questions, (arguments[3] || {}).registre || [], profil), bl = q.questions.filter(x => x.bloquante);
+      return bl.length && txt(rep.analyseProfil, 600).length >= 30 ? { ok: true, attente: true, analyseProfil: txt(rep.analyseProfil, 600), questions: bl, opportunites: [], erreurs: [] } : { ok: false, erreurs: ['« pret »: false sans analyse ou sans question bloquante valable.'], opportunites: [] };
+    }
     if (!rep || !Array.isArray(rep.opportunites)) return { ok: false, erreurs: ['Réponse sans liste d’activités.'], opportunites: [] };
     const avecWeb = Array.isArray(sourcesAutorisees);
     rep.opportunites.slice(0, 5).forEach((a, i) => {
@@ -177,6 +271,9 @@
       };
       if (m.prix.some(x => x === null) || !(m.prix[0] <= m.prix[1] && m.prix[1] <= m.prix[2])) { erreurs.push(nom + ' : prix bas / médian / haut manquants ou incohérents.'); return; }
       if (!m.hU || !m.hC) { erreurs.push(nom + ' : heures par unité ou de prospection manquantes.'); return; }
+      const lt = lireTaches(a.taches, profil);
+      if (!lt.taches) { erreurs.push(nom + ' : tâches de lancement invalides (' + lt.err.join(' ; ') + ').'); return; }
+      m.tachesIA = lt.taches;
       (a.faits || []).forEach(f => {
         const src = f && f.source;
         const sourceOk = avecWeb && src && URL_OK.test(src.url || '') && sourcesAutorisees.some(u => String(src.url).split('#')[0] === String(u).split('#')[0]);
@@ -189,7 +286,7 @@
       const ev = B.evaluer(m, profil);
       retenues.push(Object.assign(m, { statut: ev.statut, raisons: ev.raisons, budget: ev.budget }));
     });
-    return { ok: retenues.length > 0, erreurs, opportunites: retenues, mode: avecWeb ? 'web' : 'sans_web' };
+    return { ok: retenues.length > 0, erreurs, opportunites: retenues, mode: avecWeb ? 'web' : 'sans_web', analyseProfil: txt(rep.analyseProfil, 600) || null };
   }
   // Questions complémentaires : 3 au maximum, justifiées ; variable connue du registre ou nouvelle question libre
   function validerQuestionsIA(liste, matrice, profil) {
@@ -205,7 +302,7 @@
       if (!q.champ && (!q.question || String(q.question).length < 8)) { refus.push({ q, raison: 'Question vide.' }); return; }
       if (!q.champ && profil && profil.complements && profil.complements[id]) { refus.push({ q, raison: 'Déjà posée.' }); return; }
       vus[id] = 1;
-      ok.push({ champ: q.champ || null, id, texte: q.champ ? champs[q.champ].texte : String(q.question).slice(0, 200), type: ['texte', 'nombre', 'choix'].indexOf(q.type) >= 0 ? q.type : 'texte', options: Array.isArray(q.options) ? q.options.slice(0, 6).map(x => String(x).slice(0, 60)) : [], raison: String(q.raison).slice(0, 200), module: ['corps', 'argent', 'entreprise'].indexOf(q.module) >= 0 ? q.module : 'corps' });
+      ok.push({ champ: q.champ || null, id, texte: q.champ ? champs[q.champ].texte : String(q.question).slice(0, 200), type: ['texte', 'nombre', 'choix'].indexOf(q.type) >= 0 ? q.type : 'texte', options: Array.isArray(q.options) ? q.options.slice(0, 6).map(x => String(x).slice(0, 60)) : [], raison: String(q.raison).slice(0, 200), consequence: String(q.consequence || q.raison).slice(0, 200), bloquante: q.bloquante === true, module: ['corps', 'argent', 'entreprise'].indexOf(q.module) >= 0 ? q.module : 'corps' });
     });
     return { questions: ok, refus };
   }
@@ -230,5 +327,5 @@
     if (d.business && d.business.ok) d.business.top.forEach(x => l.push(x.nom + ' : ' + x.explication));
     return l;
   }
-  return { statutIA, CHAMPS_PROGRAMME, entrees, changements, demandeProgramme, demandeMarche, demandeQuestions, validerProgrammeIA, validerMarcheIA, validerBusinessIA, validerQuestionsIA, validerPourquoi, contexteCoach, expliquerSansIA, dureeExercice };
+  return { validerPlanIndividuel, lireTaches, lireAnalyse, complementsDe, SUJETS_LIMITES, statutIA, CHAMPS_PROGRAMME, entrees, changements, demandeProgramme, demandeMarche, demandeQuestions, validerProgrammeIA, validerMarcheIA, validerBusinessIA, validerQuestionsIA, validerPourquoi, contexteCoach, expliquerSansIA, dureeExercice };
 });

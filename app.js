@@ -104,15 +104,21 @@
     const energie = corps ? E.energie(p) : null;
     const progRegles = corps ? (window.CapTraining ? window.CapTraining.generer(p) : E.programme(p)) : null;
     // Programme IA : le plus récent marqué actif, revérifié à chaque affichage contre les contraintes ACTUELLES
-    let progIA = null;
+    let progIA = null, progIAPropose = null;
     const K = window.CapContrats;
     if (corps && K && progRegles && progRegles.ok && progRegles.parametres) {
+      // Revérification complète : sécurité, contraintes actuelles ET objectifs (un poids qui change peut rendre un objectif trop rapide)
+      // Programmes enregistrés avant l'analyse individuelle (ancien format) : sécurité seulement, signalés comme tels
+      const verifier = doc => doc.brut && !doc.brut.analyse && doc.brut.pret === undefined ? Object.assign(K.validerProgrammeIA(doc.brut, p, progRegles), { ancienFormat: true }) : K.validerPlanIndividuel(doc.brut, Object.assign({}, p, { complements: (doc.entrees || {}).complements || {} }), progRegles, { physique: E.physique(p), registre: [] });
       const doc = (S.programmes || []).filter(x => x.actif).sort((a, b) => b.date.localeCompare(a.date))[0];
       if (doc) {
-        const v = K.validerProgrammeIA(doc.brut, p, progRegles);
+        const v = verifier(doc);
         const ch = K.changements(doc.entrees, K.entrees(p, K.CHAMPS_PROGRAMME.concat(['complements'])));
-        progIA = { doc, valide: v.ok, erreurs: v.erreurs, changements: ch, programme: v.ok ? Object.assign(v.programme, { modele: doc.modele, date: doc.date, idDoc: doc.id }) : null };
+        progIA = { doc, valide: v.ok, erreurs: v.erreurs, changements: ch, ancienFormat: !!v.ancienFormat, programme: v.ok ? Object.assign(v.programme, { modele: doc.modele, date: doc.date, idDoc: doc.id }) : null };
       }
+      // Adaptation proposée par l'IA, en attente de la décision de l'utilisateur
+      const prop = (S.programmes || []).filter(x => x.statut === 'propose' && !x.actif).sort((a, b) => b.date.localeCompare(a.date))[0];
+      if (prop) { const v = verifier(prop); progIAPropose = { doc: prop, valide: v.ok, erreurs: v.erreurs, programme: v.ok ? v.programme : null }; }
     }
     const prog = progIA && progIA.valide ? progIA.programme : progRegles;
     const B = window.CapBusiness;
@@ -126,7 +132,7 @@
     const issues = E.coherence(p, phys, prog, fin);
     const adapt = prog ? E.adaptation(prog, S.seances, dayId(), p.creeLe ? p.creeLe.slice(0, 10) : null) : null;
     const opIA = entreprise ? (S.opportunites || []).slice().sort((a, b) => b.date.localeCompare(a.date))[0] || null : null;
-    return { p, corps, argent, entreprise, phys, energie, prog, progRegles, progIA, fin, issues, adapt, business, choisi, bplan, baction, opIA };
+    return { p, corps, argent, entreprise, phys, energie, prog, progRegles, progIA, progIAPropose, fin, issues, adapt, business, choisi, bplan, baction, opIA };
   }
 
   // ================================================================ Règle (valeur en direct, inertie, aimantation)
