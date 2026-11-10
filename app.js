@@ -51,8 +51,8 @@
 
   // ================================================================ Données (db ou mémoire)
   let db = null;
-  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [], taches: {}, ventes: [], programmes: [], opportunites: [] };
-  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {}, taches: {}, ventes: {}, programmes: {}, opportunites: {} };
+  const S = { profil: null, pesees: [], journaux: {}, epargne: [], seances: [], actions: { done: {} }, prefs: { favoris: [] }, perso: [], recettes: [], photos: [], taches: {}, ventes: [], programmes: [], opportunites: [], depenses: [], fournisseurs: [], decisions: [], operations: [] };
+  const mem = { profil: {}, pesees: {}, repas: {}, epargne: {}, seances: {}, actions: {}, prefs: {}, aliments: {}, recettes: {}, photos: {}, historique: {}, taches: {}, ventes: {}, programmes: {}, opportunites: {}, depenses: {}, fournisseurs: {}, decisions: {}, operations: {} };
   async function put(coll, id, data) {
     if (db) return db.collection(coll).doc(id).set(data);
     mem[coll][id] = data; store.set('cap-local', mem); syncMem(); return Promise.resolve();
@@ -75,6 +75,7 @@
     S.ventes = Object.keys(mem.ventes).map(id => Object.assign({ id }, mem.ventes[id]));
     S.programmes = Object.keys(mem.programmes).map(id => Object.assign({ id }, mem.programmes[id]));
     S.opportunites = Object.keys(mem.opportunites).map(id => Object.assign({ id }, mem.opportunites[id]));
+    ['depenses', 'fournisseurs', 'decisions', 'operations'].forEach(c => { S[c] = Object.keys(mem[c]).map(id => Object.assign({ id }, mem[c][id])); });
     refresh();
   }
   // Adaptation sans perte : chaque version remplacée du profil est gardée dans « historique »
@@ -1245,7 +1246,7 @@
           const jobs = [];
           S.pesees.forEach(r => jobs.push(remove('pesees', r.id))); S.epargne.forEach(r => jobs.push(remove('epargne', r.id))); S.seances.forEach(r => jobs.push(remove('seances', r.id)));
           Object.keys(S.journaux).forEach(k => jobs.push(remove('repas', k))); jobs.push(remove('actions', weekKey())); jobs.push(remove('prefs', 'main'));
-          Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.programmes.forEach(x => jobs.push(remove('programmes', x.id))); S.opportunites.forEach(x => jobs.push(remove('opportunites', x.id))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id)));
+          Object.keys(S.taches || {}).forEach(k => jobs.push(remove('taches', k))); S.programmes.forEach(x => jobs.push(remove('programmes', x.id))); S.opportunites.forEach(x => jobs.push(remove('opportunites', x.id))); S.ventes.forEach(v => jobs.push(remove('ventes', v.id))); ['depenses', 'fournisseurs', 'decisions', 'operations'].forEach(c => S[c].forEach(x => jobs.push(remove(c, x.id))));
           S.perso.forEach(r => jobs.push(remove('aliments', r.id))); S.recettes.forEach(r => jobs.push(remove('recettes', r.id)));
           if (window.CapDonnees) jobs.push(window.CapUI.snapshotData().then(d => Promise.all(Object.keys(d.historique || {}).map(id => remove('historique', id)))));
           S.photos.forEach(r => { jobs.push(remove('photos', r.id)); if (window.CapPhotos) jobs.push(window.CapPhotos.supprimerFichier(r)); else if (window.CapJournal) jobs.push(window.CapJournal.supprimerAsset(r.assetId)); });
@@ -1304,6 +1305,7 @@
     live('ventes', v => { S.ventes = v.filter(x => x.date && typeof x.montant === 'number'); });
     live('programmes', v => { S.programmes = v.filter(x => x.date && x.brut); });
     live('opportunites', v => { S.opportunites = v.filter(x => x.date); });
+    ['depenses', 'fournisseurs', 'decisions', 'operations'].forEach(c => live(c, v => { S[c] = v.filter(x => x && x.date); }));
     db.doc('prefs/main').onSnapshot(s => { S.prefs = Object.assign({ favoris: [] }, s.exists ? s.data() : {}); if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
     db.collection('actions').doc(weekKey()).onSnapshot(s => { S.actions = s.exists ? s.data() : { done: {} }; if (booted && !OB) { window._keepScroll = true; refresh(); } }, onErr);
   }

@@ -24,11 +24,14 @@
       if (r && r.manquants) out.push(h('ul', { class: 'td-liste' }, r.manquants.map(m => h('li', null, h('button', { class: 'td-ligne mod-projet', type: 'button', onclick: () => editStep(U().STEP_BY_FIELD[m.champ] || m.champ) }, h('span', { class: 'td-pastille' }), h('span', { class: 'td-l' }, h('b', null, 'Répondre : ' + m.raison)), U().icon('chev', 'chev'))))));
       return out;
     }
+    const PB = window.CapProjetBudget;
+    if (d.p.activiteExistante && PB) { out.push(...PB.existant(d)); out.push(h('button', { class: 'btn text', type: 'button', onclick: () => U().saveProfil({ activiteExistante: null }) }, 'Revenir au parcours débutant')); return out; }
     const choisi = d.choisi && d.bplan;
     if (choisi) out.push(...planView(d));
     else {
       out.push(h('p', { class: 'pj-intro' }, tag('calcul'), ' Classement calculé par les règles de Cap à partir de tes réponses. Prix, demande et temps de prospection sont des hypothèses de départ, pas une étude de ton marché.'));
       out.push(contraintes(d));
+      if (PB) out.push(h('p', { class: 'pj-exist' }, 'Tu as déjà une activité ? ', h('button', { class: 'link', type: 'button', onclick: () => PB.declarerExistant(d) }, 'Suivre mon activité existante')));
       r.notes.forEach(n => out.push(h('div', { class: 'alert info' }, U().icon('info'), h('div', null, h('p', null, n)))));
       if (!r.top.length) out.push(h('div', { class: 'vide' }, h('p', null, 'Aucune activité du catalogue n’est compatible avec ton capital, ton temps et ton âge. Les raisons sont détaillées plus bas : souvent, quelques dizaines d’euros ou une heure de plus par semaine suffisent.')));
       else out.push(h('section', { class: 'pj-opts', 'aria-labelledby': 'pj-opts-t' }, h('h2', { id: 'pj-opts-t', class: 'td-h' }, 'Tes meilleures options'), r.top.map((x, i) => carte(x, d, i === 0))));
@@ -71,11 +74,16 @@
     // 1. Activité active + prochaine tâche à impact
     const prochaine = A && A.ok ? A.taches.find(t => !t.fait) : null;
     const nomDe = id => { const t = A && A.ok ? A.taches.find(x => x.id === id) : null; return t ? t.titre : id; };
+    const PB = window.CapProjetBudget, bud = PB ? PB.etat(d) : null;
+    if (A && A.ok) A.taches.forEach(t => { t.depsNoms = t.deps.map(nomDe).join(', '); const nx = A.taches.find(x => x.deps.indexOf(t.id) >= 0); t.suivante = nx ? nx.titre : null; });
+    const finOk = t => !t.cout || !bud || window.CapBudget.tacheFinancable(bud, t.cout).ok;
+    const detail = t => PB ? PB.detailTache(t, d, cocher) : null;
     out.push(h('section', { class: 'pj-hero', 'aria-labelledby': 'pj-h' },
       h('p', { class: 'pj-k' }, 'Ton activité · ' + P.nom),
       prochaine ? [h('h2', { id: 'pj-h', class: 'pj-t' }, prochaine.titre),
         h('p', { class: 'pj-x' }, 'Réussi si : ' + prochaine.critere + '. ≈ ' + prochaine.heures + ' h, jours ' + prochaine.jourDebut + ' à ' + prochaine.jourFin + '.' + (prochaine.deps.length ? ' Après : ' + prochaine.deps.map(nomDe).join(', ') + '.' : '')),
-        h('button', { class: 'btn pj-go', type: 'button', role: 'checkbox', 'aria-checked': 'false', onclick: () => cocher(prochaine) }, 'Marquer comme faite')]
+        prochaine.cout ? h('p', { class: 'pj-cout' + (finOk(prochaine) ? '' : ' bloque') }, finOk(prochaine) ? 'Coût prévu : ' + eur(prochaine.cout) + ' (hypothèse), finançable.' : 'Non finançable en l’état : il manque ' + eur(window.CapBudget.tacheFinancable(bud, prochaine.cout).manque) + '.') : null,
+        h('div', { class: 'pg-acts' }, h('button', { class: 'btn pj-go', type: 'button', role: 'checkbox', 'aria-checked': 'false', disabled: finOk(prochaine) ? null : true, onclick: () => cocher(prochaine) }, 'Marquer comme faite'), PB ? h('button', { class: 'btn text', type: 'button', onclick: () => detail(prochaine) }, 'Comment faire') : null)]
         : [h('h2', { id: 'pj-h', class: 'pj-t' }, 'Toutes les tâches du plan sont faites.'), h('p', { class: 'pj-x' }, 'La suite se mesure à tes ventes réelles.')]));
     // 2. Première vente
     const pv = A && A.ok ? A.taches.find(t => t.id === 'premiere_vente') : null;
@@ -83,6 +91,7 @@
       ventes.length ? h('p', null, tag('observe'), ' ' + eur(ventes[ventes.length - 1].montant) + ' encaissés le ' + fmtD(ventes[ventes.length - 1].date) + '. ' + ventes.length + ' vente' + (ventes.length > 1 ? 's' : '') + ' au total.')
         : h('p', null, tag('prevision'), pv ? ' Visée vers le jour ' + pv.jourFin + ' du plan, si les tâches avancent au rythme de ' + A.heuresSemaine + ' h par semaine. Rien n’est encore encaissé.' : ' Rien n’est encore encaissé.'),
       h('button', { class: 'btn secondary', type: 'button', onclick: () => vente() }, 'Enregistrer une vente')));
+    if (PB) out.push(PB.panneau(d));
     // 3. Plan d'action
     if (A && A.ok) {
       const phases = [['fait', 'Terminé'], ['30', 'Jours 1 à 30'], ['60', 'Jours 31 à 60'], ['90', 'Jours 61 à 90'], ['apres', 'Après 90 jours']];
@@ -90,8 +99,9 @@
         h('p', { class: 'pj-avance' }, h('b', { class: 'num' }, A.faites + ' tâche(s) sur ' + A.total), ' terminée(s) · calculé pour ' + A.heuresSemaine + ' h par semaine.'),
         h('div', { class: 'jr-jauge', role: 'img', 'aria-label': A.faites + ' tâches sur ' + A.total }, h('i', { style: 'width:' + (A.total ? A.faites / A.total * 100 : 0) + '%' })),
         A.alerte ? h('div', { class: 'alert warn' }, U().icon('alert'), h('div', null, h('p', null, A.alerte))) : null,
-        phases.map(ph => { const ts = A.taches.filter(t => t.phase === ph[0]); if (!ts.length) return null; return h('details', { class: 'pg-det', open: ph[0] === '30' ? true : null }, h('summary', null, ph[1] + ' (' + ts.length + ')'), h('ul', { class: 'td-liste' }, ts.map(t => h('li', null, h('button', { class: 'pj-tache' + (t.fait ? ' fait' : ''), type: 'button', role: 'checkbox', 'aria-checked': String(t.fait), onclick: () => cocher(t) }, h('span', { class: 'pj-coche', 'aria-hidden': 'true' }), h('span', { class: 'td-l' }, h('b', null, t.titre), h('small', null, (t.fait ? 'Fait' + (t.faitLe ? ' le ' + fmtD(t.faitLe) : '') : 'Jours ' + t.jourDebut + ' à ' + t.jourFin + ' · ' + t.heures + ' h') + ' · Réussi si : ' + t.critere + (t.deps.length && !t.fait ? ' · Après : ' + t.deps.map(nomDe).join(', ') : '')))))))); })));
+        phases.map(ph => { const ts = A.taches.filter(t => t.phase === ph[0]); if (!ts.length) return null; return h('details', { class: 'pg-det', open: ph[0] === '30' ? true : null }, h('summary', null, ph[1] + ' (' + ts.length + ')'), h('ul', { class: 'td-liste' }, ts.map(t => h('li', { class: 'pj-tl' + (t.fait ? ' fait' : '') }, h('button', { class: 'pj-cb', type: 'button', role: 'checkbox', 'aria-checked': String(t.fait), 'aria-label': (t.fait ? 'Rouvrir : ' : 'Terminer : ') + t.titre, disabled: !t.fait && !finOk(t) ? true : null, onclick: () => cocher(t) }, h('span', { class: 'pj-coche', 'aria-hidden': 'true' })), h('button', { class: 'pj-tache' + (t.fait ? ' fait' : ''), type: 'button', onclick: () => detail(t) }, h('span', { class: 'td-l' }, h('b', null, t.titre), h('small', null, (t.fait ? 'Fait' + (t.faitLe ? ' le ' + fmtD(t.faitLe) : '') : 'Jours ' + t.jourDebut + ' à ' + t.jourFin + ' · ' + t.heures + ' h') + ' · Réussi si : ' + t.critere + (t.deps.length && !t.fait ? ' · Après : ' + t.deps.map(nomDe).join(', ') : '')))))))); })));
     }
+    if (PB) { out.push(PB.journal(d)); out.push(h('button', { class: 'btn secondary', type: 'button', onclick: () => PB.comparateur(d) }, 'Comparer des fournisseurs')); }
     // 4. Chiffres (repliés), chacun avec son statut
     const mois = [1, 3, 6, 12];
     const ligne = (nom, sc) => h('li', { class: 'pr-jalon' }, h('span', null, nom, h('small', { class: 'muted' }, ' · 12 mois : ' + eur(sc.total12))), h('span', { class: 'num pj-mois' }, mois.map(i => { const x = sc.mois[i - 1]; return 'M' + i + ' ' + eur(x.net) + (x.type === 'observe' ? '*' : ''); }).join(' · ')));
