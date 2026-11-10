@@ -595,7 +595,7 @@
     } else {
       const ecart = all.length > 1 ? last.poids - all[0].poids : null;
       out.push(h('section', { class: 'pr-hero', 'aria-labelledby': 'pr-h' },
-        h('p', { class: 'pr-k' }, h('span', { class: 'tag mesure' }, 'Mesuré'), ' le ' + U.fmtD(last.date)),
+        h('p', { class: 'pr-k' }, 'Pesée du ' + U.fmtD(last.date)),
         h('h2', { id: 'pr-h', class: 'pr-poids num' }, U.wfmt(last.poids)),
         h('p', { class: 'pr-sous' }, (ecart !== null ? h('b', { class: 'pr-ecart ' + (ecart < 0 ? 'bas' : ecart > 0 ? 'haut' : '') }, (ecart > 0 ? '+' : ecart < 0 ? '−' : '') + U.wfmt(Math.abs(ecart)).replace(/^0,0 /, '0 ')) : null), ' ' + all.length + ' pesée' + (all.length > 1 ? 's' : '') + ' depuis le ' + U.fmtD(all[0].date))));
       // Tendance mesurée, puis lecture
@@ -611,13 +611,14 @@
       out.push(h('section', { class: 'pr-kpi', 'aria-label': 'Indicateurs mesurés' },
         K.tuile({ mod: 'corps', icone: 'chart', titre: 'Tendance', valeur: tr.rythme === null ? '–' : (tr.rythme > 0 ? '+' : '') + fr(U.unite() === 'lb' ? tr.rythme * U.LB : tr.rythme, 2), sous: tr.rythme === null ? 'Pas encore calculable' : U.unite() + ' par semaine', vide: tr.rythme === null }),
         K.tuile({ mod: 'corps', icone: 'target', titre: 'Objectif', valeur: p.objectif === 'maintenir' ? 'Maintien' : ph.planPossible ? U.wfmt(ph.cible) : 'À revoir', sous: parcouru !== null ? Math.round(parcouru * 100) + ' %' + (ph.semaines ? ' · plan ' + ph.semaines + ' sem.' : '') : '', visuel: parcouru !== null ? h('i', { class: 'jr-jauge', 'aria-hidden': 'true' }, h('i', { style: 'width:' + parcouru * 100 + '%;background:var(--corps)' })) : null })));
-      if (lecture) out.push(h('div', { class: 'pr-lecture ' + lecture[1], role: 'note' }, h('span', { class: 'tag calc' }, 'Lecture de Cap'), h('span', null, lecture[0])));
+      if (lecture) out.push(h('div', { class: 'pr-lecture ' + lecture[1], role: 'note' }, h('span', null, lecture[0])));
       else if (tr.rythme === null) out.push(h('p', { class: 'sr' }, 'Tendance : pas encore calculable, il faut deux pesées à au moins une semaine d’écart.'));
       const range = U.segments([[30, '1 mois'], [90, '3 mois'], [3650, 'Tout']], plageProgres, v => { plageProgres = v; U.refresh(); }, 'Période de la courbe', 'per');
       out.push(h('section', { class: 'pr-courbe carte', 'aria-labelledby': 'pr-c' }, h('div', { class: 'pr-courbe-h' }, h('h2', { id: 'pr-c', class: 'kt-h' }, 'Courbe'), range), h('div', { class: 'chart' }, courbePoids(d)),
         h('div', { class: 'pr-leg' }, h('span', null, h('i', { class: 'l-plein' }), 'Pesées'), ph.planPossible && p.objectif !== 'maintenir' ? h('span', null, h('i', { class: 'l-point' }), 'Plan') : null, K.info('Lire la courbe', ['Trait plein : tes pesées. Pointillés : le plan, jamais un résultat.', 'Le poids varie de 1 à 2 kg d’un jour à l’autre (eau, sel, repas) : seule la tendance sur plusieurs semaines compte.']))));
     }
-    // Détails repliés
+    // Détails, regroupés sous une seule ligne
+    const i0 = out.length;
     const cj = E.cibleJour(ph, p.objectifsPerso);
     const bs = E.bilanSemaine(S().journaux, cj.kcal, S().pesees, today());
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Calories, 7 derniers jours'), h('div', { class: 'chart' }, barres(bs, cj.kcal)), h('p', { class: 'sub' }, bs.message), h('p', { class: 'foot muted' }, 'Jours sans repas noté : rien n’est estimé.')));
@@ -635,6 +636,7 @@
       ph.etapes.length && ph.planPossible ? h('ul', { class: 'td-liste' }, ph.etapes.slice(0, 6).map(e => h('li', { class: 'pr-jalon' }, h('span', null, 'Semaine ' + e.semaine + ' (estimation)'), h('b', { class: 'num' }, '≈ ' + U.wfmt(e.poids))))) : null));
     const rows = S().pesees.slice().sort((a, b) => b.date.localeCompare(a.date));
     if (rows.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Toutes les pesées (' + rows.length + ')'), h('ul', { class: 'td-liste' }, rows.map(r => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', { class: 'num' }, U.wfmt(r.poids)), h('small', null, U.fmtD(r.date) + (r.tour ? ' · tour de taille ' + fr(r.tour, 1) + ' cm' : '') + (r.note ? ' · ' + r.note : ''))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer la pesée du ' + U.fmtD(r.date), onclick: () => U.confirmDel(() => U.remove('pesees', r.id)) }, icon('trash')))))));
+    out.push(U.plus(out.splice(i0)));
     return out;
   };
   function courbePoids(d) {

@@ -29,7 +29,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   T('onglet Projet présent (Avenir › Business)', await pg.$('.tabbar .nav-d:has-text("Avenir")') !== null);
   await aller(pg, 'Projet'); await pg.waitForTimeout(400);
   let m = await main();
-  T('origine honnête : calculé par les règles, IA indisponible', /Classement calculé par les règles de Cap/.test(m) && /indisponible/.test(m));
+  T('origine honnête : calculé par les règles, IA indisponible', /Classement calculé par les règles de Cap/.test(m) && !(await pg.$('.ia-off')) && !/Recherche de marché/.test(m));
   const cartes = await pg.$$eval('main .pj-opt h3', hs => hs.map(h => h.textContent));
   T('trois activités affichées', cartes.length >= 3, cartes);
   T('une activité de code dans le top 3 (compétence + 500 €)', cartes.slice(0, 3).some(c => /sites|Maintenance|Automatisations/i.test(c)), cartes);
@@ -70,7 +70,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   await p2.goto('http://localhost:8768/page.html'); await p2.waitForTimeout(900);
   await aller(p2, 'Programme'); await p2.waitForTimeout(400);
   const mp = await p2.$eval('main', e => e.textContent);
-  T('programme : origine « calculé par les règles », IA indisponible', /Construit par les règles de Cap/.test(mp) && /pas généré par une IA/.test(mp));
+  T('programme : origine « calculé par les règles », aucun bandeau IA quand l’IA est indisponible', /Construit par les règles de Cap/.test(mp) && !/\bIA\b/.test(mp));
   T('programme : décisions expliquées avec les réponses utilisées', /Limites appliquées/.test(mp) && /il te reste 3 h/.test(mp) && /D’après : temps libre/.test(mp));
   T('programme : 3 h libres → 4 × 60 min réduits, décision affichée', (await p2.$$('details.session')).length <= 4 && /Tu demandais 4 × 60 min/.test(mp));
   await p2.screenshot({ path: path.join(__dirname, 'programme-pourquoi.png'), fullPage: true });

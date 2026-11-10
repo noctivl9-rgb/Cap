@@ -36,3 +36,11 @@ Anneau de progression, tuile cliquable, courbe miniature, donut, barres, bouton 
 
 ## Ce qui n'a pas changé
 Calculs, données, consentements, sécurité, textes d'honnêteté (« Ce n'est pas une promesse », origine des chiffres) : conservés, visibles ou dans les fiches.
+
+## Passe « moins d'IA, plus simple » (10 novembre, soir)
+Choix d'Elias : garder toutes les fonctions, retirer les mentions IA répétées ; moins d'étiquettes, de sections et de réglages.
+- Quand l'IA n'est pas disponible : aucun bandeau IA, aucun bouton IA, aucune ligne de consentement IA ni tuile IA dans Profil. Les accords du coach restent réglables dans le coach. Quand l'IA est disponible (appli Claude), tout réapparaît.
+- Étiquettes Réel / Mesuré / Calcul / Prévision / Projection / Hypothèse / Lecture de Cap retirées des écrans principaux : la formulation porte l'information (« Pesée du… », « Prévu au 6e mois », « Si tu gagnais… », « Projection sur 24 mois »). Elles restent dans les fiches de détail.
+- « Comment est-ce calculé ? » devient un bouton ⓘ.
+- Sections secondaires regroupées sous une seule ligne « Plus de détails » (Programme, Évolution, Finances, Business) ; « À vérifier » reste visible. Profil : préférences, sources, refaire/effacer sous « Plus de réglages » ; la sauvegarde reste visible.
+- Mots visibles : 814 → 621 (départ : 1 618). La mesure ignore désormais aussi le contenu des sections repliées imbriquées.
