@@ -9,10 +9,11 @@
   // la première vente réelle, puis le plan. Chaque chiffre porte son statut : Calcul, Hypothèse, Prévision, Observé, IA.
   const tag = t => { const { h } = U(); return h('span', { class: 'tag ' + ({ observe: 'mesure', hypothese: 'hypo', prevision: 'calc', calcul: 'calc', ia: 'ia' }[t] || 'calc') }, { observe: 'Observé', hypothese: 'Hypothèse', prevision: 'Prévision', calcul: 'Calcul', ia: 'IA' }[t] || t); };
   function contraintes(d) {
-    const { h, eur } = U(), p = d.p, Bz = B();
-    const items = [['Temps', (p.heuresProjet || 0) + ' h par semaine'], ['Capital', eur(p.capital || 0)], ['Compétences', (p.competences || []).map(c => (Bz.COMPETENCES[c]) || (c === 'aucune' ? 'aucune' : c)).join(', ') || '—'], ['Âge', p.age ? p.age + ' ans' : '—'], ['Pays', ({ france: 'France', emirats: 'Émirats', autre: 'Autre' })[p.pays] || '—']];
-    return h('section', { class: 'pj-contr', 'aria-label': 'Tes contraintes' }, h('h2', { class: 'td-h' }, 'Avec quoi tu pars'), h('dl', null, items.map(x => [h('dt', null, x[0]), h('dd', null, x[1])])),
-      h('p', { class: 'foot muted' }, 'Âge et légalité filtrent avant tout : une activité interdite ou impossible à financer n’est jamais proposée.'));
+    const { h, eur, editStep, icon } = U(), p = d.p, Bz = B(), K = window.CapKit;
+    const items = [['clock', (p.heuresProjet || 0) + ' h/sem', 'heuresProjet', 'Temps : ' + (p.heuresProjet || 0) + ' h par semaine'], ['wallet', eur(p.capital || 0), 'capital', 'Capital : ' + eur(p.capital || 0)], ['star', (p.competences || []).map(c => (Bz.COMPETENCES[c]) || (c === 'aucune' ? 'aucune' : c)).join(', ') || '—', 'competences', 'Compétences'], ['person', p.age ? p.age + ' ans' : '—', null, 'Âge'], ['compass', ({ france: 'France', emirats: 'Émirats', autre: 'Autre' })[p.pays] || '—', null, 'Pays']];
+    return h('section', { class: 'pj-contr v2', 'aria-label': 'Avec quoi tu pars' },
+      h('div', { class: 'kt' }, h('h2', null, 'Avec quoi tu pars'), K ? K.info('Avec quoi tu pars', ['Âge et légalité filtrent avant tout : une activité interdite ou impossible à financer n’est jamais proposée.', 'Touche une valeur pour la modifier : le classement est recalculé.']) : null),
+      h('div', { class: 'pj-puces' }, items.map(x => h(x[2] ? 'button' : 'span', { class: 'pj-puce', type: x[2] ? 'button' : null, onclick: x[2] ? () => editStep(x[2]) : null, 'aria-label': x[2] ? 'Modifier — ' + x[3] : x[3] }, icon(x[0]), h('span', null, x[1])))));
   }
   function view(d) {
     const { h, largeTitle, section, eur, editStep, howBtn } = U();
@@ -29,12 +30,13 @@
     const choisi = d.choisi && d.bplan;
     if (choisi) out.push(...planView(d));
     else {
-      out.push(h('p', { class: 'pj-intro' }, tag('calcul'), ' Classement calculé par les règles de Cap à partir de tes réponses. Prix, demande et temps de prospection sont des hypothèses de départ, pas une étude de ton marché.'));
+      const K = window.CapKit;
+      out.push(h('p', { class: 'pj-intro v2' }, tag('calcul'), h('span', { 'aria-hidden': 'true' }, ' Classé par les règles de Cap'), h('span', { class: 'sr' }, ' Classement calculé par les règles de Cap à partir de tes réponses.'), K ? K.info('Origine du classement', ['Classement calculé par les règles de Cap à partir de tes réponses.', 'Prix, demande et temps de prospection sont des hypothèses de départ, pas une étude de ton marché.']) : null));
       out.push(contraintes(d));
-      if (PB) out.push(h('p', { class: 'pj-exist' }, 'Tu as déjà une activité ? ', h('button', { class: 'link', type: 'button', onclick: () => PB.declarerExistant(d) }, 'Suivre mon activité existante')));
+      if (PB) out.push(h('button', { class: 'pj-exist v2', type: 'button', onclick: () => PB.declarerExistant(d) }, U().icon('building'), h('span', null, 'J’ai déjà une activité'), U().icon('chev', 'chev')));
       r.notes.forEach(n => out.push(h('div', { class: 'alert info' }, U().icon('info'), h('div', null, h('p', null, n)))));
       if (!r.top.length) out.push(h('div', { class: 'vide' }, h('p', null, 'Aucune activité du catalogue n’est compatible avec ton capital, ton temps et ton âge. Les raisons sont détaillées plus bas : souvent, quelques dizaines d’euros ou une heure de plus par semaine suffisent.')));
-      else out.push(h('section', { class: 'pj-opts', 'aria-labelledby': 'pj-opts-t' }, h('h2', { id: 'pj-opts-t', class: 'td-h' }, 'Tes meilleures options'), r.top.map((x, i) => carte(x, d, i === 0))));
+      else out.push(h('section', { class: 'pj-opts', 'aria-labelledby': 'pj-opts-t' }, h('h2', { id: 'pj-opts-t', class: 'td-h' }, 'Tes 3 options'), r.top.map((x, i) => carte(x, d, i === 0))));
     }
     if (window.CapIAUI) out.push(...window.CapIAUI.businessPanel(d));
     if (choisi && r.top.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Autres options du classement'), r.top.map((x, i) => carte(x, d, false))));
@@ -51,15 +53,15 @@
   }
 
   function carte(x, d, fort) {
-    const { h, eur } = U();
+    const { h, eur } = U(), K = window.CapKit;
     const m = B().PAR_ID[x.id], choisi = d.choisi === x.id || (d.choisi && d.choisi.id === x.id);
-    return h('article', { class: 'pj-opt' + (fort ? ' fort' : '') },
-      h('div', { class: 'pj-opt-h' }, h('h3', null, x.rang + '. ' + x.nom), h('span', { class: 'pj-score num', 'aria-label': 'Score ' + x.score + ' sur 100' }, x.score + '/100')),
-      h('p', { class: 'pj-cible' }, m.client + '. ' + m.probleme),
-      h('p', { class: 'foot' }, 'Offre : ' + m.offre),
-      h('dl', { class: 'pj-faits' }, h('dt', null, 'Budget de départ ', tag('calcul')), h('dd', { class: 'num' }, eur(x.budget)),
-        h('dt', null, x.preparation ? 'Ventes' : 'Net au 6e mois ', x.preparation ? null : tag('prevision')), h('dd', { class: 'num' }, x.preparation ? 'Pas avant 16 ans' : eur(x.net6) + ' (scénario médian)')),
-      h('details', { class: 'pj-pq' }, h('summary', null, 'Pourquoi ce rang'), h('p', { class: 'foot muted' }, x.explication)),
+    return h('article', { class: 'pj-opt v2' + (fort ? ' fort' : '') },
+      h('div', { class: 'pj-opt-h' }, K ? K.anneau({ valeur: x.score, max: 100, label: 'Score', texte: String(x.score), centre: String(x.score), couleur: fort ? 'var(--projet, #5B4BDB)' : 'var(--ink-2)', taille: 48, epaisseur: 5, cls: 'pj-an' }) : null,
+        h('div', { class: 'pj-opt-t' }, h('h3', null, x.rang + '. ' + x.nom), h('p', { class: 'pj-cible' }, m.client))),
+      h('div', { class: 'pj-kpi' },
+        h('div', null, h('small', null, 'Départ ', tag('calcul')), h('b', { class: 'num' }, eur(x.budget))),
+        h('div', null, h('small', null, x.preparation ? 'Ventes' : '6e mois ', x.preparation ? null : tag('prevision')), h('b', { class: 'num', 'aria-label': x.preparation ? null : eur(x.net6) + ' net au 6e mois, scénario médian' }, x.preparation ? 'Pas avant 16 ans' : eur(x.net6) + ' net'))),
+      h('details', { class: 'pj-pq' }, h('summary', null, 'Détails'), h('p', { class: 'foot' }, m.probleme), h('p', { class: 'foot' }, h('b', null, 'Offre : '), m.offre), x.preparation ? null : h('p', { class: 'foot muted' }, 'Net au 6e mois : scénario médian, avant impôt.'), h('p', { class: 'foot muted' }, h('b', null, 'Pourquoi ce rang : '), x.explication)),
       h('button', { class: 'btn ' + (choisi ? 'secondary' : fort ? 'pj-go' : 'secondary'), type: 'button', disabled: choisi ? true : null, onclick: () => choisir(x.id, d) }, choisi ? 'Activité choisie' : 'Choisir cette activité'));
   }
   async function choisir(id, d) {
@@ -89,7 +91,7 @@
     const pv = A && A.ok ? A.taches.find(t => t.id === 'premiere_vente') : null;
     out.push(h('section', { class: 'pj-vente', 'aria-labelledby': 'pj-v' }, h('h2', { id: 'pj-v', class: 'td-h' }, 'Première vente'),
       ventes.length ? h('p', null, tag('observe'), ' ' + eur(ventes[ventes.length - 1].montant) + ' encaissés le ' + fmtD(ventes[ventes.length - 1].date) + '. ' + ventes.length + ' vente' + (ventes.length > 1 ? 's' : '') + ' au total.')
-        : h('p', null, tag('prevision'), pv ? ' Visée vers le jour ' + pv.jourFin + ' du plan, si les tâches avancent au rythme de ' + A.heuresSemaine + ' h par semaine. Rien n’est encore encaissé.' : ' Rien n’est encore encaissé.'),
+        : h('p', null, tag('prevision'), pv ? ' Visée : jour ' + pv.jourFin + ' du plan · rien encaissé' : ' Rien n’est encore encaissé.', pv ? h('span', { class: 'sr' }, ' (si les tâches avancent au rythme de ' + A.heuresSemaine + ' h par semaine)') : null),
       h('button', { class: 'btn secondary', type: 'button', onclick: () => vente() }, 'Enregistrer une vente')));
     if (PB) out.push(PB.panneau(d));
     // 3. Plan d'action

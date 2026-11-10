@@ -912,13 +912,15 @@
     const views = { today: d2 => window.CapAccueil.view(d2), corps: viewCorps, avenir: viewAvenir, profil: viewReglages };
     const scrollY = window.scrollY;
     const changed = lastTab !== tab; lastTab = tab;
+    const ouverts = changed ? [] : [...$app.querySelectorAll('main details[open] > summary')].map(x => x.textContent);
     $app.textContent = '';
     $app.append(h('main', { class: 'screen scr-' + tab + (changed && !reduced() ? ' enter' : '') }, views[tab](d)));
-    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted mode-note' }, window.CapCloud && window.CapCloud.configure() ? 'Tes données sont sur cet appareil uniquement. Connecte ton compte Cap dans Profil pour les sauvegarder et les synchroniser.' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et les questions libres au coach ne fonctionnent que dans l’appli Claude.'));
+    if (!db) $app.querySelector('main').appendChild(h('p', { class: 'foot muted mode-note' }, window.CapCloud && window.CapCloud.configure() ? 'Sur cet appareil · Connecte ton compte Cap dans Profil pour synchroniser' : 'Tes données sont enregistrées sur ce téléphone uniquement. Le scan photo et les questions libres au coach ne fonctionnent que dans l’appli Claude.'));
     const btns = dests.map(t => t[0] === 'plus'
       ? h('button', { type: 'button', class: 'nav-plus', 'aria-label': 'Ajouter', onclick: () => menuCentral(d) }, icon('plus'))
       : h('button', { type: 'button', class: 'nav-d', 'aria-current': t[0] === tab ? 'page' : null, onclick: () => { if (tab !== t[0]) aller(t[0]); } }, icon(t[2]), h('span', null, t[1])));
     $app.append(h('nav', { class: 'tabbar nav5', 'aria-label': 'Navigation principale' }, h('div', { class: 'in' }, btns)));
+    if (ouverts.length) $app.querySelectorAll('main details > summary').forEach(x => { if (ouverts.indexOf(x.textContent) >= 0) x.parentNode.open = true; });
     animerNombres($app);
     if (window._keepScroll) { window.scrollTo(0, scrollY); window._keepScroll = false; }
   }
@@ -997,34 +999,41 @@
       out.push(h('section', { class: 'pg-hero mod-corps' + (auj && faiteAuj ? ' faite' : ''), 'aria-labelledby': 'pg-hero-t' },
         h('p', { class: 'pg-quand' }, quand),
         h('h2', { id: 'pg-hero-t', class: 'pg-nom' }, se.nom),
-        h('p', { class: 'pg-meta' }, se.duree + ' min · ' + se.exercices.length + ' exercices · ' + se.objectif),
+        h('div', { class: 'pg-puces' }, h('span', null, icon('clock'), se.duree + ' min'), h('span', null, icon('dumbbell'), se.exercices.length + ' exercices'), h('span', null, icon('target'), se.objectif)),
         h('div', { class: 'pg-acts' },
           auj && !faiteAuj ? h('button', { class: 'btn pg-go', type: 'button', onclick: () => lancerSeance(se) }, 'Commencer la séance') : h('button', { class: 'btn secondary', type: 'button', onclick: () => detailSeance(se) }, 'Voir la séance'),
           auj && !faiteAuj ? h('div', { class: 'pg-sec' }, h('button', { class: 'btn text', type: 'button', onclick: () => logSeance(se) }, 'Déjà faite'), nx.reportee ? null : h('button', { class: 'btn text', type: 'button', onclick: () => reporterSeance(se) }, 'Reporter à demain')) : null)));
-      if (!auj && !faiteAuj) out.push(h('p', { class: 'pg-repos' }, 'Pas de séance prévue aujourd’hui : la récupération fait partie du programme.'));
     }
-    // 2. La semaine, en lignes
-    const today = new Date().getDay();
-    out.push(h('section', { class: 'pg-sem', 'aria-labelledby': 'pg-sem-t' }, h('h2', { id: 'pg-sem-t', class: 'td-h' }, 'Ta semaine'),
-      h('ul', { class: 'td-liste' }, pr.planning.map(pl => { const se = pr.seances.find(s => s.cle === pl.seance); return h('li', null, h('button', { class: 'td-ligne mod-corps' + (pl.jour === today ? ' auj' : ''), type: 'button', onclick: () => detailSeance(se) }, h('span', { class: 'pg-jour' }, pl.jourNom.slice(0, 3)), h('span', { class: 'td-l' }, h('b', null, se.nom), h('small', null, se.duree + ' min · ' + se.objectif)), icon('chev', 'chev'))); }))));
-    // 3. Régularité mesurée (si des séances sont prévues)
-    out.push(h('p', { class: 'pg-regul' }, a.prevues ? h('span', null, h('b', null, a.faites + ' sur ' + a.prevues), ' séances faites ces 14 derniers jours' + (a.taux !== null ? ' (' + fr(a.taux * 100) + ' %)' : '') + '.') : 'Ta régularité apparaîtra après tes premières séances enregistrées.'));
-    if (a.conseil) out.push(h('div', { class: 'alert info' }, icon('info'), h('div', null, h('h3', null, 'Ajustement suggéré'), h('p', null, a.conseil))));
+    // 2. La semaine en un coup d'œil : 7 jours, prévu / fait / aujourd'hui
+    const lundi = new Date(Date.parse(t + 'T12:00:00Z') - ((new Date(t + 'T12:00').getDay() + 6) % 7) * 864e5);
+    const jours = [];
+    for (let i = 0; i < 7; i++) {
+      const dt = new Date(lundi.getTime() + i * 864e5).toISOString().slice(0, 10), x = seanceDu(pr, dt), fait = S.seances.some(l => l.date === dt);
+      const etat = fait ? 'fait' : x && x.se ? (dt < t ? 'manque' : 'prevu') : 'repos';
+      jours.push(h('button', { class: 'pg-j ' + etat + (dt === t ? ' auj' : ''), type: 'button', disabled: !(x && x.se) && !fait ? true : null, onclick: () => x && x.se && detailSeance(x.se), 'aria-label': new Date(dt + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long' }) + ' : ' + ({ fait: 'séance faite', prevu: 'séance prévue' + (x && x.se ? ', ' + x.se.nom : ''), manque: 'séance non faite', repos: 'repos' })[etat] },
+        h('small', null, 'LMMJVSD'[i]), h('span', { class: 'pg-j-o' }, etat === 'fait' ? icon('check') : String(Number(dt.slice(8))))));
+    }
+    out.push(h('section', { class: 'pg-sem', 'aria-label': 'Ta semaine' }, h('div', { class: 'pg-jours' }, jours)));
+    // 3. Indicateurs : régularité (anneau réel) et état
+    const K = window.CapKit;
+    if (K) out.push(h('div', { class: 'pg-kpi' },
+      K.tuile({ mod: 'corps', icone: 'check', titre: 'Régularité · 14 j', valeur: a.prevues ? a.faites + '/' + a.prevues : '–', sous: a.prevues ? (a.taux !== null ? fr(a.taux * 100) + ' % des séances prévues' : '') : 'après tes premières séances', vide: !a.prevues, visuel: a.prevues ? h('i', { class: 'jr-jauge', 'aria-hidden': 'true' }, h('i', { style: 'width:' + Math.min(100, a.faites / a.prevues * 100) + '%;background:var(--corps)' })) : null }),
+      K.tuile({ mod: 'neutre', icone: viaIA ? 'chat' : 'target', titre: 'Origine', valeur: viaIA ? 'IA validée' : 'Calculé par Cap', sous: viaIA ? 'accepté par toi' : 'à partir de tes réponses', onclick: () => sheet('Origine du programme', [h('p', { class: 'sub' }, h('span', { class: 'tag ' + (viaIA ? 'ia' : 'calc') }, viaIA ? 'IA validée par Cap' : 'Calculé par Cap'), ' ', viaIA ? 'Programme proposé par l’IA, accepté par toi et revérifié par les règles de sécurité à chaque ouverture.' : 'Construit par les règles de Cap à partir de tes réponses (niveau, temps, matériel, douleurs, objectif).')], { focus: false }) })));
+    if (a.conseil) out.push(h('div', { class: 'pg-conseil', role: 'note' }, icon('info'), h('span', null, a.conseil)));
     const genes = S.seances.filter(l => l.gene && (Date.parse(t) - Date.parse(l.date)) / 864e5 <= 14).sort((x, y) => y.date.localeCompare(x.date));
-    if (genes.length) out.push(h('div', { class: 'pg-lim', role: 'note' }, h('h2', { class: 'td-h' }, 'Gêne signalée'), h('p', null, 'Le ' + fmtD(genes[0].date) + ' (' + genes[0].nom + ')' + (genes[0].signalements && genes[0].signalements[0] ? ' : ' + genes[0].signalements[0].exercice + (genes[0].signalements[0].note ? ', « ' + genes[0].signalements[0].note + ' »' : '') : '') + '. Cap ne propose aucune augmentation de charge pendant 14 jours. Prends l’alternative si le mouvement la réveille ; si la douleur persiste plus de quelques jours ou s’aggrave, consulte un professionnel de santé.')));
-    // 4. Limites appliquées (contraintes réelles), séparées des conseils
+    if (genes.length) out.push(h('details', { class: 'pg-fiche alerte' }, h('summary', null, icon('alert'), h('span', null, 'Gêne signalée le ' + fmtD(genes[0].date))), h('p', null, (genes[0].signalements && genes[0].signalements[0] ? genes[0].signalements[0].exercice + (genes[0].signalements[0].note ? ', « ' + genes[0].signalements[0].note + ' »' : '') + '. ' : '') + 'Cap ne propose aucune augmentation de charge pendant 14 jours. Prends l’alternative si le mouvement la réveille ; si la douleur persiste plus de quelques jours ou s’aggrave, consulte un professionnel de santé.')));
+    // 4. Fiches détaillées, ouvertes à la demande
     const dec = viaIA ? (d.progRegles && d.progRegles.decisions) || [] : pr.decisions || [];
     const lim = dec.filter(x => (x.champs || []).some(c => ['zonesDouleur', 'contraintes', 'age', 'materielSport', 'tempsLibre', 'autreSport'].indexOf(c) >= 0));
     const autres = dec.filter(x => lim.indexOf(x) < 0);
-    if (lim.length) out.push(h('section', { class: 'pg-lim', 'aria-labelledby': 'pg-lim-t' }, h('h2', { id: 'pg-lim-t', class: 'td-h' }, 'Limites appliquées'), h('ul', null, lim.map(x => h('li', null, x.raison, x.champs.length ? h('small', null, 'D’après : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null)))));
-    // 5. Origine du programme et IA
-    out.push(h('section', { class: 'pg-origine' }, h('p', null, h('span', { class: 'tag ' + (viaIA ? 'ia' : 'calc') }, viaIA ? 'IA validée par Cap' : 'Calculé par Cap'), ' ', viaIA ? 'Programme proposé par l’IA, accepté par toi et revérifié par les règles de sécurité à chaque ouverture.' : 'Construit par les règles de Cap à partir de tes réponses (niveau, temps, matériel, douleurs, objectif).')));
+    const fiche = (ic, titre, n, corps, cls) => h('details', { class: 'pg-fiche' + (cls ? ' ' + cls : '') }, h('summary', null, icon(ic), h('span', null, titre), n ? h('b', { class: 'pg-n' }, String(n)) : null), corps);
+    if (lim.length) out.push(fiche('alert', 'Limites appliquées', lim.length, h('ul', null, lim.map(x => h('li', null, x.raison, x.champs.length ? h('small', null, 'D’après : ' + x.champs.map(c => LIB_CHAMPS[c] || c).join(', ')) : null))), 'lim'));
+    if (autres.length) out.push(fiche('info', viaIA ? 'Règles de sécurité vérifiées' : 'Pourquoi ce programme', autres.length, h('ul', null, autres.map(x => h('li', null, x.raison)))));
+    out.push(fiche('chart', 'Progression prévue', null, [h('p', null, pr.progression), pr.progressionSemaines && pr.progressionSemaines.length ? h('ul', null, pr.progressionSemaines.map(x => h('li', null, 'Semaine ' + x.semaine + ' : ' + x.consigne))) : null, pr.recuperation ? h('p', { class: 'foot muted' }, 'Récupération : ' + pr.recuperation) : null]));
+    out.push(h('p', { class: 'sr' }, viaIA ? 'IA validée par Cap.' : 'Calculé par Cap. Construit par les règles de Cap à partir de tes réponses.'));
     if (window.CapIAUI) out.push(...window.CapIAUI.programmePanel(d));
-    // 6. Détails repliés
-    if (autres.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, viaIA ? 'Règles de sécurité vérifiées' : 'Pourquoi ce programme'), h('ul', null, autres.map(x => h('li', null, x.raison)))));
-    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Progression prévue'), h('p', null, pr.progression), pr.progressionSemaines && pr.progressionSemaines.length ? h('ul', null, pr.progressionSemaines.map(x => h('li', null, 'Semaine ' + x.semaine + ' : ' + x.consigne))) : null, pr.recuperation ? h('p', { class: 'foot muted' }, 'Récupération : ' + pr.recuperation) : null));
     const logs = S.seances.slice().sort((x, y) => y.date.localeCompare(x.date)).slice(0, 20);
-    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Séances enregistrées (' + S.seances.length + ')'), logs.length ? h('ul', { class: 'td-liste' }, logs.map(l => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, l.nom), h('small', null, fmtD(l.date) + ' · ' + ({ facile: 'facile', ok: 'correct', dur: 'très dur' }[l.ressenti] || '—') + (l.partielle ? ' · partielle (' + l.exercicesFaits + '/' + l.exercicesPrevus + ')' : ''))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer la séance du ' + fmtD(l.date), onclick: () => confirmDel(() => remove('seances', l.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucune séance enregistrée : aucune progression n’est affichée.')));
+    out.push(h('details', { class: 'pg-fiche' }, h('summary', null, icon('today'), h('span', null, 'Historique'), h('b', { class: 'pg-n' }, String(S.seances.length))), logs.length ? h('ul', { class: 'td-liste' }, logs.map(l => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, l.nom), h('small', null, fmtD(l.date) + ' · ' + ({ facile: 'facile', ok: 'correct', dur: 'très dur' }[l.ressenti] || '—') + (l.partielle ? ' · partielle (' + l.exercicesFaits + '/' + l.exercicesPrevus + ')' : ''))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer la séance du ' + fmtD(l.date), onclick: () => confirmDel(() => remove('seances', l.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucune séance enregistrée : aucune progression n’est affichée.')));
     return out;
   }
   function logSeance(se) {
@@ -1043,35 +1052,39 @@
     const f = d.fin;
     if (!f || !f.ok) { out.push(h('div', { class: 'vide' }, h('p', null, f ? f.message : 'Il manque des réponses pour calculer ton budget.'), h('button', { class: 'btn', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { only: missingSteps(), fresh: true }) }, 'Compléter mes réponses'))); return out; }
     const n = f.niveaux, p = d.p, mv = S.epargne.filter(m => typeof m.montant === 'number').slice().sort((a, b) => b.date.localeCompare(a.date));
+    const K = window.CapKit;
     // Alertes factuelles, sans jugement
-    if (f.capacite < 0) out.push(h('div', { class: 'ag-alerte', role: 'note' }, h('b', null, 'Déficit de ' + eur(-f.capacite) + ' par mois'), h('p', null, 'D’après tes réponses, tes dépenses et remboursements dépassent tes revenus. Tant que c’est le cas, aucune épargne n’est possible : la priorité est de réduire l’écart.')));
-    else if (f.faisabilite === 'impossible_en_l_etat') out.push(h('div', { class: 'ag-alerte', role: 'note' }, h('b', null, 'Aucune date calculable en l’état'), h('p', null, 'Avec une capacité d’épargne nulle, le projet ne peut pas être daté. Une petite somme régulière suffit à rendre un calendrier possible.')));
+    if (f.capacite < 0) out.push(h('div', { class: 'ag-alerte', role: 'note' }, h('b', null, 'Déficit de ' + eur(-f.capacite) + ' par mois'), h('p', null, 'Tes dépenses dépassent tes revenus. Priorité : réduire l’écart.')));
+    else if (f.faisabilite === 'impossible_en_l_etat') out.push(h('div', { class: 'ag-alerte', role: 'note' }, h('b', null, 'Aucune date calculable en l’état'), h('p', null, 'Même une petite somme régulière rend un calendrier possible.')));
     // 1. La prochaine décision
     const fait = !!(S.actions.done || {}).argent;
     out.push(h('section', { class: 'ag-decision' + (fait ? ' faite' : ''), 'aria-labelledby': 'ag-dec' }, h('p', { class: 'ag-k' }, fait ? 'Faite cette semaine' : 'Ta décision de la semaine'), h('h2', { id: 'ag-dec', class: 'ag-dec-t' }, n.action.texte),
       h('button', { class: 'btn ' + (fait ? 'secondary' : 'ag-go'), type: 'button', onclick: () => U.cocherAction('argent') }, fait ? 'Rouvrir' : 'C’est fait')));
-    // 2. Réel
+    // 2. Réel : anneau vers l'étape en cours + tuiles
     const pct = n.intermediaire.montant > 0 ? Math.max(0, Math.min(1, f.actuelle / n.intermediaire.montant)) : 0;
-    out.push(h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-reel' }, h('h2', { id: 'ag-reel', class: 'ag-h' }, h('span', { class: 'tag mesure' }, 'Réel'), ' Ce que tu as mis de côté'),
-      h('p', { class: 'ag-gros num' }, nombre('fin-act', f.actuelle, eur)),
-      h('p', { class: 'ag-sous' }, mv.length ? 'Épargne de départ déclarée + ' + mv.length + ' mouvement' + (mv.length > 1 ? 's' : '') + ' noté' + (mv.length > 1 ? 's' : '') + '.' : 'Épargne de départ déclarée. Note chaque somme mise de côté pour suivre le réel.'),
-      h('div', { class: 'ag-etape' }, h('div', { class: 'ag-etape-l' }, h('span', null, 'Étape en cours : ' + n.intermediaire.titre), h('b', { class: 'num' }, Math.round(pct * 100) + ' %')), h('div', { class: 'jr-jauge ag', role: 'img', 'aria-label': eur(Math.max(0, f.actuelle)) + ' sur ' + eur(n.intermediaire.montant) }, h('i', { style: 'width:' + pct * 100 + '%' })), h('small', null, eur(Math.max(0, f.actuelle)) + ' sur ' + eur(n.intermediaire.montant))),
-      mv.length ? h('ul', { class: 'td-liste ag-mv' }, mv.slice(0, 3).map(m => h('li', { class: 'pr-jalon' }, h('span', null, m.note || (m.montant >= 0 ? 'Mis de côté' : 'Retiré'), h('small', { class: 'muted' }, ' · ' + fmtD(m.date))), h('b', { class: 'num ' + (m.montant >= 0 ? 'pos' : 'neg') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant)))))) : null));
+    const dernier = mv[0];
+    out.push(h('section', { class: 'ag-reel2 carte', 'aria-labelledby': 'ag-reel' },
+      h('div', { class: 'ag-reel-g' }, K.anneau({ valeur: Math.max(0, f.actuelle), max: n.intermediaire.montant, label: 'Épargne vers ' + n.intermediaire.titre, texte: eur(Math.max(0, f.actuelle)), centre: Math.round(pct * 100) + ' %', sousCentre: 'de l’étape', couleur: 'var(--argent)', taille: 104, epaisseur: 10 })),
+      h('div', { class: 'ag-reel-d' }, h('h2', { id: 'ag-reel', class: 'ag-h' }, h('span', { class: 'tag mesure' }, 'Réel'), ' Épargne'),
+        h('p', { class: 'ag-gros num' }, nombre('fin-act', f.actuelle, eur)),
+        h('p', { class: 'ag-sous' }, n.intermediaire.titre + ' · ' + eur(n.intermediaire.montant)),
+        dernier ? h('p', { class: 'ag-der' }, h('b', { class: 'num ' + (dernier.montant >= 0 ? 'pos' : 'neg') }, (dernier.montant >= 0 ? '+' : '−') + eur(Math.abs(dernier.montant))), ' ' + fmtD(dernier.date)) : null)));
+    const fzc = { atteint: ['Atteint', ''], atteignable: ['En bonne voie', 'pour ' + p.reveAnnee], ecart: ['−' + eur(f.ecartMensuel), 'par mois pour ' + p.reveAnnee], impossible_en_l_etat: ['Non daté', 'capacité nulle'] }[f.faisabilite] || ['–', ''];
+    out.push(h('div', { class: 'ag-kpi' },
+      K.tuile({ mod: 'argent', icone: 'wallet', titre: 'Capacité', valeur: eur(f.capacite), sous: 'par mois', onclick: () => sheet('Capacité d’épargne', [h('ul', { class: 'td-liste' }, [['Revenus nets', eur(p.revenus)], ['Dépenses fixes', '− ' + eur(p.fixes)], ['Dépenses variables', '− ' + eur(p.variables)], ['Remboursements', '− ' + eur(p.remboursements || 0)], ['Reste pour épargner', eur(f.capacite)]].map(x => h('li', { class: 'pr-jalon' }, h('span', null, x[0]), h('b', { class: 'num' }, x[1])))), h('button', { class: 'link', type: 'button', onclick: () => editStep('variables') }, 'Modifier mes dépenses')]) }),
+      K.tuile({ mod: 'argent', icone: 'target', titre: n.reve.titre, valeur: fzc[0], sous: fzc[1] || (f.moisAuRythme ? '≈ ' + fr(f.moisAuRythme / 12, 1) + ' ans' : ''), onclick: () => { const el = document.getElementById('ag-proj'); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' }); } })));
     // 2 bis. Ce mois-ci : opérations réelles saisies (aucune connexion bancaire)
     if (window.CapFinances) out.push(sectionMois(d));
     // 3. Projection
-    const fz = { atteint: 'Objectif atteint.', atteignable: 'Atteignable pour ' + p.reveAnnee + ' si ta capacité actuelle se maintient.', ecart: 'Il manquerait ' + eur(f.ecartMensuel) + ' par mois pour ' + p.reveAnnee + '.', impossible_en_l_etat: 'Aucune date calculable en l’état.' }[f.faisabilite];
-    out.push(h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-proj' }, h('h2', { id: 'ag-proj', class: 'ag-h' }, h('span', { class: 'tag calc' }, 'Projection'), ' Si rien ne change'),
-      h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Capacité'), h('span', { class: 'pr-v' }, h('b', { class: 'num' }, eur(f.capacite) + ' par mois'), ' (revenus − dépenses − remboursements)')),
-      h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Projet'), h('span', { class: 'pr-v' }, n.reve.titre + ' · ' + eur(f.reve.total) + ' estimés')),
-      h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Calendrier'), h('span', { class: 'pr-v' }, (f.moisAuRythme ? '≈ ' + fr(f.moisAuRythme / 12, 1) + ' ans au rythme actuel. ' : '') + fz)),
+    const fz = { atteint: 'Objectif atteint.', atteignable: 'Atteignable pour ' + p.reveAnnee + ' si ta capacité se maintient.', ecart: 'Il manquerait ' + eur(f.ecartMensuel) + ' par mois pour ' + p.reveAnnee + '.', impossible_en_l_etat: 'Aucune date calculable en l’état.' }[f.faisabilite];
+    out.push(h('section', { class: 'ag-couche carte', 'aria-labelledby': 'ag-proj' }, h('div', { class: 'pr-courbe-h' }, h('h2', { id: 'ag-proj', class: 'ag-h' }, h('span', { class: 'tag calc' }, 'Projection'), ' 24 mois'), howBtn('Capacité et calendrier', f.calcul)),
       h('div', { class: 'chart' }, moneyChart(d)),
-      h('p', { class: 'foot muted' }, 'Trait plein : le réel. Pointillés : projection sans rendement, sans inflation ni imprévu. Ce n’est pas une promesse.'),
-      howBtn('Capacité et calendrier', f.calcul)));
+      h('div', { class: 'pr-leg' }, h('span', null, h('i', { class: 'l-plein ag' }), 'Réel'), h('span', null, h('i', { class: 'l-point ag' }), 'Si rien ne change'), f.hypothese && f.hypothese.capacite > 0 ? h('span', null, h('i', { class: 'l-point hy' }), 'Hypothèse') : null, K.info('Projection', [fz, 'Trait plein : le réel saisi. Pointillés : la projection, sans rendement, sans inflation ni imprévu.', n.reve.titre + ' : ' + eur(f.reve.total) + ' estimés.'])),
+      h('p', { class: 'foot muted' }, 'Sans rendement ni imprévu. Ce n’est pas une promesse.')));
     // 4. Hypothèse (facultative)
-    if (f.hypothese && has(p.revenuVise)) out.push(h('section', { class: 'ag-couche hypo', 'aria-labelledby': 'ag-hyp' }, h('h2', { id: 'ag-hyp', class: 'ag-h' }, h('span', { class: 'tag hypo' }, 'Hypothèse'), ' Si ton revenu changeait'),
-      h('p', { class: 'pr-v' }, 'Avec ' + eur(f.hypothese.revenu) + ' nets par mois (le revenu que tu vises), ta capacité serait de ' + eur(f.hypothese.capacite) + ' par mois. Ce revenu n’est pas acquis : il n’entre dans aucun calcul du réel.'),
-      h('button', { class: 'link', type: 'button', onclick: () => editStep('revenuVise') }, 'Modifier ce revenu visé')));
+    if (f.hypothese && has(p.revenuVise)) out.push(h('section', { class: 'ag-hypo2', 'aria-labelledby': 'ag-hyp' }, h('span', { class: 'tag hypo', id: 'ag-hyp' }, 'Hypothèse'),
+      h('span', { class: 'ag-hypo-t' }, 'À ' + eur(f.hypothese.revenu) + '/mois : ', h('b', { class: 'num' }, eur(f.hypothese.capacite)), ' d’épargne'),
+      K.info('Hypothèse', ['Avec ' + eur(f.hypothese.revenu) + ' nets par mois (le revenu que tu vises), ta capacité serait de ' + eur(f.hypothese.capacite) + ' par mois.', 'Ce revenu n’est pas acquis : il n’entre dans aucun calcul du réel.', h('button', { class: 'link', type: 'button', onclick: () => editStep('revenuVise') }, 'Modifier ce revenu visé')])));
     // 5. Détails
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Budget mensuel'), h('ul', { class: 'td-liste' },
       [['Revenus nets', eur(p.revenus)], ['Dépenses fixes', '− ' + eur(p.fixes)], ['Dépenses variables', '− ' + eur(p.variables)], ['Remboursements', '− ' + eur(p.remboursements || 0)], ['Reste pour épargner', eur(f.capacite)]].map(x => h('li', { class: 'pr-jalon' }, h('span', null, x[0]), h('b', { class: 'num' }, x[1])))),
@@ -1082,7 +1095,7 @@
       r.revenuNecessaire ? h('p', { class: 'sub' }, h('b', null, 'Revenu net nécessaire ≈ ' + eur(r.revenuNecessaire) + ' par mois. '), r.revenuNote) : null, r.note ? h('p', { class: 'foot muted' }, r.note) : null));
     if (f.notesLegales.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'À ton âge'), f.notesLegales.map(t => h('p', { class: 'sub' }, t))));
     const imp = d.issues.filter(i => i.domaine === 'argent');
-    if (imp.length) out.push(h('details', { class: 'pg-det', open: true }, h('summary', null, 'À vérifier'), imp.map(i => issueView(i, champ => editStep(STEP_BY_FIELD[champ] || champ)))));
+    if (imp.length) out.push(h('details', { class: 'pg-det verif' }, h('summary', null, icon('alert'), 'À vérifier · ' + imp.length), imp.map(i => issueView(i, champ => editStep(STEP_BY_FIELD[champ] || champ)))));
     out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Historique des mouvements (' + mv.length + ')'), mv.length ? h('ul', { class: 'td-liste' }, mv.map(m => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, m.note || (m.montant >= 0 ? 'Mis de côté' : 'Retiré')), h('small', null, fmtD(m.date))), h('b', { class: 'num ' + (m.montant >= 0 ? 'pos' : 'neg') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer le mouvement du ' + fmtD(m.date), onclick: () => confirmDel(() => remove('epargne', m.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucun mouvement noté.')));
     return out;
   }
@@ -1096,13 +1109,23 @@
     const ops = S.operations.filter(o => F.valider(o).length === 0).sort((a, b) => b.date.localeCompare(a.date));
     return h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-mois' },
       h('div', { class: 'bp-h' }, h('h2', { id: 'ag-mois', class: 'ag-h' }, h('span', { class: 'tag mesure' }, 'Réel'), ' ' + nomMois.charAt(0).toUpperCase() + nomMois.slice(1)), h('button', { class: 'btn small secondary', type: 'button', onclick: () => addOperation(d) }, icon('plus'), 'Opération')),
-      m.nb ? [
-        h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Dépensé'), h('span', { class: 'pr-v' }, h('b', { class: 'num' }, ec(m.depenses)), budget ? ' sur ' + ec(budget) + ' de budget déclaré' : '')),
-        m.revenus ? h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Reçu'), h('span', { class: 'pr-v' }, h('b', { class: 'num pos' }, ec(m.revenus)), ' · solde ' + (m.solde >= 0 ? '+' : '−') + ec(Math.abs(m.solde)))) : null,
-        m.top ? h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Plus gros poste'), h('span', { class: 'pr-v' }, m.top.nom + ' : ' + ec(m.top.montant) + (m.depenses ? ' (' + Math.round(m.top.montant / m.depenses * 100) + ' %)' : ''))) : null,
-        h('ul', { class: 'fi-cats' }, m.classement.map(c => h('li', null, h('span', null, c.nom), h('i', { class: 'jr-barre', 'aria-hidden': 'true' }, h('i', { style: 'width:' + (c.montant / m.classement[0].montant * 100) + '%' })), h('b', { class: 'num' }, ec(c.montant))))),
-        m.alertes.map(a => h('div', { class: 'ag-alerte', role: 'note' }, h('p', null, a)))]
-        : h('p', { class: 'foot muted' }, 'Aucune opération saisie ce mois-ci. Note tes dépenses au fil de l’eau : Cap te dira où part ton argent, sans connexion à ta banque.'),
+      m.nb ? (() => {
+        const K = window.CapKit, segs = m.classement.slice(0, 5).map(c => ({ nom: c.nom, valeur: c.montant }));
+        if (m.classement.length > 5) segs.push({ nom: 'Autres', valeur: m.classement.slice(5).reduce((x, c) => x + c.montant, 0) });
+        const dn = K.donut(segs, { couleurs: ['var(--argent)', '#4FA97C', '#86C5A2', '#B9DEC9', '#DCEFE4', '#ECF5F0'] });
+        const pb = budget ? Math.min(1, m.depenses / budget) : null;
+        return [
+          h('div', { class: 'fi-haut' },
+            dn ? h('div', { class: 'fi-donut', role: 'img', 'aria-label': 'Répartition des dépenses : ' + m.classement.map(c => c.nom + ' ' + ec(c.montant)).join(', ') }, dn.svg, h('span', { class: 'fi-donut-c' }, h('b', { class: 'num' }, ec(m.depenses)), h('small', null, 'dépensés'))) : null,
+            h('div', { class: 'fi-chiffres' },
+              h('p', { class: 'pr-ligne fi-dep' }, h('span', { class: 'pr-l' }, 'Dépensé'), h('span', { class: 'pr-v' }, h('b', { class: 'num' }, ec(m.depenses)), budget ? ' sur ' + ec(budget) : '')),
+              pb !== null ? h('i', { class: 'jr-jauge' + (pb >= 1 ? ' trop' : ''), role: 'img', 'aria-label': Math.round(m.depenses / budget * 100) + ' % du budget déclaré' }, h('i', { style: 'width:' + pb * 100 + '%;background:' + (pb >= 1 ? 'var(--danger, #C4111B)' : 'var(--argent)') })) : null,
+              m.revenus ? h('p', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Reçu'), h('span', { class: 'pr-v' }, h('b', { class: 'num pos' }, ec(m.revenus)), ' · solde ' + (m.solde >= 0 ? '+' : '−') + ec(Math.abs(m.solde)))) : null)),
+          m.top ? h('p', { class: 'fi-top' }, h('span', { class: 'fi-top-l' }, 'Plus gros poste'), h('span', null, m.top.nom + ' : ' + ec(m.top.montant) + (m.depenses ? ' (' + Math.round(m.top.montant / m.depenses * 100) + ' %)' : ''))) : null,
+          h('ul', { class: 'fi-cats v2' }, m.classement.map((c, i) => h('li', null, h('i', { class: 'fi-pastille', style: 'background:' + (dn ? dn.couleurs[Math.min(i, dn.couleurs.length - 1)] : 'var(--argent)') }), h('span', null, c.nom), h('b', { class: 'num' }, ec(c.montant))))),
+          m.alertes.map(a => h('div', { class: 'ag-alerte', role: 'note' }, h('p', null, a)))];
+      })()
+        : h('div', { class: 'fi-vide' }, h('p', null, 'Aucune opération saisie ce mois-ci.'), h('small', null, 'Sans connexion à ta banque.')),
       ops.length ? h('details', { class: 'pg-det' }, h('summary', null, 'Historique des opérations (' + ops.length + ')'), h('ul', { class: 'td-liste' }, ops.slice(0, 60).map(o => h('li', { class: 'pg-log' },
         h('button', { class: 'td-l fi-op', type: 'button', onclick: () => addOperation(d, o), 'aria-label': 'Modifier ' + (o.note || F.NOM[o.categorie]) + ' du ' + fmtD(o.date) }, h('b', null, o.note || F.NOM[o.categorie]), h('small', null, fmtD(o.date) + ' · ' + F.NOM[o.categorie])),
         h('b', { class: 'num ' + (o.sens === 'revenu' ? 'pos' : '') }, (o.sens === 'revenu' ? '+' : '−') + ec(o.montant)),
@@ -1183,32 +1206,34 @@
     const prefs = S.prefs || {}, mode = db ? (db.cloud ? 'cloud' : 'claude') : 'local';
     const etatIA = window.CapContrats ? window.CapContrats.statutIA(() => !!(window.CapIA && window.CapIA.dispo())) : null;
     const photoDispo = !!(window.CapAI && window.CapAI.photoDispo());
-    const etat = h('dl', { class: 'pf-etat' },
-      h('dt', null, 'Tes données'), h('dd', null, { claude: 'Espace Claude privé, synchronisé entre tes appareils Claude', cloud: 'Compte Cap (Supabase), protégé par ton identifiant', local: 'Sur cet appareil uniquement. Exporte-les régulièrement.' }[mode]),
-      h('dt', null, 'Connexion'), h('dd', null, navigator.onLine === false ? 'Hors ligne : tout fonctionne sauf l’IA ; les changements restent sur l’appareil.' : 'En ligne'),
-      h('dt', null, 'IA'), h('dd', null, etatIA && etatIA.actif ? 'Disponible (Claude). Elle propose ; Cap vérifie ; tu décides.' : 'Indisponible ici. Tous les chiffres viennent des règles de Cap.'),
-      h('dt', null, 'Photo de plat'), h('dd', null, photoDispo ? 'Analyse disponible, après ton accord' : 'Indisponible ici (saisie manuelle)'));
+    const K = window.CapKit, enLigne = navigator.onLine !== false, iaOn = !!(etatIA && etatIA.actif);
+    const ET = [
+      ['home', 'Tes données', { claude: 'Espace Claude', cloud: 'Compte Cap', local: 'Cet appareil' }[mode], { claude: 'Espace Claude privé, synchronisé entre tes appareils Claude.', cloud: 'Compte Cap (Supabase), protégé par ton identifiant.', local: 'Sur cet appareil uniquement. Exporte-les régulièrement.' }[mode], mode === 'local' ? 'warn' : 'ok'],
+      ['bolt', 'Connexion', enLigne ? 'En ligne' : 'Hors ligne', enLigne ? 'En ligne.' : 'Hors ligne : tout fonctionne sauf l’IA ; les changements restent sur l’appareil.', enLigne ? 'ok' : 'warn'],
+      ['chat', 'IA', iaOn ? 'Disponible' : 'Indisponible', iaOn ? 'Disponible (Claude). Elle propose ; Cap vérifie ; tu décides.' : 'Indisponible ici. Tous les chiffres viennent des règles de Cap.', iaOn ? 'ok' : 'off'],
+      ['camera', 'Photo de plat', photoDispo ? 'Après accord' : 'Saisie manuelle', photoDispo ? 'Analyse disponible, après ton accord.' : 'Analyse indisponible ici : saisie manuelle.', photoDispo ? 'ok' : 'off']];
+    const etat = h('div', { class: 'pf-etat2' }, ET.map(x => h('button', { class: 'pf-et ' + x[4], type: 'button', 'aria-label': x[1] + ' : ' + x[3], onclick: () => sheet(x[1], [h('p', { class: 'sub' }, x[3])], { focus: false }) }, h('span', { class: 'pf-et-i' }, icon(x[0])), h('span', { class: 'pf-et-t' }, h('small', null, x[1]), h('b', null, x[2])))));
     const ligne = (titre, texte, actions) => h('div', { class: 'pf-cons' }, h('div', { class: 'td-l' }, h('b', null, titre), h('small', null, texte)), actions ? h('div', { class: 'pf-cons-a' }, actions) : null);
     const sw = (on, label, fn) => h('button', { class: 'pf-sw', type: 'button', role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: fn }, h('span', { class: 'switch' + (on ? ' on' : '') }, h('i')));
     const cons = [];
-    if (d.corps) cons.push(ligne('Coach · données du corps', 'Poids, objectifs et repas notés peuvent être lus par le coach, seulement quand tu lui poses une question.', sw(prefs.coachCorps, 'Partager mes données corps avec le coach', () => savePrefs({ coachCorps: !prefs.coachCorps }).then(() => renderMain()))));
-    if (d.argent) cons.push(ligne('Coach · données d’argent', 'Budget, épargne et projet, seulement quand tu poses une question.', sw(prefs.coachArgent, 'Partager mes données argent avec le coach', () => savePrefs({ coachArgent: !prefs.coachArgent }).then(() => renderMain()))));
-    if (d.entreprise) cons.push(ligne('IA · projet', 'Tes réponses du module Projet ne sont envoyées que si tu lances toi-même une recherche IA.', null));
-    if (d.corps) cons.push(ligne('IA · photos de plats', prefs.consentScan ? 'Accordé le ' + fmtD(prefs.consentScan.accepte.slice(0, 10)) + '. Chaque photo est montrée avant envoi.' : 'Demandé à chaque première analyse. Aucune photo n’est envoyée sans ton accord.', prefs.consentScan ? h('button', { class: 'btn small text', type: 'button', onclick: () => savePrefs({ consentScan: null }).then(() => { toast('Accord retiré'); renderMain(); }) }, 'Retirer') : null));
+    if (d.corps) cons.push(ligne('Coach · données du corps', 'Poids, objectifs, repas · lus à ta question', sw(prefs.coachCorps, 'Partager mes données corps avec le coach', () => savePrefs({ coachCorps: !prefs.coachCorps }).then(() => renderMain()))));
+    if (d.argent) cons.push(ligne('Coach · données d’argent', 'Budget, épargne, projet · lus à ta question', sw(prefs.coachArgent, 'Partager mes données argent avec le coach', () => savePrefs({ coachArgent: !prefs.coachArgent }).then(() => renderMain()))));
+    if (d.entreprise) cons.push(ligne('IA · projet', 'Envoyé seulement si tu lances une recherche', null));
+    if (d.corps) cons.push(ligne('IA · photos de plats', prefs.consentScan ? 'Accordé le ' + fmtD(prefs.consentScan.accepte.slice(0, 10)) + ' · photo montrée avant envoi' : 'Rien n’est envoyé sans ton accord', prefs.consentScan ? h('button', { class: 'btn small text', type: 'button', onclick: () => savePrefs({ consentScan: null }).then(() => { toast('Accord retiré'); renderMain(); }) }, 'Retirer') : null));
     if (d.corps && window.CapPhotos) {
       const ph = window.CapPhotos.reglages();
       const conf = h('div', { class: 'ph-conf', hidden: true }, h('p', { class: 'sub' }, 'Supprimer définitivement tes ' + ph.n + ' photo(s) de progression ? Les fichiers et leurs informations seront effacés. Irréversible.'), h('button', { class: 'btn danger', type: 'button', onclick: () => ph.toutSupprimer() }, 'Tout supprimer définitivement'));
-      cons.push(ligne('Photos de progression', ph.n + ' photo' + (ph.n > 1 ? 's' : '') + ' · ' + (ph.stockage === 'claude' ? 'espace Claude privé' : 'sur cet appareil, non synchronisées') + ' · jamais envoyées à une IA' + (ph.consenti ? '' : ' · conditions pas encore acceptées'),
+      cons.push(ligne('Photos de progression', ph.n + ' photo' + (ph.n > 1 ? 's' : '') + ' · ' + (ph.stockage === 'claude' ? 'espace Claude' : 'cet appareil') + ' · jamais à une IA' + (ph.consenti ? '' : ' · conditions non acceptées'),
         [ph.n ? h('button', { class: 'btn small text', type: 'button', onclick: () => ph.toutTelecharger() }, 'Tout télécharger') : null, ph.consenti ? h('button', { class: 'btn small text', type: 'button', onclick: () => ph.retirerConsentement().then(() => renderMain()) }, 'Retirer l’accord') : null, ph.n ? h('button', { class: 'btn small text danger-t', type: 'button', onclick: () => { conf.hidden = false; } }, 'Supprimer…') : null]), conf);
     }
     return [h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-etat' }, h('h2', { id: 'pf-etat', class: 'pf-h' }, 'État'), etat),
-      h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-conf' }, h('h2', { id: 'pf-conf', class: 'pf-h' }, 'Confidentialité et IA'), h('p', { class: 'pf-sous' }, 'Chaque usage a son propre accord. Rien n’est partagé par défaut.'), cons)];
+      h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-conf' }, h('div', { class: 'kt' }, h('h2', { id: 'pf-conf', class: 'pf-h' }, 'Confidentialité et IA'), K ? K.info('Confidentialité et IA', 'Chaque usage a son propre accord. Rien n’est partagé par défaut, et chaque accord se retire ici.') : null), cons)];
   }
   function viewReglages(d) {
     const p = d.p; const out = [largeTitle('Profil', ['corps', 'argent', 'entreprise'].filter(m => (p.domaines || []).indexOf(m) >= 0).map(m => ({ corps: 'Corps', argent: 'Argent', entreprise: 'Projet' })[m]).join(' · ') + (p.age ? ' · ' + p.age + ' ans' : ''))];
     const repl = (titre, ...kids) => h('details', { class: 'pf-rep' }, h('summary', null, titre), kids);
     out.push(...centreConfiance(d));
-    out.push(h('h2', { class: 'pf-h' }, 'Tes réponses'), h('p', { class: 'pf-sous' }, 'Chaque réponse se modifie seule, sans refaire tout le questionnaire. L’ancienne version de ton profil est gardée dans l’historique.'));
+    out.push(h('div', { class: 'kt' }, h('h2', { class: 'pf-h' }, 'Tes réponses'), window.CapKit ? window.CapKit.info('Tes réponses', 'Chaque réponse se modifie seule, sans refaire tout le questionnaire. L’ancienne version de ton profil est gardée dans l’historique.') : null));
     const lbl = (arr, v) => { const x = arr.find(a => a[0] === v); return x ? x[1] : '—'; };
     const v = (val, unit) => has(val) ? (typeof val === 'number' ? fr(val, val % 1 ? 1 : 0) : val) + (unit ? ' ' + unit : '') : 'Non renseigné';
     const row = (t, val, step, ic, col) => h('button', { class: 'cell', type: 'button', onclick: () => editStep(step) }, ic ? h('span', { class: 'ico', style: 'background:' + col }, icon(ic)) : null, h('span', { class: 'lbl' }, t), h('span', { class: 'val' }, val), icon('chev', 'chev'));
@@ -1270,18 +1295,18 @@
     const animOn = !!store.get('cap-anim-reduites');
     out.push(section(null, null, h('div', { class: 'cap' }, 'Préférences'), h('div', { class: 'panel flush' },
       h('button', { class: 'cell', type: 'button', role: 'switch', 'aria-checked': String(animOn), onclick: () => { if (animOn) store.del('cap-anim-reduites'); else store.set('cap-anim-reduites', 1); appliquerAnim(); window._keepScroll = true; renderMain(); } },
-        h('span', { class: 'lbl' }, 'Réduire les animations', h('small', null, 'Coupe les mouvements de l’interface dans Cap. Le réglage « Réduire les animations » de ton téléphone est aussi respecté.')),
+        h('span', { class: 'lbl' }, 'Réduire les animations', h('small', null, 'Le réglage du téléphone est aussi respecté')),
         h('span', { class: 'switch' + (animOn ? ' on' : '') }, h('i'))),
       h('button', { class: 'cell', type: 'button', role: 'switch', 'aria-checked': String(sonOn), onclick: () => { window.CapSon.regler(!sonOn); window._keepScroll = true; renderMain(); } },
-        h('span', { class: 'lbl' }, 'Sons de l’interface', h('small', null, 'Sept sons feutrés : sélection, étape, validation, programme terminé, objectif, erreur, ouverture. Désactivés par défaut. Sur iPhone, ils respectent le mode silencieux (iOS 17 et plus).')),
+        h('span', { class: 'lbl' }, 'Sons de l’interface', h('small', null, 'Coupés par défaut · mode silencieux respecté')),
         h('span', { class: 'switch' + (sonOn ? ' on' : '') }, h('i')))),
-      h('p', { class: 'foot muted', style: 'margin:0 16px' }, 'Safari sur iPhone ne permet pas aux sites de faire vibrer le téléphone : pas de retour haptique ici.')));
+      h('div', { class: 'pf-info-l' }, window.CapKit ? window.CapKit.info('Sons et vibrations', ['Sept sons feutrés : sélection, étape, validation, programme terminé, objectif, erreur, ouverture. Désactivés par défaut. Sur iPhone, ils respectent le mode silencieux (iOS 17 et plus).', 'Safari sur iPhone ne permet pas aux sites de faire vibrer le téléphone : pas de retour haptique ici.'], 'Sons et vibrations : détails') : null)));
     out.push(repl('Sources et limites de Cap', h('div', { class: 'panel' },
       h('p', { class: 'sub' }, 'Les calculs sont faits par des formules fixes, testées, jamais par une IA. Ce sont des estimations, pas des garanties. Cap ne remplace ni un médecin ni un conseiller financier.'),
       h('ul', { class: 'calc' }, Object.keys(E.REF.sources).map(k => h('li', { class: 'foot' }, E.REF.sources[k]))))));
     if (window.CapIAUI) { const cs = window.CapIAUI.complementsSection(); if (cs) out.push(cs); }
     if (window.CapDonnees) out.push(window.CapDonnees.section());
-    const OU = { claude: 'Tes données sont dans ton espace Claude privé, synchronisé entre tes appareils connectés à Claude.', cloud: 'Tes données sont dans ton compte Cap (Supabase), protégées par ton identifiant et synchronisées entre tes appareils.', local: 'Tes données sont enregistrées sur cet appareil uniquement. Exporte-les régulièrement pour ne pas les perdre.' };
+    const OU = { claude: 'Tes données sont dans ton espace Claude privé, synchronisé entre tes appareils connectés à Claude.', cloud: 'Tes données sont dans ton compte Cap (Supabase), protégées par ton identifiant et synchronisées entre tes appareils.', local: 'Sur cet appareil uniquement : exporte-les régulièrement.' };
     out.push(section(null, null, h('div', { class: 'cap' }, 'Données'), h('div', { class: 'panel flush' },
       h('button', { class: 'cell', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { fresh: true }) }, h('span', { class: 'lbl' }, 'Refaire le questionnaire'), icon('chev', 'chev')),
       h('button', { class: 'cell danger', type: 'button', onclick: () => resetAll() }, h('span', { class: 'lbl' }, 'Effacer toutes mes données'))),

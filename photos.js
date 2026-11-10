@@ -205,9 +205,11 @@
     const right = h('button', { class: 'btn small', type: 'button', onclick: ajouter }, icon('plus'), 'Photo');
     out.push(h('header', { class: 'lt' }, h('div', null, h('h1', null, 'Photos')), right));
     if (!tout.length) {
-      out.push(h('div', { class: 'vide ph-vide' }, h('p', { class: 'vide-t' }, 'Observer une évolution prend des semaines.'), h('p', null, 'Une photo par mois, même angle et même lumière, suffit. C’est un complément à tes mesures, jamais une note sur ton corps.'),
+      const puce = (ic, t) => h('li', null, U().icon(ic), h('span', null, t));
+      out.push(h('div', { class: 'vide ph-vide v2' }, h('span', { class: 'ph-vide-i', 'aria-hidden': 'true' }, U().icon('camera')), h('p', { class: 'vide-t' }, 'Observer une évolution prend des semaines.'),
+        h('ul', { class: 'ph-puces' }, puce('cal', '1 photo par mois'), puce('image', 'Même angle, même lumière'), puce('person', 'Jamais une note sur ton corps')),
         h('button', { class: 'btn', type: 'button', onclick: ajouter }, 'Ajouter ma première photo'),
-        h('p', { class: 'foot muted' }, stockage() === 'claude' ? 'Privées, dans ton espace Claude.' : 'Privées, enregistrées sur cet appareil uniquement.')));
+        h('p', { class: 'foot muted' }, stockage() === 'claude' ? 'Privées · espace Claude' : 'Privées · sur cet appareil uniquement')));
       return out;
     }
     const cats = CATS.filter(c => tout.some(p => p.categorie === c[0]));

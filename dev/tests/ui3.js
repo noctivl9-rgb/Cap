@@ -72,9 +72,9 @@ const out = __dirname + '/out/v3-';
   const navs = await pg.$$eval('.tabbar .nav-d', l => l.map(e => e.textContent));
   T('navigation : 4 destinations + action centrale (≤ 5)', navs.join('|') === 'Aujourd’hui|Corps|Avenir|Profil' && !!(await pg.$('.nav-plus')), navs);
   const prio = await pg.$eval('.td-prio', e => e.textContent).catch(() => '');
-  T('aujourd\'hui : une seule priorité avec une action', (await pg.$$('.td-prio')).length === 1 && (await pg.$$('.td-prio button')).length === 1, prio);
-  const etats = await pg.$$eval('.td-etat', l => l.map(e => e.textContent.replace(/[\u202f\u00a0]/g, ' ')));
-  T('aujourd\'hui : état mesuré par module, sans score inventé', etats.length === 2 && etats[0].includes('71,0 kg') && etats[1].includes('Argent') && !/score|\/100/.test(etats.join(' ')), etats);
+  T('aujourd\'hui : une seule priorité avec une action', (await pg.$$('.td-prio')).length === 1 && (await pg.$$('.td-prio-go')).length === 1, prio);
+  const etats = await pg.$$eval('main .tu', l => l.map(e => e.textContent.replace(/[\u202f\u00a0]/g, ' ')));
+  T('aujourd\'hui : tuiles mesurées par module, sans score inventé', etats.length === 2 && etats[0].includes('71,0 kg') && etats[1].includes('Épargne') && !/score|\/100/.test(etats.join(' ')), etats);
   await nav('Journal');
   await shot('accueil-vide');
   let m = await main();
@@ -128,6 +128,7 @@ const out = __dirname + '/out/v3-';
   T('option désactivée : budget inchangé', m.includes('2 363') && m.includes('284 kcal'));
   // Activer l'option dans Réglages
   await nav('Profil');
+  await pg.click('summary:has-text("Nutrition")').catch(() => {}); await pg.waitForTimeout(150);
   await pg.click('button[role="switch"]:has-text("Ajouter les calories")'); await pg.waitForTimeout(300);
   await pg.click('button[role="switch"]:has-text("Mode simple")'); await pg.waitForTimeout(300);
   await shot('reglages');
@@ -240,6 +241,7 @@ const out = __dirname + '/out/v3-';
   await pg.click(lastSheet + ' button[aria-label="Fermer"]'); await pg.waitForTimeout(200);
   // Unités lb dans réglages
   await nav('Profil');
+  if (!(await pg.$('button[role="switch"]:has-text("livres"):visible'))) { await pg.click('summary:has-text("Nutrition")'); await pg.waitForTimeout(150); }
   await pg.click('button[role="switch"]:has-text("livres")'); await pg.waitForTimeout(300);
   await parcours('Corps', 'Progression');
   T('unités lb : 71 kg affichés 156,5 lb', (await main()).includes('156,5 lb'));

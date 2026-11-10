@@ -70,7 +70,7 @@
     },
     async coach(question, historique, contexte, opts) {
       const regles = [
-        'Tu es le coach de l’application personnelle « Cap ». Réponds en français, simplement, en 120 mots maximum, avec une action concrète à la fin si c’est utile.',
+        (opts && opts.approfondir ? 'Tu es le coach de l’application personnelle « Cap ». L’utilisateur veut approfondir ta réponse précédente : explique le pourquoi et les étapes, en français, en 150 mots maximum.' : 'Tu es le coach de l’application personnelle « Cap ». Réponds en français en 2 ou 3 phrases courtes, sans introduction, puis donne 1 à 3 actions concrètes, chacune sur une ligne commençant par « - ».'),
         'Règles strictes :',
         '1. Tous les chiffres viennent du contexte ci-dessous, calculé par des formules vérifiées. N’invente AUCUN chiffre (calories, poids, revenus, délais, progrès). S’il manque une donnée, dis : « Je ne dispose pas de suffisamment d’informations pour établir une estimation fiable. »',
         '2. Les projections sont des estimations, jamais des promesses. Ne présente pas un revenu futur comme acquis.',
@@ -96,7 +96,7 @@
       opts = opts || {};
       const tools = Object.keys(T).map(nom => ({ name: nom, description: T[nom].description, inputSchema: T[nom].schema || { type: 'object', properties: {} },
         execute: async input => { if (opts.onOutil) opts.onOutil(nom); return T[nom].run(input || {}); } }));
-      const regles = ['Tu es le coach de l’application Cap. Réponds en français, en 2 à 6 phrases, avec des actions concrètes.',
+      const regles = [opts.approfondir ? 'Tu es le coach de l’application Cap. L’utilisateur veut approfondir ta réponse précédente : explique le pourquoi et les étapes, en français, en 150 mots maximum.' : 'Tu es le coach de l’application Cap. Réponds en français en 2 ou 3 phrases courtes, sans introduction, puis donne 1 à 3 actions concrètes, chacune sur une ligne commençant par « - ».',
         'Règles absolues :',
         '1. Utilise les outils pour lire les données. N’invente AUCUN chiffre, aucune donnée absente, aucune source : si un outil renvoie « refus » ou « erreur », dis-le simplement et explique comment l’autoriser ou compléter.',
         '2. Les calculs viennent des outils (Cap) ; tu les expliques, tu ne les recalcules pas autrement.',
