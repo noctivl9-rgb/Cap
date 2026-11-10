@@ -30,7 +30,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   await aller(pg, 'Projet'); await pg.waitForTimeout(400);
   let m = await main();
   T('origine honnête : calculé par les règles, IA indisponible', /Classement calculé par les règles de Cap/.test(m) && /indisponible/.test(m));
-  const cartes = await pg.$$eval('main .panel h3', hs => hs.map(h => h.textContent));
+  const cartes = await pg.$$eval('main .pj-opt h3', hs => hs.map(h => h.textContent));
   T('trois activités affichées', cartes.length >= 3, cartes);
   T('une activité de code dans le top 3 (compétence + 500 €)', cartes.slice(0, 3).some(c => /sites|Maintenance|Automatisations/i.test(c)), cartes);
   T('activités écartées avec raison', /Activités écartées/.test(m) && /Non finançable|Écartée/.test(m));
@@ -56,7 +56,7 @@ const res = []; const T = (n, c, i) => res.push((c ? 'ok   ' : 'FAIL ') + n + (c
   m = await main();
   T('F · après réouverture : activité choisie, tâche faite et vente conservées', /Activité choisie/.test(m) && /1 tâche\(s\) sur/.test(m) && /Garage test/.test(m));
   // Test D dans l'interface : capital à 0 → classement recalculé
-  await pg.click('main button:has-text("Modifier mon capital")'); await pg.waitForTimeout(300);
+  await pg.click('main summary:has-text("Activités écartées")'); await pg.click('main button:has-text("Modifier mon capital")'); await pg.waitForTimeout(300);
   await pg.fill('.sheet #m-capital', '0'); await pg.click('.sheet button:has-text("Enregistrer")'); await pg.waitForTimeout(600);
   const apres = (await pg.$$eval('main .panel h3', hs => hs.map(h => h.textContent))).slice(0, 3).join('|');
   T('D · capital modifié dans l’interface : classement recalculé', apres !== avant, [avant, apres]);

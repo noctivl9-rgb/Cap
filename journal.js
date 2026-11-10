@@ -77,11 +77,7 @@
     const out = [], t = today();
     if (jour > t) jour = t;
     const S0 = S();
-    const joursData = Object.keys(S0.journaux).filter(k => (S0.journaux[k].items || []).length);
-    const serie = E.serie(joursData, t);
-    const right = h('div', { style: 'display:flex;gap:8px;align-items:center' },
-      d.corps ? h('span', { class: 'chip ' + (serie ? 'warn' : 'neutral'), title: 'Jours consécutifs avec au moins un repas noté' }, icon('flame'), serie + ' j') : null,
-      h('button', { class: 'round glass press', type: 'button', 'aria-label': 'Coach', onclick: () => J.coach(d) }, icon('chat')));
+    const right = h('button', { class: 'round press jr-coach', type: 'button', 'aria-label': 'Coach', onclick: () => J.coach(d) }, icon('chat'));
     out.push(U.largeTitle(jour === t ? 'Journal' : (jour === shift(t, -1) ? 'Hier' : fr(new Date(jour + 'T12:00').getDate()) + ' ' + new Date(jour + 'T12:00').toLocaleDateString('fr-FR', { month: 'long' })), longDate(jour), right));
     if (d.corps) out.push(bandeSemaine(d));
     if (jour !== t) out.push(h('div', { class: 'note tint', style: 'display:flex;justify-content:space-between;align-items:center;gap:8px' }, h('span', null, 'Tu modifies le journal du ' + longDate(jour) + '.'), h('button', { class: 'link', type: 'button', onclick: () => { jour = t; U.refresh(); } }, 'Revenir')));
@@ -89,10 +85,10 @@
       if (!d.phys || !d.phys.ok) out.push(h('div', { class: 'note' }, d.phys ? d.phys.message : ''), h('button', { class: 'btn', type: 'button', onclick: () => U.startOnboarding(Object.assign({}, S0.profil), { only: U.missingSteps(), fresh: true }) }, 'Compléter mes réponses'));
       else {
         const b = budget(d, jour), j = journal(jour);
-        out.push(carteCalories(d, b));
-        out.push(cartesMacros(d, b));
-        out.push(h('div', { class: 'grid2' }, carteEau(j), carteActivite(d, j)));
+        out.push(resumeJour(d, b));
+        out.push(h('div', { class: 'jr-acts' }, h('button', { class: 'btn jr-repas', type: 'button', onclick: () => ajouterAliment() }, icon('plus'), 'Ajouter un repas'), AI.photoDispo() ? h('button', { class: 'btn secondary', type: 'button', 'aria-label': 'Scanner un plat', onclick: () => scanner() }, icon('camera')) : null));
         out.push(listeRepas(d, j));
+        out.push(h('section', { class: 'jr-autres', 'aria-label': 'Eau et activité' }, ligneEau(j), ligneActivite(d, j)));
       }
     }
     return out;
@@ -110,6 +106,35 @@
         kc === null ? h('span', { class: 'ringw empty' }, h('b', null, String(dt.getDate()))) : h('span', { style: 'position:relative;display:grid;place-items:center' }, ring(cible ? kc / cible : 1, 34, 3, kc > (cible || 1e9) * 1.05 ? 'var(--bad)' : 'var(--body)'), h('b', { style: 'position:absolute' }, String(dt.getDate()))));
     }));
     return h('div', { style: 'display:flex;gap:6px;align-items:center' }, strip, h('button', { class: 'round press', type: 'button', style: 'background:var(--fill);flex:none', 'aria-label': 'Calendrier', onclick: () => calendrier() }, icon('today')));
+  }
+  // Le jour en un regard : ce qui reste, puis l'équilibre (protéines d'abord) ; calories et macros restent des repères.
+  function resumeJour(d, b) {
+    const reste = b.restant, t = b.totaux, m = b.macros, simple = !!(S().profil || {}).modeSimple;
+    const pct = Math.max(0, Math.min(1, b.mange / b.total));
+    const lines = ['Objectif du jour : ' + (b.perso ? 'personnalisé, ' : 'calculé, ') + fr(b.base) + ' kcal.',
+      b.bonus ? 'Activité hors programme : +' + b.bonus + ' kcal (50 % de ' + b.horsProgKcal + ' kcal estimées, par prudence).' : 'Calories d’activité ajoutées : ' + (S().prefs.bonusActivite ? 'aucune activité hors programme notée.' : 'option désactivée (Profil › Nutrition).'),
+      b.report ? 'Report de la veille : +' + b.report + ' kcal (200 maximum).' : 'Report de la veille : ' + (S().prefs.report ? 'rien à reporter.' : 'option désactivée.'),
+      'Noté : ' + fr(b.mange) + ' kcal. Reste = ' + fr(b.total) + ' − ' + fr(b.mange) + ' = ' + fr(reste) + ' kcal.'].concat(b.perso ? [] : d.phys.calcul);
+    const mac = (lbl, have, goal) => h('div', { class: 'jr-mac' }, h('span', null, lbl), h('b', { class: 'num' }, fr(have) + ' / ' + goal + ' g'), h('i', { class: 'jr-barre', 'aria-hidden': 'true' }, h('i', { style: 'width:' + Math.min(100, have / goal * 100) + '%' })));
+    return h('section', { class: 'jr-resume', 'aria-label': 'Résumé du jour' },
+      h('p', { class: 'jr-reste' }, h('b', { class: 'num' }, U.nombre('kcal-reste-' + jour, Math.abs(reste), v => fr(v))), h('span', null, reste >= 0 ? ' kcal restantes' : ' kcal au-dessus de l’objectif')),
+      h('div', { class: 'jr-jauge' + (reste < 0 ? ' over' : ''), role: 'img', 'aria-label': Math.round(pct * 100) + ' % de l’objectif du jour' }, h('i', { style: 'width:' + pct * 100 + '%' })),
+      h('p', { class: 'jr-detail' }, 'Objectif ' + fr(b.base) + (b.bonus ? ' · +' + b.bonus + ' activité' : '') + (b.report ? ' · +' + b.report + ' report' : '') + ' · noté ' + fr(b.mange)),
+      h('div', { class: 'jr-macs' }, mac('Protéines', t.p, m.prot), simple ? h('p', { class: 'foot muted jr-simple' }, 'Mode simple : glucides et lipides masqués (Profil › Nutrition).') : [mac('Glucides', t.c, m.glu), mac('Lipides', t.f, m.lip)]),
+      U.howBtn('Calories du jour', lines));
+  }
+  function ligneEau(j) {
+    const goal = E.objectifEau(poidsActuel());
+    const setE = async v => { const jj = journal(jour); const avant = jj.eauMl; jj.eauMl = Math.max(0, v); try { await saveJournal(jour, jj); if (avant < goal && jj.eauMl >= goal && window.CapSon) window.CapSon.jouer('objectif'); } catch (e) { U.toast('Échec, réessaie'); } };
+    return h('div', { class: 'jr-ligne' }, h('span', { class: 'jr-ic eau' }, icon('drop')), h('span', { class: 'td-l' }, h('b', null, U.nombre('eau-' + jour, j.eauMl, v => fr(v) + ' ml')), h('small', null, 'Eau · repère ' + fr(goal) + ' ml')),
+      h('button', { class: 'round press jr-mini', type: 'button', 'aria-label': 'Retirer 250 ml', disabled: !j.eauMl, onclick: () => setE(j.eauMl - 250) }, icon('minus')),
+      h('button', { class: 'round press jr-mini plein', type: 'button', 'aria-label': 'Ajouter 250 ml', onclick: () => setE(j.eauMl + 250) }, icon('plus')));
+  }
+  function ligneActivite(d, j) {
+    const kc = j.activites.reduce((s2, a) => s2 + (a.kcal || 0), 0), min = j.activites.reduce((s2, a) => s2 + (a.min || 0), 0);
+    return h('div', { class: 'jr-ligne' }, h('span', { class: 'jr-ic act' }, icon('run')), h('span', { class: 'td-l' }, h('b', null, j.activites.length ? U.nombre('act-' + jour, kc, v => fr(v) + ' kcal') : 'Aucune activité'), h('small', null, j.activites.length ? min + ' min · estimation' : 'Sport, marche, vélo…')),
+      j.activites.length ? h('button', { class: 'btn small text', type: 'button', onclick: () => listeActivites(d) }, 'Voir') : null,
+      h('button', { class: 'round press jr-mini plein', type: 'button', 'aria-label': 'Ajouter une activité', onclick: () => ajouterActivite(d) }, icon('plus')));
   }
   function carteCalories(d, b) {
     const reste = b.restant;
@@ -493,46 +518,55 @@
   }
 
   // ================================================================ Progrès
+  // Progression : d'abord le MESURÉ (dernière pesée, combien de mesures, depuis quand), puis la TENDANCE mesurée,
+  // puis la LECTURE de Cap (étiquetée comme telle), puis la courbe ; le reste est replié.
   J.viewProgres = d => {
     const p = d.p, ph = d.phys, out = [];
-    out.push(U.largeTitle('Progrès', null, h('button', { class: 'btn small', type: 'button', onclick: () => U.addPesee() }, icon('plus'), 'Pesée')));
-    if (!ph || !ph.ok) { out.push(h('div', { class: 'note' }, ph ? ph.message : 'Données manquantes.')); return out; }
+    out.push(U.largeTitle('Progression', null, h('button', { class: 'btn small', type: 'button', onclick: () => U.addPesee() }, icon('plus'), 'Pesée')));
+    if (!ph || !ph.ok) { out.push(h('div', { class: 'vide' }, h('p', null, ph ? ph.message : 'Il manque des réponses pour suivre ta progression.'), h('button', { class: 'btn', type: 'button', onclick: () => U.startOnboarding(Object.assign({}, S().profil), { only: U.missingSteps(), fresh: true }) }, 'Compléter mes réponses'))); return out; }
+    const all = S().pesees.filter(r => typeof r.poids === 'number').slice().sort((a, b) => a.date.localeCompare(b.date));
     const tr = E.tendance(S().pesees), last = tr.dernier;
-    // Trois niveaux
-    const action = !last || (new Date(today()) - new Date(last.date)) / 864e5 >= 7 ? 'Pèse-toi lundi matin, à jeun.' : (E.bilanSemaine(S().journaux, null, [], today()).renseignes < 4 ? 'Note tes repas au moins 4 jours cette semaine.' : 'Garde ton rythme : séances prévues et repas notés.');
-    out.push(h('div', { class: 'panel flush tiers' },
-      h('div', { class: 'tier' }, h('span', { class: 'dot', style: 'background:var(--ink)' }, icon('star')), h('div', null, h('h3', null, 'L’objectif'), h('p', null, p.objectif === 'maintenir' ? 'Maintenir ton poids en améliorant ta forme.' : (ph.planPossible ? U.wfmt(ph.cible) + (ph.semaines ? ' · ≈ ' + ph.semaines + ' semaines (estimation)' : '') : 'Objectif à revoir avec un médecin.')))),
-      ph.intermediaire ? h('div', { class: 'tier' }, h('span', { class: 'dot', style: 'background:var(--body)' }, icon('target')), h('div', null, h('h3', null, 'L’étape en cours'), h('p', null, ph.intermediaire.texte.replace(/[\d,]+ kg/, U.wfmt(ph.intermediaire.poids))))) : null,
-      h('div', { class: 'tier' }, h('span', { class: 'dot', style: 'background:var(--accent)' }, icon('bolt')), h('div', null, h('h3', null, 'Prochaine action'), h('p', null, action)))));
-    out.push(h('div', { class: 'stats' },
-      h('div', { class: 'stat' }, h('b', null, last ? U.wfmt(last.poids) : '—'), h('span', null, last ? 'Mesuré le ' + U.fmtD(last.date) : 'Aucune pesée')),
-      h('div', { class: 'stat' }, h('b', null, tr.rythme === null ? '—' : (tr.rythme > 0 ? '+' : '') + fr(U.unite() === 'lb' ? tr.rythme * U.LB : tr.rythme, 2)), h('span', null, tr.rythme === null ? 'Tendance : 2 pesées à 1 semaine d’écart' : U.unite() + '/sem, mesuré')),
-      h('div', { class: 'stat' }, h('b', null, fr(ph.imc, 1)), h('span', null, 'IMC'))));
-    if (tr.rythme !== null && ph.planPossible && p.objectif !== 'maintenir') {
-      const r = tr.rythme, target = ph.rythmeEffectif; let txt, cls;
-      if (p.objectif === 'perdre') { if (r < -ph.max - 0.1) { txt = 'Plus rapide que le maximum prudent : ajoute environ 200 kcal par jour.'; cls = 'bad'; } else if (r <= target * 0.5) { txt = 'Tu suis ton rythme.'; cls = 'good'; } else { txt = 'Plus lent que prévu. Si ça dure 3 semaines, retire environ 150 kcal par jour.'; cls = 'warn'; } }
-      else { if (r > ph.max + 0.1) { txt = 'Prise plus rapide que prévu : retire environ 150 kcal par jour.'; cls = 'warn'; } else if (r >= target * 0.5) { txt = 'Tu suis ton rythme.'; cls = 'good'; } else { txt = 'Prise plus lente que prévu : ajoute environ 150 kcal par jour.'; cls = 'warn'; } }
-      out.push(h('div', null, h('span', { class: 'chip ' + cls }, txt)));
+    if (!last) {
+      out.push(h('div', { class: 'vide pr-vide' }, h('p', { class: 'vide-t' }, 'Ta progression commence par une mesure.'), h('p', null, 'Une pesée par semaine, le matin à jeun, suffit. Cap ne trace rien tant que rien n’est mesuré.'), h('button', { class: 'btn', type: 'button', onclick: () => U.addPesee() }, 'Faire ma première pesée')));
+    } else {
+      const ecart = all.length > 1 ? last.poids - all[0].poids : null;
+      out.push(h('section', { class: 'pr-hero', 'aria-labelledby': 'pr-h' },
+        h('p', { class: 'pr-k' }, h('span', { class: 'tag mesure' }, 'Mesuré'), ' le ' + U.fmtD(last.date)),
+        h('h2', { id: 'pr-h', class: 'pr-poids num' }, U.wfmt(last.poids)),
+        h('p', { class: 'pr-sous' }, all.length + ' pesée' + (all.length > 1 ? 's' : '') + ' depuis le ' + U.fmtD(all[0].date) + (ecart !== null ? ' · ' + (ecart > 0 ? '+' : ecart < 0 ? '−' : '') + U.wfmt(Math.abs(ecart)).replace(/^0,0 /, '0 ') + ' au total' : ''))));
+      // Tendance mesurée, puis lecture
+      let lecture = null;
+      if (tr.rythme !== null && ph.planPossible && p.objectif !== 'maintenir') {
+        const r = tr.rythme, target = ph.rythmeEffectif;
+        if (p.objectif === 'perdre') lecture = r < -ph.max - 0.1 ? ['Plus rapide que le maximum prudent. Ajoute environ 200 kcal par jour.', 'bad'] : r <= target * 0.5 ? ['Tu suis le rythme prévu.', 'good'] : ['Plus lent que prévu. Si ça dure 3 semaines, retire environ 150 kcal par jour.', 'warn'];
+        else lecture = r > ph.max + 0.1 ? ['Prise plus rapide que prévu : retire environ 150 kcal par jour.', 'warn'] : r >= target * 0.5 ? ['Tu suis le rythme prévu.', 'good'] : ['Prise plus lente que prévu : ajoute environ 150 kcal par jour.', 'warn'];
+      }
+      out.push(h('section', { class: 'pr-tend' },
+        h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Tendance'), tr.rythme === null ? h('span', { class: 'pr-v vide' }, 'Pas encore calculable : il faut deux pesées à au moins une semaine d’écart.') : h('span', { class: 'pr-v' }, h('b', { class: 'num' }, (tr.rythme > 0 ? '+' : '') + fr(U.unite() === 'lb' ? tr.rythme * U.LB : tr.rythme, 2) + ' ' + U.unite() + ' par semaine'), ' sur le dernier mois mesuré')),
+        lecture ? h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Lecture de Cap'), h('span', { class: 'pr-v lect ' + lecture[1] }, lecture[0])) : null,
+        h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Objectif'), h('span', { class: 'pr-v' }, p.objectif === 'maintenir' ? 'Maintenir ton poids en améliorant ta forme.' : ph.planPossible ? U.wfmt(ph.cible) + (ph.semaines ? ', ≈ ' + ph.semaines + ' semaines au rythme prévu (estimation)' : '') : 'Objectif à revoir avec un médecin.'))));
+      const range = U.segments([[30, '1 mois'], [90, '3 mois'], [3650, 'Tout']], plageProgres, v => { plageProgres = v; U.refresh(); }, 'Période de la courbe', 'per');
+      out.push(h('section', { class: 'pr-courbe', 'aria-labelledby': 'pr-c' }, h('div', { class: 'pr-courbe-h' }, h('h2', { id: 'pr-c', class: 'td-h' }, 'Courbe'), range), h('div', { class: 'chart' }, courbePoids(d)),
+        h('p', { class: 'foot muted' }, 'Trait plein : tes pesées. ' + (ph.planPossible && p.objectif !== 'maintenir' ? 'Pointillés : le plan, jamais un résultat. ' : '') + 'Le poids varie de 1 à 2 kg d’un jour à l’autre : seule la tendance compte.')));
     }
-    const range = seg([[30, '1 mois'], [90, '3 mois'], [3650, 'Tout']], plageProgres, v => { plageProgres = v; U.refresh(); }, 'Période');
-    out.push(U.section('Poids', 'Trait plein : tes pesées. Pointillés : projection du plan, jamais un résultat.', range, h('div', { class: 'panel chart' }, courbePoids(d), h('div', { class: 'legend' }, h('span', null, h('i', { style: 'border-color:var(--ink)' }), 'Mesuré'), ph.planPossible && p.objectif !== 'maintenir' ? h('span', null, h('i', { class: 'dash', style: 'border-color:var(--body)' }), 'Projection') : null))));
-    // Calories des 7 derniers jours
+    // Détails repliés
     const cj = E.cibleJour(ph, p.objectifsPerso);
     const bs = E.bilanSemaine(S().journaux, cj.kcal, S().pesees, today());
-    out.push(U.section('Calories, 7 derniers jours', 'Barres : jours notés. Pointillés gris : jour sans données, rien n’est estimé.', h('div', { class: 'panel chart' }, barres(bs, cj.kcal), h('p', { class: 'sub' }, bs.message))));
-    // Série et jalons
+    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Calories, 7 derniers jours'), h('div', { class: 'chart' }, barres(bs, cj.kcal)), h('p', { class: 'sub' }, bs.message), h('p', { class: 'foot muted' }, 'Jours sans repas noté : rien n’est estimé.')));
     const joursData = Object.keys(S().journaux).filter(k => (S().journaux[k].items || []).length);
-    const serie = E.serie(joursData, today());
-    const jl = E.jalons(S().pesees, p.poids, ph.cible, serie);
-    out.push(U.section('Jalons', null, h('div', { class: 'panel flush' }, U.cellKV('Série actuelle', serie + ' jour' + (serie > 1 ? 's' : '')), jl.length ? jl.map(x => U.cellKV(x.t, x.date ? U.fmtD(x.date) : '✓')) : h('div', { class: 'cell muted' }, 'Tes premiers jalons apparaîtront avec tes pesées.'))));
-    // Mesures
+    const jl = E.jalons(S().pesees, p.poids, ph.cible, E.serie(joursData, today()));
+    if (jl.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Jalons atteints (' + jl.length + ')'), h('ul', { class: 'td-liste' }, jl.map(x => h('li', { class: 'pr-jalon' }, h('span', null, x.t), h('span', { class: 'muted' }, x.date ? U.fmtD(x.date) : ''))))));
     const tours = S().pesees.filter(r => r.tour).sort((a, b) => b.date.localeCompare(a.date));
-    if (tours.length) out.push(U.section('Tour de taille', null, h('div', { class: 'panel flush' }, tours.slice(0, 8).map(r => U.cellKV(U.fmtD(r.date), fr(r.tour, 1) + ' cm')))));
-    // Situation
-    out.push(U.section('Ton plan', null, h('div', { class: 'panel flush' }, U.cellKV('Dépense estimée', fr(ph.tdee) + ' kcal/j'), U.cellKV('Objectif calorique', fr(cj.kcal) + ' kcal/j' + (cj.perso ? ' (perso)' : '')), U.cellKV('Protéines · glucides · lipides', cj.macros.prot + ' · ' + cj.macros.glu + ' · ' + cj.macros.lip + ' g')), h('p', { class: 'foot muted', style: 'margin:0 4px' }, ph.imcNote), h('div', { style: 'margin:0 4px' }, U.howBtn('Objectif calorique', ph.calcul))));
-    if (ph.etapes.length && ph.planPossible) out.push(U.section('Étapes prévues', 'Estimations au rythme du plan, recalculées avec tes vraies pesées.', h('div', { class: 'panel flush' }, ph.etapes.slice(0, 6).map(e => U.cellKV('Semaine ' + e.semaine, '≈ ' + U.wfmt(e.poids))))));
+    if (tours.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Tour de taille (' + tours.length + ' mesure' + (tours.length > 1 ? 's' : '') + ')'), h('ul', { class: 'td-liste' }, tours.slice(0, 12).map(r => h('li', { class: 'pr-jalon' }, h('span', null, U.fmtD(r.date)), h('b', { class: 'num' }, fr(r.tour, 1) + ' cm'))))));
+    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Ton plan calculé'), h('ul', { class: 'td-liste' },
+      h('li', { class: 'pr-jalon' }, h('span', null, 'Dépense estimée'), h('b', { class: 'num' }, fr(ph.tdee) + ' kcal/j')),
+      h('li', { class: 'pr-jalon' }, h('span', null, 'Objectif calorique' + (cj.perso ? ' (personnalisé)' : '')), h('b', { class: 'num' }, fr(cj.kcal) + ' kcal/j')),
+      h('li', { class: 'pr-jalon' }, h('span', null, 'Protéines · glucides · lipides'), h('b', { class: 'num' }, cj.macros.prot + ' · ' + cj.macros.glu + ' · ' + cj.macros.lip + ' g')),
+      h('li', { class: 'pr-jalon' }, h('span', null, 'IMC'), h('b', { class: 'num' }, fr(ph.imc, 1)))),
+      h('p', { class: 'foot muted' }, ph.imcNote), U.howBtn('Objectif calorique', ph.calcul),
+      ph.etapes.length && ph.planPossible ? h('ul', { class: 'td-liste' }, ph.etapes.slice(0, 6).map(e => h('li', { class: 'pr-jalon' }, h('span', null, 'Semaine ' + e.semaine + ' (estimation)'), h('b', { class: 'num' }, '≈ ' + U.wfmt(e.poids))))) : null));
     const rows = S().pesees.slice().sort((a, b) => b.date.localeCompare(a.date));
-    out.push(U.section('Pesées', null, rows.length ? h('div', { class: 'panel flush' }, rows.map(r => h('div', { class: 'cell' }, h('span', { class: 'lbl' }, U.fmtD(r.date), r.tour ? h('small', null, 'Tour de taille ' + fr(r.tour, 1) + ' cm') : null), h('span', { class: 'val num', style: 'color:var(--ink)' }, U.wfmt(r.poids)), h('button', { class: 'round press', type: 'button', style: 'width:32px;height:32px;background:var(--fill)', 'aria-label': 'Supprimer la pesée du ' + U.fmtD(r.date), onclick: () => U.confirmDel(() => U.remove('pesees', r.id)) }, icon('trash'))))) : h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Aucune pesée enregistrée.')));
+    if (rows.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Toutes les pesées (' + rows.length + ')'), h('ul', { class: 'td-liste' }, rows.map(r => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', { class: 'num' }, U.wfmt(r.poids)), h('small', null, U.fmtD(r.date) + (r.tour ? ' · tour de taille ' + fr(r.tour, 1) + ' cm' : '') + (r.note ? ' · ' + r.note : ''))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer la pesée du ' + U.fmtD(r.date), onclick: () => U.confirmDel(() => U.remove('pesees', r.id)) }, icon('trash')))))));
     return out;
   };
   function courbePoids(d) {
@@ -591,11 +625,7 @@
       interrupteur('Ajouter les calories d’activité', 'Seulement les activités en plus de ton programme, et 50 % de l’estimation, car elle peut être surestimée', !!prefs.bonusActivite, v => U.savePrefs({ bonusActivite: v })),
       interrupteur('Reporter les calories non mangées', 'Jusqu’à 200 kcal de la veille, seulement si la veille est notée', !!prefs.report, v => U.savePrefs({ report: v })),
       U.cellKV('Objectif d’eau', fr(E.objectifEau(poidsActuel())) + ' ml (30 ml par kg)'),
-      row('Mes aliments et recettes', (S().perso.length + S().recettes.length) + '', () => mesAliments()))),
-    h('section', { class: 'sec' }, h('div', { class: 'cap' }, 'Coach'), h('div', { class: 'panel flush' },
-      interrupteur('Partager mes données corps', 'Poids, objectifs, repas notés', !!prefs.coachCorps, v => U.savePrefs({ coachCorps: v })),
-      d.argent ? interrupteur('Partager mes données argent', 'Budget, épargne, projet', !!prefs.coachArgent, v => U.savePrefs({ coachArgent: v })) : null),
-      h('p', { class: 'foot muted', style: 'margin:0 16px' }, 'Le coach ne voit que ce que tu partages ici, et seulement quand tu lui poses une question.'))];
+      row('Mes aliments et recettes', (S().perso.length + S().recettes.length) + '', () => mesAliments())))];
   };
   function mesAliments() {
     let close;

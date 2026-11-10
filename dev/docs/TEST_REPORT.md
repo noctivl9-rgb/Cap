@@ -79,3 +79,17 @@ Non testé : génération réelle par IA (programme, marché, questions) — non
 | `cap-ai-test.ts` | 19 / 19 | consignes v2 construites côté serveur |
 | autres suites | inchangées, réussies | tests A à J compris |
 | **Vrais appels (banc v2)** | **0 exécuté** | 8 profils, 10 essais prêts ; nécessitent un clic sur « Tout lancer » dans l’artefact (compte Claude de l’utilisateur). Les résultats v1 sont classés « anciennes consignes, à relancer ». |
+
+## Refonte totale (10/11/2026) — tests exécutés
+| Suite | Résultat | Ce qui est vérifié |
+|---|---|---|
+| `tests.js`, `sync-tests.js`, `matrice-tests.js`, `personnalisation-tests.js`, `ia-tests.js` | 80, 29, 89, 47, 44 réussis | moteurs, synchro, registre des questions, A–J, validation IA : aucune régression |
+| `ui3.js` | 64 / 64 | navigation 5 destinations, Aujourd'hui, Journal, ajout, scan (explication, consentement, estimé / corrigé / calculé), photos (consentement, ajout, métadonnées v2, comparateur, suppression), 320 px |
+| `refonte.js` (nouveau) | 44 / 44 | migration photos v1 → v2, validation des fichiers, modules seuls, priorité, séance guidée (repos à la demande, quitter, séance partielle), pesée, consentements Profil, réduction des animations, « Pourquoi cette question ? », noms accessibles, zones ≥ 44 px, un seul h1, clavier |
+| `axe.js` (axe-core 4.10, installé hors dépôt) | 0 violation WCAG 2.1 A/AA sur 8 écrans | contrastes, langue, rôles |
+| `ia-ui.js`, `projet-ui.js`, `donnees.js`, `persist2.js`, `dir.js`, `sk.js`, `font.js` | 17, 21, 27, OK, 21, 9, OK | parcours IA simulés, projet, import/export/restauration, persistance, intro, Sparkle, police |
+| `cap-ai-test.ts` (Deno), `rls-test.mjs` (PGlite) | 19 / 19, 18 / 18 | serveur IA et règles RLS inchangés |
+| `ecrans.js` | 0 px de débordement à 320, 390 et 1280 px sur 8 écrans | mise en page |
+| Version GitHub Pages sous CSP (Chromium) | rendu OK, police OK, 0 erreur console | CSP |
+
+Non testé : iPhone réel (VoiceOver, Safari, wake lock, appareil photo) ; stockage des photos dans l'appli Claude réelle (assets simulé en test) ; synchronisation Supabase réelle (non activée) ; IA réelle (scan, coach) dans cette refonte ; Lighthouse (non disponible ici) ; performances mesurées sur téléphone moyen.

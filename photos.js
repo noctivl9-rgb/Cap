@@ -200,7 +200,7 @@
   // ---------- Vue ----------
   function view(d) {
     const { h, icon, fmtD } = U();
-    migrer();
+    if (!migre) setTimeout(migrer, 0); // jamais pendant le rendu : l'écriture relance un rendu
     const tout = liste(), out = [];
     const right = h('button', { class: 'btn small', type: 'button', onclick: ajouter }, icon('plus'), 'Photo');
     out.push(h('header', { class: 'lt' }, h('div', null, h('h1', null, 'Photos')), right));

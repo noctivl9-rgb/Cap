@@ -1,44 +1,75 @@
-# DESIGN_SYSTEM
+# Cap — système de design (refonte du 10/11/2026)
 
-Source : `index.html` (tokens CSS). Thème clair uniquement, à ta demande.
+Remplace les versions précédentes (lentille de verre, piliers de l'accueil, onglets en verre), qui sont abandonnées.
 
-- **Couleurs** : fond #F5F5F7, surfaces #FFFFFF, texte #1D1D1F / #424245 / #6E6E73. Accent interactif #0066CC. Corps #E8553A, argent #1F8A5B, alertes orange/rouge. Contrastes ≥ 4,5:1 pour le texte.
-- **Typographie** : police système (SF Pro sur iPhone). Échelle 34 / 28 / 22 / 20 / 17 / 16 / 15 / 13 / 12 px, chiffres tabulaires.
-- **Espacements** : 4, 8, 12, 16, 20, 24, 32 px ; gouttière latérale ≥ 16 px et zones de sécurité iOS.
-- **Rayons** : 10 / 14 / 20 / 28 px, 999 pour les capsules.
-- **Ombres** : 0 1px 2px + 0 6px 20px, opacité 4 %.
-- **Verre** (barre d'onglets, bouton +, panneaux, sélecteurs, boutons ronds) : blanc 58 %, flou 22 px, saturation 185 %, liseré 0,5 px, reflet intérieur. Version opaque si le navigateur ne gère pas le flou. Les contenus restent sur surfaces pleines.
-- **Composants** : cartes de choix avec coche animée, règle horizontale, saisie monétaire, cellules type Réglages, interrupteurs iOS, segmentés, anneaux, puces de statut, alertes à liseré, panneaux.
-- **Mouvement** : 160 et 240 ms, courbe (0,2 ; 0,8 ; 0,2 ; 1) ; ressort (0,34 ; 1,4 ; 0,64 ; 1) pour la pastille d'onglet et les interrupteurs. Transitions directionnelles du questionnaire. Règle à inertie avec aimantation. Tout est coupé si « Réduire les animations » est activé.
-- **Interdits** : dégradés violets, néons, emojis décoratifs, verre sur les contenus.
+## Fichiers
+Ordre de chargement : `css/font.css` (Archivo Cap embarquée, licence OFL), `tokens.css`, `base.css`, `components.css`, `screens.css`, `theme.css`, puis `refonte.css`.
+- `refonte.css` porte la nouvelle composition des écrans. Il est chargé en dernier et l'emporte sur les anciennes règles.
+- Aucun style n'est défini dans `index.html`.
 
-## Direction artistique (v4, 10/11/2026)
-- **Signature** : le « C » est le cadre, le point corail est ton cap. Sur l'accueil, le point orbite le long de l'arc, rejoint le centre et s'y stabilise par oscillations amorties. C'est la seule chorégraphie automatique de l'appli.
-- **Accueil** : mise en page alignée à gauche (marque, lentille de verre, titre « Garde le cap. », trois piliers sans cartes, bouton Sparkle). Une seule pièce forte : la lentille.
-- **Matière de la lentille** (principes repris de ReactDrops, pas leur code) : reflet spéculaire, paroi intérieure, face arrière ombrée, léger frange chromatique rouge/bleu au bord, caustique corail projetée dessous, goutte qui ondule puis s'amortit au toucher.
-
-## Langage de mouvement
-| Jeton | Valeur | Usage |
+## Couleurs (rôles, jamais décoratives)
+| Jeton | Valeur | Rôle |
 |---|---|---|
-| --m-tap | 120 ms | pression d'un bouton |
-| --m-state | 220 ms | changement d'état (sélection, interrupteur) |
-| --m-panel | 380 ms | panneaux (entrée douce, sortie 220 ms) |
-| --m-reveal | 600 ms | apparition d'un élément important |
-| --m-spring | (0,34 ; 1,4 ; 0,64 ; 1) | contrôles : interrupteurs, pastille d'onglet, boutons ronds |
-| Chiffres | 480 ms, sortie cubique | depuis la dernière valeur réelle |
-Aucune animation permanente hors bouton Sparkle actif. Tout est coupé avec « Réduire les animations ».
+| `--obsidienne` | #0C0C0D | La pièce forte unique de l'écran : priorité du jour, séance du jour, décision d'argent, prochaine tâche |
+| `--graphite` | #2A2A2D | Dégradé de l'obsidienne |
+| `--blanc-casse` | #F4F3F0 | Fond de toutes les vues |
+| `--argent-min` | #A7ABB1 | Libellés sur obsidienne, repère du module Projet |
+| `--corps` / `--corps-texte` | #E8553A / #B23A20 | Corps, énergie et actions physiques (séance, ajouter un repas). La teinte foncée sert au texte (contraste AA). |
+| `--argent` / `--argent-texte` | #1F8A5B / #146B45 | Faits financiers positifs et réels uniquement |
+| rouge #C4111B | — | Erreurs, déficits réels et suppressions |
+| ambre #7A4500 sur fond ambré | — | À vérifier, limites appliquées |
 
-## Sons (sound.js)
-Synthétisés en direct (Web Audio), aucun fichier tiers. Gamme de mi majeur, sinus doux, crête ≤ 0,05.
-| Son | Moment | Durée |
+Le sens d'une couleur est toujours aussi porté par un libellé (« Réel », « Projection », « Limites appliquées »…). La couleur seule ne porte jamais l'information.
+
+## Typographie
+- **Titres d'écran** : Archivo, élargie (largeur 112 à 118 %), graisse 740 à 780, interlettrage négatif.
+- **Chiffres clés** (poids, reste du jour, épargne réelle, séries × répétitions) : 44 à 84 px, chiffres tabulaires.
+- **Texte courant** : 15 à 17 px, interligne 1,45, 46 caractères maximum pour les messages.
+- **Titres de section** : des libellés humains (« Ta semaine », « Avec quoi tu pars », « Où tu en es »), jamais « Statistiques » ni « Informations ».
+
+## Composition
+- Une seule surface surélevée par écran : la pièce d'obsidienne.
+- Le reste est posé sur le fond, séparé par des filets de 0,5 px et de l'espace. Plus aucune pile de cartes identiques.
+- Détails, historiques et calculs vont dans des `<details>` repliés : Comment est-ce calculé, Historique, Budget mensuel, Chiffres de l'activité, etc.
+- **Navigation** : barre posée, sans verre. Cinq destinations au plus, dont l'action centrale ＋ en obsidienne.
+- **Sélecteurs** : segmenté plein pour les modules ; soulignement aux couleurs du module pour les sous-vues.
+
+## Étiquettes d'origine (`.tag`)
+| Étiquette | Classe | Usage |
 |---|---|---|
-| étape | changement de partie du questionnaire, toucher du logo | 0,07 s |
-| valider | plan enregistré, pesée, repas scanné | 0,22 s |
-| objectif | jalon de poids atteint, objectif d'eau atteint | 0,40 s |
-| ouverture | « Commencer mon parcours », « Découvrir mon analyse » | 0,31 s |
-Désactivés par défaut (Réglages › Préférences). Jamais au lancement. Sur iPhone, `audioSession.type = 'ambient'` respecte le mode silencieux (Safari 16.4+). Vibrations seulement là où le navigateur les permet (pas sur iPhone).
+| Mesuré / Observé / Réel | `mesure` | Valeur saisie par toi |
+| Calculé par Cap / Calcul / Projection | `calc` | Valeur produite par les règles déterministes |
+| Estimé par l'IA | `estime` | Proposition IA non vérifiée |
+| Corrigé par toi | `corrige` | Valeur IA que tu as modifiée |
+| Hypothèse | `hypo` | Valeur non acquise, contour seul |
+| IA / IA validée par Cap | `ia` | Contenu généré, puis contrôlé par les règles |
 
-## Outils évalués
-- Motion, GSAP, React Spring, Rive, Lottie : non installés. Cap n'utilise pas React, et l'API Web Animations native couvre les besoins sans dépendance.
-- ReactDrops : étudié (licence « ReactDrops Component 1.0 », usage permis dans une appli). Non intégré : composants React + WebGL de plusieurs milliers de lignes, trop lourds pour l'iPhone ici.
-- Tone.js, Freesound, BBC : non utilisés, les sons sont synthétisés.
+## Composants
+- **Priorité** : `.td-prio`, `.pg-hero`, `.ag-decision`, `.pj-hero`.
+- **Lignes d'action** : `.td-ligne`.
+- **Faits** : `.pr-ligne`, `.pr-jalon`, listes `dl`.
+- **Jauges** : `.jr-jauge`, `.jr-barre`.
+- **Sélecteur accessible** : `segments()`, avec rôles `tablist`/`tab` et flèches du clavier.
+- **Feuilles modales** : `sheet()`.
+- **Séance plein écran** : `seance.js`, rôle `dialog`, focus gardé, Échap pour quitter.
+- **Alertes** : `.ag-alerte`, `.pg-lim`, `issueView`.
+- **États vides** : `.vide`, une phrase calme puis une seule action.
+- **Consentement** : feuille photos, case du scan, lignes `.pf-cons`.
+- **Comparateur de photos** : `.ph-comp` et un curseur `input[type=range]` nommé, utilisable au clavier sans geste complexe.
+- **Confirmation destructive** : bloc `.ph-conf` révélé, puis bouton `.btn.danger`.
+
+## Mouvement
+- Durées : 120 ms au toucher, 220 ms pour un changement d'état, 320 à 380 ms pour un panneau, 600 ms pour une révélation.
+- Seules chorégraphies automatiques : l'intro (au plus une fois toutes les 12 h) et la révélation du programme.
+- Rien ne tourne en continu. Le minuteur de repos ne démarre que si l'utilisateur le lance.
+- **Coupures** : `prefers-reduced-motion` ou le réglage interne Profil › Préférences › Réduire les animations (classe `html.anim-reduites`) coupent tout.
+
+## Accessibilité (vérifiée par `dev/tests/refonte.js` et `dev/tests/axe.js`)
+- Contraste AA. axe-core 4.10 : 0 violation WCAG 2.1 A/AA sur les 8 écrans principaux.
+- Zones tactiles d'au moins 44 px. Chaque contrôle a un nom accessible. Un seul `h1` par écran. Navigation au clavier.
+- Le focus revient à la page après la séance guidée. Les erreurs ont `role="alert"`. Les graphiques ont un résumé textuel.
+
+## Sécurité de l'affichage
+- **`innerHTML`** n'est utilisé que pour du SVG construit par Cap : logo, icônes, courbes à partir de nombres et de dates formatées. Aucune saisie de l'utilisateur n'y passe.
+- **CSP de la version GitHub Pages** : `default-src 'self'`, scripts du seul domaine, `connect-src` limité à Supabase, `object-src 'none'`.
+- **Version Claude** : la CSP est imposée par Claude.

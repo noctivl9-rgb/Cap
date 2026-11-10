@@ -35,6 +35,25 @@ Cinq destinations au maximum dans la barre basse :
 | 4 | **Journal** | Le jour : repas, eau, activité ; navigation dans les jours | module Corps |
 | 5 | **Profil** | Réponses, préférences, IA et consentements, photos et stockage, données, compte | toujours |
 
+### Carte de navigation détaillée
+| Destination | Objectif utilisateur | Contenu principal | Action principale | Contenus secondaires | Accès aux détails | Module désactivé |
+|---|---|---|---|---|---|---|
+| Aujourd'hui | Savoir quoi faire maintenant | Une priorité (règles fixes) | Le bouton de la priorité | « Ensuite » (3 max), état mesuré par module | Points à vérifier repliés | La ligne du module disparaît ; ses priorités ne sont jamais proposées |
+| Parcours › Corps › Séance | Faire la séance du jour | Séance du jour ou prochaine | Commencer la séance (mode guidé) | Semaine, régularité mesurée, limites appliquées, origine | Pourquoi, progression prévue, historique repliés | Onglet Corps absent du sélecteur |
+| Parcours › Corps › Progression | Comprendre l'évolution | Dernière mesure + nombre de mesures + depuis quand | Nouvelle pesée | Tendance mesurée, lecture de Cap, objectif, courbe | Calories 7 j, jalons, tour de taille, plan, pesées | — |
+| Parcours › Corps › Photos | Voir l'évolution visuelle | Chronologie par mois | Ajouter une photo | Filtre d'angle, comparer deux dates | Détail : télécharger, supprimer | — |
+| Parcours › Argent | Prendre la bonne décision | Décision de la semaine | C'est fait | Réel, Projection, Hypothèse | Budget, coût du projet, âge, à vérifier, historique | Onglet Argent absent ; ＋ ne propose plus « Épargne » |
+| Parcours › Projet | Avancer vers une première vente | Sans choix : les 3 options. Avec choix : prochaine tâche | Choisir / Marquer comme faite | Contraintes, première vente, plan 30/60/90 | Chiffres (avec statut), ventes, légalité, risques, classement, écartées | Onglet Projet absent ; ＋ ne propose plus « Vente » |
+| ＋ | Ajouter vite | Tuiles des ajouts possibles | La tuile choisie | — | — | Seules les tuiles des modules actifs |
+| Journal | Noter et relire la journée | Reste du jour + protéines | Ajouter un repas | Repas par créneau, eau, activité, jours | Comment est-ce calculé, calendrier | Absent sans module Corps (4 destinations) |
+| Profil | Contrôler ses données et sa vie privée | État + consentements | Dépend de la ligne | Réponses par module, nutrition, préférences, données | Sources et limites repliées | Les groupes du module disparaissent |
+
+États transverses :
+- **Chargement** : texte explicite avec le temps écoulé réel, jamais de spinner infini.
+- **Erreur** : message précis et solution (réessayer, saisir à la main).
+- **Hors ligne** : tout fonctionne sauf l'IA ; c'est indiqué dans Profil › État et dans le scan.
+- **IA indisponible** : une ligne étiquetée « IA », sans boutons désactivés.
+
 Sous-vues de Parcours :
 - Corps : **Séance** (programme, séance du jour en premier) · **Progression** (mesures) · **Photos** (progression visuelle).
 - Argent : une seule vue en trois couches Réel / Projection / Hypothèse ; budget et coût en détail repliable.

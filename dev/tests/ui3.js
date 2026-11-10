@@ -118,7 +118,7 @@ const out = __dirname + '/out/v3-';
   await pg.click('button[aria-label="Ajouter 250 ml"]'); await pg.waitForTimeout(250); await pg.click('button[aria-label="Ajouter 250 ml"]'); await pg.waitForTimeout(250);
   T('eau : 500 ml', (await main()).includes('500 ml'));
   // Activité sans option
-  await pg.click('.stat button:has-text("Ajouter")'); await pg.waitForTimeout(300);
+  await pg.click('button[aria-label="Ajouter une activité"]'); await pg.waitForTimeout(300);
   await pg.click(lastSheet + ' .choice:has-text("Course")'); await pg.waitForTimeout(80);
   st = await sheetTxt();
   T('activité : 30 min de course à 71 kg ≈ 284 kcal', st.includes('284'), st.slice(0, 400));

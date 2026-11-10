@@ -122,12 +122,12 @@
       const di = detailsIndividuels(pg, true); if (di) out.push(di);
     } else if (pp && !pp.valide) out.push(h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Une proposition d’ajustement ne respecte plus tes contraintes actuelles : elle n’est pas proposée.'));
     const rang = h('div', { class: 'ia-actions' },
-      btn(pi ? 'Adapter avec l’IA' : 'Générer mon programme avec l’IA', () => genererProgramme(d), pi && pi.valide && !pi.changements.length ? 'secondary' : ''),
+      dispo ? btn(pi ? 'Adapter avec l’IA' : 'Générer mon programme avec l’IA', () => genererProgramme(d), pi && pi.valide && !pi.changements.length ? 'secondary' : '') : null,
       h('button', { class: 'btn small secondary', type: 'button', onclick: () => pourquoi(d) }, 'Pourquoi ce programme ?'),
       pi && pi.valide ? h('button', { class: 'btn small secondary', type: 'button', onclick: () => revenir(pi) }, 'Revenir au programme calculé') : null,
       dispo ? h('button', { class: 'btn small secondary', type: 'button', onclick: () => demanderQuestions(d) }, 'L’IA a-t-elle des questions ?') : null);
     out.push(rang);
-    if (!dispo) out.push(h('p', { class: 'foot muted', style: 'margin:0 4px' }, etat().texte));
+    if (!dispo) out.push(h('p', { class: 'ia-off' }, h('span', { class: 'tag hypo' }, 'IA'), ' ', etat().texte));
     const n = (U().S.programmes || []).length;
     if (n) out.push(h('p', { class: 'foot muted', style: 'margin:0 4px' }, n + ' version(s) générée(s) conservée(s) dans l’historique.'));
     return out;
@@ -216,7 +216,8 @@
     const { h, section, eur, saveProfil, toast, dayId } = U(), B = window.CapBusiness, out = [];
     const dispo = IA() && IA().dispo(), op = d.opIA;
     const btn = h('button', { class: 'btn small', type: 'button', disabled: dispo ? null : true, onclick: () => chercherBusiness(d) }, op ? 'Relancer la recherche IA' : 'Chercher 3 activités avec l’IA');
-    if (!op) { out.push(section('Recherche par IA', dispo ? 'L’IA peut proposer des activités hors du catalogue de Cap. Les chiffres (budget, scénarios, plan) restent calculés par Cap.' : etat().texte, btn)); return out; }
+    if (!op && !dispo) { out.push(h('p', { class: 'ia-off' }, h('span', { class: 'tag hypo' }, 'IA'), ' Recherche de marché : ' + etat().texte.charAt(0).toLowerCase() + etat().texte.slice(1))); return out; }
+    if (!op) { out.push(section('Recherche par IA', 'L’IA peut proposer des activités hors du catalogue de Cap. Les chiffres (budget, scénarios, plan) restent calculés par Cap.', btn)); return out; }
     const ch = K().changements(op.entrees, K().entrees(d.p, CHAMPS_BUSINESS));
     const modeTxt = op.mode === 'web' ? 'avec recherche web : faits sourcés' : 'sans recherche web : prix, demande et concurrence sont des estimations du modèle, non vérifiées';
     out.push(section('Propositions de l’IA', 'Générées le ' + fmtDate(op.date) + (op.modele ? ' (' + op.modele + ')' : '') + ', ' + modeTxt + '. Statut et budget recalculés par Cap avec tes réponses actuelles.',

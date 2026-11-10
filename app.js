@@ -1,6 +1,7 @@
 /* Cap — interface. Tous les chiffres viennent de CapEngine (engine.js). */
 (function () {
   'use strict';
+  if (!document.documentElement.lang) document.documentElement.lang = 'fr';
   const E = window.CapEngine;
   const $app = document.getElementById('app');
 
@@ -43,7 +44,8 @@
   const weekKey = (d = new Date()) => { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); return dayId(x); };
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const vib = () => { try { if (navigator.vibrate) navigator.vibrate(4); } catch (e) {} };
-  const reduced = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced = () => !!(store && store.get && store.get('cap-anim-reduites')) || !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function appliquerAnim() { document.documentElement.classList.toggle('anim-reduites', !!store.get('cap-anim-reduites')); }
   function toast(msg) { if (/^Échec/.test(msg)) { if (window.CapSon) window.CapSon.jouer('erreur'); } const t = h('div', { class: 'toast glass', role: 'status' }, msg); document.body.appendChild(t); setTimeout(() => t.remove(), 1900); }
   const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }, del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
 
@@ -669,13 +671,20 @@
     const top = h('div', { class: 'ob-top' }, back, h('div', { class: 'prog' }, h('div', { class: 'track', role: 'progressbar', 'aria-valuemin': 1, 'aria-valuemax': shownSteps, 'aria-valuenow': Math.min(OB.idx + 1, shownSteps) }, h('i', { style: 'width:' + Math.round(Math.min(OB.idx + 1, shownSteps) / shownSteps * 100) + '%' })), h('small', null, s.auto ? '' : s.sec + ' · ' + Math.min(OB.idx + 1, shownSteps) + ' sur ' + shownSteps)));
     const stage = h('div', { class: 'stage ' + (OB.dir > 0 ? 'in-r' : 'in-l') },
       OB.intro && OB.idx === 0 ? h('div', { class: 'note tint' }, OB.intro) : null,
-      s.q && !s.auto ? h('h1', null, s.q) : null, s.lead ? h('p', { class: 'lead' }, s.lead) : null, content);
+      s.q && !s.auto ? h('h1', null, s.q) : null, s.lead ? h('p', { class: 'lead' }, s.lead) : null, pourquoiQuestion(s), content);
     const bar = h('div', { class: 'ob-bar' }, h('div', { class: 'in glass' }, err, sk ? sk.el : nextBtn, skipBtn));
     bar.hidden = !!s.auto;
     $app.textContent = '';
     $app.append(h('div', { class: 'ob' }, top, stage), bar);
     ctx.refreshCta();
     window.scrollTo(0, 0);
+  }
+  // « Pourquoi cette question ? » : l'utilité déclarée dans le registre des questions (matrice.js), vérifiée par les tests.
+  function pourquoiQuestion(s) {
+    const M = window.CapMatrice; if (!M || s.auto || s.id === 'bilan' || s.id === 'plan') return null;
+    const q = M.REGISTRE.find(x => x.id === s.id) || M.REGISTRE.find(x => (s.f || []).indexOf(x.variable) >= 0);
+    if (!q || !q.utilite) return null;
+    return h('details', { class: 'ob-pq' }, h('summary', null, 'Pourquoi cette question ?'), h('p', null, q.utilite), s.optional ? h('p', { class: 'foot muted' }, 'Facultatif : tu peux passer, Cap utilisera une hypothèse prudente et te le dira.') : null);
   }
   function makeCtx(s) {
     const ctx = {
@@ -871,7 +880,15 @@
     if (d.entreprise && window.CapProjet) tile('building', 'Vente', 'Montant encaissé', () => window.CapProjet.vente(), 'projet');
     close = sheet('Ajouter', [h('div', { class: 'tiles' }, tiles)], { focus: false });
   }
+  let enRendu = false, aRefaire = false;
   function renderMain() {
+    if (enRendu) { aRefaire = true; return; } // une écriture pendant un rendu relance un rendu propre ensuite
+    enRendu = true;
+    try { renderMain0(); } finally { enRendu = false; }
+    if (aRefaire) { aRefaire = false; window._keepScroll = true; setTimeout(renderMain, 0); }
+  }
+  function renderMain0() {
+    appliquerAnim();
     const d = derive();
     if (ANCIENS[tab] && tab !== 'today') { const a = ANCIENS[tab]; tab = a[0]; if (a[1]) parcours.mod = a[1]; if (a[2]) parcours.corps = a[2]; }
     const dests = [['today', 'Aujourd’hui', 'home'], ['parcours', 'Parcours', 'compass'], ['plus'], d.corps ? ['journal', 'Journal', 'book'] : null, ['profil', 'Profil', 'person']].filter(Boolean);
@@ -902,11 +919,12 @@
     const r = Ruler({ min: lb ? 66 : 30, max: lb ? 660 : 300, step: 0.1, decimals: 1, unit: lb ? 'lb' : 'kg', label: 'Poids', value: A.poids ? Math.round(A.poids * k * 10) / 10 : undefined, start: 70 * k, onChange: v => { A.poids = Math.round(v / k * 100) / 100; } });
     const t = Ruler({ min: 40, max: 200, step: 0.5, decimals: 1, unit: 'cm', label: 'Tour de taille (facultatif)', start: (S.profil || {}).tour || 80, labelDecimals: 0, onChange: v => { A.tour = v; } });
     const dt = h('input', { id: 'p-date', type: 'date', value: dayId(), max: dayId() });
+    const note = h('input', { id: 'p-note', maxlength: '100', placeholder: 'Facultatif : sommeil, repas salé, cycle…' });
     const err = h('div', { class: 'err', role: 'alert' });
     let close;
     const save = h('button', { class: 'btn', type: 'button', onclick: async () => {
       if (!r.isTouched() && !A.poids) { err.textContent = 'Indique ton poids.'; return; }
-      A.poids = Math.round(r.value() / k * 100) / 100; const body = { date: dt.value || dayId(), poids: A.poids }; if (t.isTouched()) body.tour = t.value();
+      A.poids = Math.round(r.value() / k * 100) / 100; const body = { date: dt.value || dayId(), poids: A.poids }; if (t.isTouched()) body.tour = t.value(); if (note.value.trim()) body.note = note.value.trim().slice(0, 100);
       const avant = S.profil ? E.jalons(S.pesees, S.profil.poids, S.profil.cible || S.profil.poids, 0).length : 0;
       try {
         await put('pesees', body.date, body); close(); toast('Pesée enregistrée');
@@ -914,7 +932,7 @@
         if (window.CapSon) window.CapSon.jouer(apres > avant ? 'objectif' : 'valider');
       } catch (e) { err.textContent = 'Échec, réessaie.'; }
     } }, 'Enregistrer');
-    close = sheet('Nouvelle pesée', [h('p', { class: 'muted sub' }, 'Le matin, à jeun, après les toilettes, une fois par semaine.'), r.el, t.el, h('label', { class: 'field', for: 'p-date' }, 'Date', dt), err, save]);
+    close = sheet('Nouvelle pesée', [h('p', { class: 'muted sub' }, 'Le matin, à jeun, une fois par semaine. Le chiffre d’un jour n’est pas une tendance : l’eau et le sel le font varier de 1 à 2 kg.'), r.el, t.el, h('label', { class: 'field', for: 'p-date' }, 'Date', dt), h('label', { class: 'field', for: 'p-note' }, 'Note', note), err, save]);
   }
   // ---------- Programme : la séance du jour (ou la prochaine) d'abord ; la semaine en lignes ; limites distinctes des conseils
   function prochaineSeance(pr) {
@@ -984,39 +1002,51 @@
   }
 
   // ---------- Argent
+  // Argent : la prochaine décision, puis trois couches toujours nommées — Réel, Projection, Hypothèse — puis les détails repliés.
   function viewArgent(d) {
-    const out = [largeTitle('Argent', null, h('button', { class: 'btn small', type: 'button', style: 'background:var(--money)', onclick: () => addMouvement(d) }, icon('plus'), 'Mouvement'))];
+    const out = [largeTitle('Argent', null, h('button', { class: 'btn small', type: 'button', onclick: () => addMouvement(d) }, icon('plus'), 'Mouvement'))];
     const f = d.fin;
-    if (!f || !f.ok) { out.push(h('div', { class: 'note' }, f ? f.message : 'Données manquantes.'), h('button', { class: 'btn', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { only: missingSteps(), fresh: true }) }, 'Compléter')); return out; }
-    // Trois niveaux
-    const n = f.niveaux;
-    out.push(section(null, null, h('div', { class: 'panel flush tiers' },
-      h('div', { class: 'tier' }, h('span', { class: 'dot', style: 'background:var(--ink)' }, icon('star')), h('div', null, h('h3', null, 'Le rêve'), h('p', null, h('b', null, n.reve.titre), ' · ', n.reve.texte))),
-      h('div', { class: 'tier' }, h('span', { class: 'dot', style: 'background:var(--money)' }, icon('target')), h('div', null, h('h3', null, 'L’étape en cours'), h('p', null, h('b', null, n.intermediaire.titre), ' · ', n.intermediaire.texte), h('div', { class: 'bar', style: 'margin-top:8px' }, h('i', { style: 'width:' + Math.max(0, Math.min(100, f.actuelle / n.intermediaire.montant * 100)) + '%;background:var(--money)' })), h('p', { class: 'foot muted', style: 'margin-top:4px' }, eur(Math.max(0, f.actuelle)) + ' sur ' + eur(n.intermediaire.montant)))),
-      h('div', { class: 'tier' }, h('span', { class: 'dot', style: 'background:var(--accent)' }, icon('bolt')), h('div', null, h('h3', null, 'Prochaine action'), h('p', null, n.action.texte)))),
-      h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Réussir une action te rapproche du rêve. Elle ne le garantit pas.')));
-    // Chiffres
-    out.push(h('div', { class: 'stats' },
-      h('div', { class: 'stat' }, h('b', { style: 'color:' + (f.capacite < 0 ? 'var(--bad)' : 'var(--ink)') }, nombre('fin-cap', f.capacite, eur)), h('span', null, 'Capacité / mois')),
-      h('div', { class: 'stat' }, h('b', null, nombre('fin-act', f.actuelle, eur)), h('span', null, 'Épargne actuelle')),
-      h('div', { class: 'stat' }, h('b', null, f.moisAuRythme ? fr(f.moisAuRythme / 12, 1) + ' ans' : '—'), h('span', null, f.moisAuRythme ? 'Au rythme actuel' : 'Pas de date calculable'))));
-    const fz = { atteint: ['Objectif atteint', 'good'], atteignable: ['Atteignable pour ' + d.p.reveAnnee + ' avec ta capacité actuelle', 'good'], ecart: ['Il manque ' + eur(f.ecartMensuel) + ' par mois pour ' + d.p.reveAnnee, 'warn'], impossible_en_l_etat: ['Aucune date calculable en l’état', 'bad'] }[f.faisabilite];
-    out.push(h('div', null, h('span', { class: 'chip ' + fz[1] }, fz[0])));
-    out.push(section('Épargne', 'Trait plein : ce que tu as vraiment mis de côté. Pointillés : projection sans rendement ni imprévu.', h('div', { class: 'panel chart' }, moneyChart(d), h('div', { class: 'legend' }, h('span', null, h('i', { style: 'border-color:var(--money)' }), 'Réel'), f.capacite > 0 ? h('span', null, h('i', { class: 'dash', style: 'border-color:var(--money)' }), 'Projection') : null, f.hypothese && f.hypothese.capacite > 0 ? h('span', null, h('i', { class: 'dot', style: 'border-color:var(--faint)' }), 'Hypothèse ' + eur(f.hypothese.revenu) + '/mois') : null)), h('div', { style: 'margin:0 4px' }, howBtn('Capacité et calendrier', f.calcul))));
-    // Budget
-    out.push(section('Budget mensuel', null, h('div', { class: 'panel flush' },
-      cellKV('Revenus nets', eur(d.p.revenus)), cellKV('Dépenses fixes', '− ' + eur(d.p.fixes)), cellKV('Dépenses variables', '− ' + eur(d.p.variables)), cellKV('Remboursements', '− ' + eur(d.p.remboursements || 0)), cellKV('Reste pour épargner', eur(f.capacite))),
-      h('button', { class: 'link', style: 'margin:0 4px;text-align:left', type: 'button', onclick: () => editStep('variables') }, 'Modifier mes dépenses')));
-    // Coût du rêve
+    if (!f || !f.ok) { out.push(h('div', { class: 'vide' }, h('p', null, f ? f.message : 'Il manque des réponses pour calculer ton budget.'), h('button', { class: 'btn', type: 'button', onclick: () => startOnboarding(Object.assign({}, S.profil), { only: missingSteps(), fresh: true }) }, 'Compléter mes réponses'))); return out; }
+    const n = f.niveaux, p = d.p, mv = S.epargne.filter(m => typeof m.montant === 'number').slice().sort((a, b) => b.date.localeCompare(a.date));
+    // Alertes factuelles, sans jugement
+    if (f.capacite < 0) out.push(h('div', { class: 'ag-alerte', role: 'note' }, h('b', null, 'Déficit de ' + eur(-f.capacite) + ' par mois'), h('p', null, 'D’après tes réponses, tes dépenses et remboursements dépassent tes revenus. Tant que c’est le cas, aucune épargne n’est possible : la priorité est de réduire l’écart.')));
+    else if (f.faisabilite === 'impossible_en_l_etat') out.push(h('div', { class: 'ag-alerte', role: 'note' }, h('b', null, 'Aucune date calculable en l’état'), h('p', null, 'Avec une capacité d’épargne nulle, le projet ne peut pas être daté. Une petite somme régulière suffit à rendre un calendrier possible.')));
+    // 1. La prochaine décision
+    const fait = !!(S.actions.done || {}).argent;
+    out.push(h('section', { class: 'ag-decision' + (fait ? ' faite' : ''), 'aria-labelledby': 'ag-dec' }, h('p', { class: 'ag-k' }, fait ? 'Faite cette semaine' : 'Ta décision de la semaine'), h('h2', { id: 'ag-dec', class: 'ag-dec-t' }, n.action.texte),
+      h('button', { class: 'btn ' + (fait ? 'secondary' : 'ag-go'), type: 'button', onclick: () => U.cocherAction('argent') }, fait ? 'Rouvrir' : 'C’est fait')));
+    // 2. Réel
+    const pct = n.intermediaire.montant > 0 ? Math.max(0, Math.min(1, f.actuelle / n.intermediaire.montant)) : 0;
+    out.push(h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-reel' }, h('h2', { id: 'ag-reel', class: 'ag-h' }, h('span', { class: 'tag mesure' }, 'Réel'), ' Ce que tu as mis de côté'),
+      h('p', { class: 'ag-gros num' }, nombre('fin-act', f.actuelle, eur)),
+      h('p', { class: 'ag-sous' }, mv.length ? 'Épargne de départ déclarée + ' + mv.length + ' mouvement' + (mv.length > 1 ? 's' : '') + ' noté' + (mv.length > 1 ? 's' : '') + '.' : 'Épargne de départ déclarée. Note chaque somme mise de côté pour suivre le réel.'),
+      h('div', { class: 'ag-etape' }, h('div', { class: 'ag-etape-l' }, h('span', null, 'Étape en cours : ' + n.intermediaire.titre), h('b', { class: 'num' }, Math.round(pct * 100) + ' %')), h('div', { class: 'jr-jauge ag', role: 'img', 'aria-label': eur(Math.max(0, f.actuelle)) + ' sur ' + eur(n.intermediaire.montant) }, h('i', { style: 'width:' + pct * 100 + '%' })), h('small', null, eur(Math.max(0, f.actuelle)) + ' sur ' + eur(n.intermediaire.montant))),
+      mv.length ? h('ul', { class: 'td-liste ag-mv' }, mv.slice(0, 3).map(m => h('li', { class: 'pr-jalon' }, h('span', null, m.note || (m.montant >= 0 ? 'Mis de côté' : 'Retiré'), h('small', { class: 'muted' }, ' · ' + fmtD(m.date))), h('b', { class: 'num ' + (m.montant >= 0 ? 'pos' : 'neg') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant)))))) : null));
+    // 3. Projection
+    const fz = { atteint: 'Objectif atteint.', atteignable: 'Atteignable pour ' + p.reveAnnee + ' si ta capacité actuelle se maintient.', ecart: 'Il manquerait ' + eur(f.ecartMensuel) + ' par mois pour ' + p.reveAnnee + '.', impossible_en_l_etat: 'Aucune date calculable en l’état.' }[f.faisabilite];
+    out.push(h('section', { class: 'ag-couche', 'aria-labelledby': 'ag-proj' }, h('h2', { id: 'ag-proj', class: 'ag-h' }, h('span', { class: 'tag calc' }, 'Projection'), ' Si rien ne change'),
+      h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Capacité'), h('span', { class: 'pr-v' }, h('b', { class: 'num' }, eur(f.capacite) + ' par mois'), ' (revenus − dépenses − remboursements)')),
+      h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Projet'), h('span', { class: 'pr-v' }, n.reve.titre + ' · ' + eur(f.reve.total) + ' estimés')),
+      h('div', { class: 'pr-ligne' }, h('span', { class: 'pr-l' }, 'Calendrier'), h('span', { class: 'pr-v' }, (f.moisAuRythme ? '≈ ' + fr(f.moisAuRythme / 12, 1) + ' ans au rythme actuel. ' : '') + fz)),
+      h('div', { class: 'chart' }, moneyChart(d)),
+      h('p', { class: 'foot muted' }, 'Trait plein : le réel. Pointillés : projection sans rendement, sans inflation ni imprévu. Ce n’est pas une promesse.'),
+      howBtn('Capacité et calendrier', f.calcul)));
+    // 4. Hypothèse (facultative)
+    if (f.hypothese && has(p.revenuVise)) out.push(h('section', { class: 'ag-couche hypo', 'aria-labelledby': 'ag-hyp' }, h('h2', { id: 'ag-hyp', class: 'ag-h' }, h('span', { class: 'tag hypo' }, 'Hypothèse'), ' Si ton revenu changeait'),
+      h('p', { class: 'pr-v' }, 'Avec ' + eur(f.hypothese.revenu) + ' nets par mois (le revenu que tu vises), ta capacité serait de ' + eur(f.hypothese.capacite) + ' par mois. Ce revenu n’est pas acquis : il n’entre dans aucun calcul du réel.'),
+      h('button', { class: 'link', type: 'button', onclick: () => editStep('revenuVise') }, 'Modifier ce revenu visé')));
+    // 5. Détails
+    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Budget mensuel'), h('ul', { class: 'td-liste' },
+      [['Revenus nets', eur(p.revenus)], ['Dépenses fixes', '− ' + eur(p.fixes)], ['Dépenses variables', '− ' + eur(p.variables)], ['Remboursements', '− ' + eur(p.remboursements || 0)], ['Reste pour épargner', eur(f.capacite)]].map(x => h('li', { class: 'pr-jalon' }, h('span', null, x[0]), h('b', { class: 'num' }, x[1])))),
+      h('button', { class: 'link', type: 'button', onclick: () => editStep('variables') }, 'Modifier mes dépenses')));
     const r = f.reve;
-    out.push(section('Coût réel du projet', 'Estimations datées du ' + E.REF.date + '. Confiance indiquée pour chaque ligne.', h('div', { class: 'panel flush' }, r.lignes.map(l => h('div', { class: 'cell' }, h('span', { class: 'lbl' }, l[0], h('small', null, l[2] + ' · confiance ' + l[3])), h('span', { class: 'val num', style: 'color:var(--ink)' }, eur(l[1]))))),
-      r.revenuNecessaire ? h('div', { class: 'note' }, h('b', null, 'Revenu net nécessaire ≈ ' + eur(r.revenuNecessaire) + ' / mois. '), r.revenuNote) : null,
-      r.note ? h('p', { class: 'foot muted', style: 'margin:0 4px' }, r.note) : null));
-    if (f.notesLegales.length) out.push(section('À ton âge', null, h('div', { class: 'panel' }, f.notesLegales.map(t => h('p', { class: 'sub' }, t)))));
+    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Coût réel du projet'), h('p', { class: 'foot muted' }, 'Estimations datées du ' + E.REF.date + ', avec la confiance de chaque ligne.'),
+      h('ul', { class: 'td-liste' }, r.lignes.map(l => h('li', { class: 'pr-jalon' }, h('span', null, l[0], h('small', { class: 'muted' }, ' · ' + l[2] + ' · confiance ' + l[3])), h('b', { class: 'num' }, eur(l[1]))))),
+      r.revenuNecessaire ? h('p', { class: 'sub' }, h('b', null, 'Revenu net nécessaire ≈ ' + eur(r.revenuNecessaire) + ' par mois. '), r.revenuNote) : null, r.note ? h('p', { class: 'foot muted' }, r.note) : null));
+    if (f.notesLegales.length) out.push(h('details', { class: 'pg-det' }, h('summary', null, 'À ton âge'), f.notesLegales.map(t => h('p', { class: 'sub' }, t))));
     const imp = d.issues.filter(i => i.domaine === 'argent');
-    if (imp.length) out.push(section('À vérifier', null, imp.map(i => issueView(i, champ => editStep(STEP_BY_FIELD[champ] || champ)))));
-    const mv = S.epargne.slice().sort((a, b) => b.date.localeCompare(a.date));
-    out.push(section('Mouvements enregistrés', null, mv.length ? h('div', { class: 'panel flush' }, mv.map(m => h('div', { class: 'cell' }, h('span', { class: 'lbl' }, m.note || (m.montant >= 0 ? 'Dépôt' : 'Retrait'), h('small', null, fmtD(m.date))), h('span', { class: 'val num', style: 'color:' + (m.montant >= 0 ? 'var(--money)' : 'var(--bad)') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant))), h('button', { class: 'round press', type: 'button', style: 'width:32px;height:32px;background:var(--fill)', 'aria-label': 'Supprimer', onclick: () => confirmDel(() => remove('epargne', m.id)) }, icon('trash'))))) : h('p', { class: 'foot muted', style: 'margin:0 4px' }, 'Aucun mouvement. Ajoute chaque somme mise de côté (ou retirée) pour suivre le réel.')));
+    if (imp.length) out.push(h('details', { class: 'pg-det', open: true }, h('summary', null, 'À vérifier'), imp.map(i => issueView(i, champ => editStep(STEP_BY_FIELD[champ] || champ)))));
+    out.push(h('details', { class: 'pg-det' }, h('summary', null, 'Historique des mouvements (' + mv.length + ')'), mv.length ? h('ul', { class: 'td-liste' }, mv.map(m => h('li', { class: 'pg-log' }, h('span', { class: 'td-l' }, h('b', null, m.note || (m.montant >= 0 ? 'Mis de côté' : 'Retiré')), h('small', null, fmtD(m.date))), h('b', { class: 'num ' + (m.montant >= 0 ? 'pos' : 'neg') }, (m.montant >= 0 ? '+' : '−') + eur(Math.abs(m.montant))), h('button', { class: 'round press pg-del', type: 'button', 'aria-label': 'Supprimer le mouvement du ' + fmtD(m.date), onclick: () => confirmDel(() => remove('epargne', m.id)) }, icon('trash'))))) : h('p', { class: 'foot muted' }, 'Aucun mouvement noté.')));
     return out;
   }
   function moneyChart(d) {
@@ -1063,18 +1093,47 @@
   }
 
   // ---------- Réglages
+  // Centre de confiance : état réel (stockage, connexion, IA, synchronisation), puis consentements séparés et révocables.
+  function centreConfiance(d) {
+    const prefs = S.prefs || {}, mode = db ? (db.cloud ? 'cloud' : 'claude') : 'local';
+    const etatIA = window.CapContrats ? window.CapContrats.statutIA(() => !!(window.CapIA && window.CapIA.dispo())) : null;
+    const photoDispo = !!(window.CapAI && window.CapAI.photoDispo());
+    const etat = h('dl', { class: 'pf-etat' },
+      h('dt', null, 'Tes données'), h('dd', null, { claude: 'Espace Claude privé, synchronisé entre tes appareils Claude', cloud: 'Compte Cap (Supabase), protégé par ton identifiant', local: 'Sur cet appareil uniquement. Exporte-les régulièrement.' }[mode]),
+      h('dt', null, 'Connexion'), h('dd', null, navigator.onLine === false ? 'Hors ligne : tout fonctionne sauf l’IA ; les changements restent sur l’appareil.' : 'En ligne'),
+      h('dt', null, 'IA'), h('dd', null, etatIA && etatIA.actif ? 'Disponible (Claude). Elle propose ; Cap vérifie ; tu décides.' : 'Indisponible ici. Tous les chiffres viennent des règles de Cap.'),
+      h('dt', null, 'Photo de plat'), h('dd', null, photoDispo ? 'Analyse disponible, après ton accord' : 'Indisponible ici (saisie manuelle)'));
+    const ligne = (titre, texte, actions) => h('div', { class: 'pf-cons' }, h('div', { class: 'td-l' }, h('b', null, titre), h('small', null, texte)), actions ? h('div', { class: 'pf-cons-a' }, actions) : null);
+    const sw = (on, label, fn) => h('button', { class: 'pf-sw', type: 'button', role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: fn }, h('span', { class: 'switch' + (on ? ' on' : '') }, h('i')));
+    const cons = [];
+    if (d.corps) cons.push(ligne('Coach · données du corps', 'Poids, objectifs et repas notés peuvent être lus par le coach, seulement quand tu lui poses une question.', sw(prefs.coachCorps, 'Partager mes données corps avec le coach', () => savePrefs({ coachCorps: !prefs.coachCorps }).then(() => renderMain()))));
+    if (d.argent) cons.push(ligne('Coach · données d’argent', 'Budget, épargne et projet, seulement quand tu poses une question.', sw(prefs.coachArgent, 'Partager mes données argent avec le coach', () => savePrefs({ coachArgent: !prefs.coachArgent }).then(() => renderMain()))));
+    if (d.entreprise) cons.push(ligne('IA · projet', 'Tes réponses du module Projet ne sont envoyées que si tu lances toi-même une recherche IA.', null));
+    if (d.corps) cons.push(ligne('IA · photos de plats', prefs.consentScan ? 'Accordé le ' + fmtD(prefs.consentScan.accepte.slice(0, 10)) + '. Chaque photo est montrée avant envoi.' : 'Demandé à chaque première analyse. Aucune photo n’est envoyée sans ton accord.', prefs.consentScan ? h('button', { class: 'btn small text', type: 'button', onclick: () => savePrefs({ consentScan: null }).then(() => { toast('Accord retiré'); renderMain(); }) }, 'Retirer') : null));
+    if (d.corps && window.CapPhotos) {
+      const ph = window.CapPhotos.reglages();
+      const conf = h('div', { class: 'ph-conf', hidden: true }, h('p', { class: 'sub' }, 'Supprimer définitivement tes ' + ph.n + ' photo(s) de progression ? Les fichiers et leurs informations seront effacés. Irréversible.'), h('button', { class: 'btn danger', type: 'button', onclick: () => ph.toutSupprimer() }, 'Tout supprimer définitivement'));
+      cons.push(ligne('Photos de progression', ph.n + ' photo' + (ph.n > 1 ? 's' : '') + ' · ' + (ph.stockage === 'claude' ? 'espace Claude privé' : 'sur cet appareil, non synchronisées') + ' · jamais envoyées à une IA' + (ph.consenti ? '' : ' · conditions pas encore acceptées'),
+        [ph.n ? h('button', { class: 'btn small text', type: 'button', onclick: () => ph.toutTelecharger() }, 'Tout télécharger') : null, ph.consenti ? h('button', { class: 'btn small text', type: 'button', onclick: () => ph.retirerConsentement().then(() => renderMain()) }, 'Retirer l’accord') : null, ph.n ? h('button', { class: 'btn small text danger-t', type: 'button', onclick: () => { conf.hidden = false; } }, 'Supprimer…') : null]), conf);
+    }
+    return [h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-etat' }, h('h2', { id: 'pf-etat', class: 'pf-h' }, 'État'), etat),
+      h('section', { class: 'pf-bloc', 'aria-labelledby': 'pf-conf' }, h('h2', { id: 'pf-conf', class: 'pf-h' }, 'Confidentialité et IA'), h('p', { class: 'pf-sous' }, 'Chaque usage a son propre accord. Rien n’est partagé par défaut.'), cons)];
+  }
   function viewReglages(d) {
-    const p = d.p; const out = [largeTitle('Réglages')];
+    const p = d.p; const out = [largeTitle('Profil', ['corps', 'argent', 'entreprise'].filter(m => (p.domaines || []).indexOf(m) >= 0).map(m => ({ corps: 'Corps', argent: 'Argent', entreprise: 'Projet' })[m]).join(' · ') + (p.age ? ' · ' + p.age + ' ans' : ''))];
+    const repl = (titre, ...kids) => h('details', { class: 'pf-rep' }, h('summary', null, titre), kids);
+    out.push(...centreConfiance(d));
+    out.push(h('h2', { class: 'pf-h' }, 'Tes réponses'), h('p', { class: 'pf-sous' }, 'Chaque réponse se modifie seule, sans refaire tout le questionnaire. L’ancienne version de ton profil est gardée dans l’historique.'));
     const lbl = (arr, v) => { const x = arr.find(a => a[0] === v); return x ? x[1] : '—'; };
     const v = (val, unit) => has(val) ? (typeof val === 'number' ? fr(val, val % 1 ? 1 : 0) : val) + (unit ? ' ' + unit : '') : 'Non renseigné';
     const row = (t, val, step, ic, col) => h('button', { class: 'cell', type: 'button', onclick: () => editStep(step) }, ic ? h('span', { class: 'ico', style: 'background:' + col }, icon(ic)) : null, h('span', { class: 'lbl' }, t), h('span', { class: 'val' }, val), icon('chev', 'chev'));
-    out.push(section(null, null, h('div', { class: 'cap' }, 'Général'), h('div', { class: 'panel flush' },
+    out.push(repl('Général', h('div', { class: 'panel flush' },
       row('Modules suivis', (p.domaines || []).map(x => x === 'corps' ? 'Corps' : 'Argent').join(' + '), 'domaines', 'target', 'var(--ink)'),
       row('Âge', v(p.age, 'ans'), 'age', 'cal', '#8E8E93'),
       row('Temps libre', v(p.tempsLibre, 'h / sem'), 'tempsLibre', 'clock', '#8E8E93'))));
     if (d.corps) {
       const OBJ = [['perdre', 'Perdre du gras'], ['maintenir', 'Maintenir'], ['prendre', 'Prendre du muscle']];
-      out.push(section(null, null, h('div', { class: 'cap' }, 'Corps'), h('div', { class: 'panel flush' },
+      out.push(repl('Corps', h('div', { class: 'panel flush' },
         row('Sexe', lbl([['H', 'Homme'], ['F', 'Femme']], p.sexe), 'sexe', 'body', 'var(--body)'),
         row('Taille', v(p.taille, 'cm'), 'taille', 'body', 'var(--body)'),
         row('Poids de départ', v(p.poids, 'kg'), 'poids', 'scale', 'var(--body)'),
@@ -1084,7 +1143,7 @@
         p.objectif !== 'maintenir' ? row('Rythme', has(p.rythme) ? fr(p.rythme, 2) + ' kg/sem' : 'Recommandé', 'faisabilite', 'chart', 'var(--body)') : null,
         row('Activité quotidienne', lbl([['assis', 'Assise'], ['mixte', 'Mixte'], ['physique', 'Physique']], p.activite), 'activite', 'walk', 'var(--body)'),
         row('Autre sport', v(p.autreSport, 'séance(s)/sem'), 'autreSport', 'bolt', 'var(--body)'))));
-      out.push(section(null, null, h('div', { class: 'cap' }, 'Programme'), h('div', { class: 'panel flush' },
+      out.push(repl('Programme', h('div', { class: 'panel flush' },
         row('Niveau', lbl([['debutant', 'Débutant'], ['intermediaire', 'Intermédiaire'], ['avance', 'Avancé']], p.niveau), 'niveau', 'dumbbell', '#FF9F0A'),
         row('Séances par semaine', v(p.jours), 'jours', 'dumbbell', '#FF9F0A'),
         p.jours > 0 ? row('Durée', v(p.minutes, 'min'), 'minutes', 'clock', '#FF9F0A') : null,
@@ -1098,7 +1157,7 @@
     if (d.corps && window.CapJournal) out.push(window.CapJournal.reglagesNutrition(d));
     if (d.argent) {
       const RV = REVES.map(r => [r.v, r.t]);
-      out.push(section(null, null, h('div', { class: 'cap' }, 'Argent'), h('div', { class: 'panel flush' },
+      out.push(repl('Argent', h('div', { class: 'panel flush' },
         row('Revenus nets', has(p.revenus) ? eur(p.revenus) + ' / mois' : '—', 'revenus', 'wallet', 'var(--money)'),
         row('Dépenses fixes', has(p.fixes) ? eur(p.fixes) : '—', 'fixes', 'wallet', 'var(--money)'),
         row('Dépenses variables', has(p.variables) ? eur(p.variables) : '—', 'variables', 'wallet', 'var(--money)'),
@@ -1111,7 +1170,7 @@
     }
     if (d.entreprise) {
       const Bz = window.CapBusiness;
-      out.push(section(null, null, h('div', { class: 'cap' }, 'Entreprise'), h('div', { class: 'panel flush' },
+      out.push(repl('Entreprise', h('div', { class: 'panel flush' },
         row('Pays', lbl([['france', 'France'], ['emirats', 'Émirats'], ['autre', 'Autre']], p.pays), 'pays', 'building', 'var(--ink)'),
         row('Capital de départ', has(p.capital) ? eur(p.capital) : '—', 'capital', 'wallet', 'var(--ink)'),
         row('Compétences', (p.competences || []).map(c => (Bz && Bz.COMPETENCES[c]) || (c === 'aucune' ? 'Aucune' : c)).join(', ') || '—', 'competences', 'code', 'var(--ink)'),
@@ -1123,12 +1182,16 @@
         row('Format', lbl([['en_ligne', 'En ligne'], ['local', 'Local'], ['les_deux', 'Les deux']], p.formatPref), 'formatPref', 'home', 'var(--ink)'))));
     }
     const sonOn = !!(window.CapSon && window.CapSon.actif());
+    const animOn = !!store.get('cap-anim-reduites');
     out.push(section(null, null, h('div', { class: 'cap' }, 'Préférences'), h('div', { class: 'panel flush' },
+      h('button', { class: 'cell', type: 'button', role: 'switch', 'aria-checked': String(animOn), onclick: () => { if (animOn) store.del('cap-anim-reduites'); else store.set('cap-anim-reduites', 1); appliquerAnim(); window._keepScroll = true; renderMain(); } },
+        h('span', { class: 'lbl' }, 'Réduire les animations', h('small', null, 'Coupe les mouvements de l’interface dans Cap. Le réglage « Réduire les animations » de ton téléphone est aussi respecté.')),
+        h('span', { class: 'switch' + (animOn ? ' on' : '') }, h('i'))),
       h('button', { class: 'cell', type: 'button', role: 'switch', 'aria-checked': String(sonOn), onclick: () => { window.CapSon.regler(!sonOn); window._keepScroll = true; renderMain(); } },
         h('span', { class: 'lbl' }, 'Sons de l’interface', h('small', null, 'Sept sons feutrés : sélection, étape, validation, programme terminé, objectif, erreur, ouverture. Désactivés par défaut. Sur iPhone, ils respectent le mode silencieux (iOS 17 et plus).')),
         h('span', { class: 'switch' + (sonOn ? ' on' : '') }, h('i')))),
       h('p', { class: 'foot muted', style: 'margin:0 16px' }, 'Safari sur iPhone ne permet pas aux sites de faire vibrer le téléphone : pas de retour haptique ici.')));
-    out.push(section(null, null, h('div', { class: 'cap' }, 'Sources et méthode'), h('div', { class: 'panel' },
+    out.push(repl('Sources et limites de Cap', h('div', { class: 'panel' },
       h('p', { class: 'sub' }, 'Les calculs sont faits par des formules fixes, testées, jamais par une IA. Ce sont des estimations, pas des garanties. Cap ne remplace ni un médecin ni un conseiller financier.'),
       h('ul', { class: 'calc' }, Object.keys(E.REF.sources).map(k => h('li', { class: 'foot' }, E.REF.sources[k]))))));
     if (window.CapIAUI) { const cs = window.CapIAUI.complementsSection(); if (cs) out.push(cs); }

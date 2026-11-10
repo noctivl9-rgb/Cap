@@ -24,9 +24,11 @@
     const nEl = ov.querySelector('.sg-n');
     document.body.appendChild(ov); document.body.classList.add('sg-ouvert');
     try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { verrou = l; }, () => {}); } catch (e) { /* facultatif */ }
-    function fermer() { stopRepos(); ov.remove(); document.body.classList.remove('sg-ouvert'); if (verrou) { verrou.release().catch(() => {}); verrou = null; } if (prec && prec.focus) prec.focus(); }
+    function fermer() { stopRepos(); document.removeEventListener('keydown', clavier); document.removeEventListener('focusin', garderFocus); ov.remove(); document.body.classList.remove('sg-ouvert'); if (verrou) { verrou.release().catch(() => {}); verrou = null; } if (prec && prec.focus) prec.focus(); }
     ferme.addEventListener('click', () => { if (st.i < 0 || st.i >= ex.length) { fermer(); return; } quitter(); });
-    ov.addEventListener('keydown', e => { if (e.key === 'Escape') ferme.click(); });
+    const clavier = e => { if (e.key === 'Escape') { e.preventDefault(); ferme.click(); } };
+    const garderFocus = e => { if (!ov.contains(e.target)) titre.focus({ preventScroll: true }); };
+    document.addEventListener('keydown', clavier); document.addEventListener('focusin', garderFocus);
     function stopRepos() { if (st.repos) { clearInterval(st.repos.iv); st.repos = null; } }
     function majProg() { const faits = st.series.filter((n, k) => n >= (ex[k].series || 1)).length; prog.style.setProperty('--p', ex.length ? faits / ex.length : 0); prog.setAttribute('aria-valuenow', String(faits)); nEl.textContent = st.i >= 0 && st.i < ex.length ? (st.i + 1) + ' / ' + ex.length : ''; }
     function poser(t, kids, actions) { titre.textContent = t; corps.textContent = ''; barre.textContent = ''; U().add(corps, kids); U().add(barre, actions); majProg(); titre.focus({ preventScroll: true }); ov.scrollTop = 0; }
@@ -52,10 +54,11 @@
       }
       function lancerRepos(sec) {
         stopRepos(); const t0 = Date.now(); const aff = h('b', { class: 'sg-chrono', role: 'timer', 'aria-live': 'off' });
+        const passer = h('button', { class: 'btn text', type: 'button', onclick: () => { stopRepos(); reposZone.textContent = ''; serieBtn.focus(); } }, 'Passer le repos');
         const ann = h('span', { class: 'sr', 'aria-live': 'polite' });
-        reposZone.textContent = ''; U().add(reposZone, h('div', { class: 'sg-chrono-l' }, h('span', null, 'Repos'), aff), ann, h('button', { class: 'btn text', type: 'button', onclick: () => { stopRepos(); reposZone.textContent = ''; } }, 'Passer le repos'));
+        reposZone.textContent = ''; U().add(reposZone, h('div', { class: 'sg-chrono-l' }, h('span', null, 'Repos'), aff), ann, passer);
         const tick = () => { const r = Math.max(0, sec - Math.floor((Date.now() - t0) / 1000)); aff.textContent = Math.floor(r / 60) + ':' + String(r % 60).padStart(2, '0'); if (r === 0) { stopRepos(); ann.textContent = 'Repos terminé'; aff.textContent = 'À toi'; if (window.CapSon) window.CapSon.jouer('etape'); } };
-        tick(); st.repos = { iv: setInterval(tick, 500) };
+        tick(); st.repos = { iv: setInterval(tick, 500) }; passer.focus();
       }
       const dernier = i === ex.length - 1;
       const suivantBtn = h('button', { class: 'btn ' + (dernier ? '' : 'secondary'), type: 'button', onclick: () => dernier ? terminer() : exercice(i + 1) }, dernier ? 'Terminer la séance' : 'Exercice suivant');
